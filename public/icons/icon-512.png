@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#1a2332"/>
+  <path d="M128 80h160l96 96v256a32 32 0 01-32 32H128a32 32 0 01-32-32V112a32 32 0 0132-32z" fill="white" opacity="0.95"/>
+  <path d="M288 80l96 96h-96V80z" fill="#2563eb"/>
+  <text x="170" y="360" font-family="Arial Hebrew,Arial,sans-serif" font-size="140" font-weight="bold" fill="#1a2332">פ</text>
+</svg>
