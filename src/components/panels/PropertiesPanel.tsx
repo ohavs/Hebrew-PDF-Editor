@@ -24,19 +24,49 @@ export const PropertiesPanel: React.FC = () => {
   }
 }
 
-// Text tool properties
+// Text tool properties — syncs with selected textbox when one is selected
 const TextProperties: React.FC = () => {
   const { t } = useTranslation()
   const { textFont, textSize, textBold, textItalic, textUnderline, textColor, textAlign, textDirection,
           setTextFont, setTextSize, setTextBold, setTextItalic, setTextUnderline, setTextColor, setTextAlign, setTextDirection } = useUIStore()
+  const { annotations, updateAnnotation, selectedId } = useAnnotationsStore()
+
+  // If a textbox is selected, use its properties
+  const selectedBox = selectedId
+    ? annotations.find(a => a.id === selectedId && a.type === 'textbox') as (ReturnType<typeof annotations.find> & { fontFamily?: string; fontSize?: number; fontWeight?: string; fontStyle?: string; textDecoration?: string; color?: string; align?: string; direction?: string }) | undefined
+    : undefined
+
+  const curFont = selectedBox?.fontFamily ?? textFont
+  const curSize = selectedBox?.fontSize ?? textSize
+  const curBold = selectedBox ? selectedBox.fontWeight === 'bold' : textBold
+  const curItalic = selectedBox ? selectedBox.fontStyle === 'italic' : textItalic
+  const curUnder = selectedBox ? selectedBox.textDecoration === 'underline' : textUnderline
+  const curColor = selectedBox?.color ?? textColor
+  const curAlign = (selectedBox?.align ?? textAlign) as 'right'|'center'|'left'|'justify'
+  const curDir = (selectedBox?.direction ?? textDirection) as 'auto'|'rtl'|'ltr'
+
+  const update = (patch: Record<string, unknown>) => {
+    if (selectedBox) updateAnnotation(selectedBox.id, patch as any)
+  }
+
+  const handleFont = (f: string) => { setTextFont(f); update({ fontFamily: f }) }
+  const handleSize = (s: number) => { setTextSize(s); update({ fontSize: s }) }
+  const handleBold = () => { const v = !curBold; setTextBold(v); update({ fontWeight: v ? 'bold' : 'normal' }) }
+  const handleItalic = () => { const v = !curItalic; setTextItalic(v); update({ fontStyle: v ? 'italic' : 'normal' }) }
+  const handleUnder = () => { const v = !curUnder; setTextUnderline(v); update({ textDecoration: v ? 'underline' : 'none' }) }
+  const handleColor = (c: string) => { setTextColor(c); update({ color: c }) }
+  const handleAlign = (a: 'right'|'center'|'left'|'justify') => { setTextAlign(a); update({ align: a }) }
+  const handleDir = (d: 'auto'|'rtl'|'ltr') => { setTextDirection(d); update({ direction: d }) }
 
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div className="panel-title">{t('tools.text')}</div>
+      <div className="panel-title">
+        {selectedBox ? 'עריכת תיבת טקסט' : t('tools.text')}
+      </div>
 
       <div>
         <label className="label">{t('text.fontFamily')}</label>
-        <select className="select" value={textFont} onChange={e => setTextFont(e.target.value)} style={{ width: '100%' }}>
+        <select className="select" value={curFont} onChange={e => handleFont(e.target.value)} style={{ width: '100%' }}>
           {HEBREW_FONTS.map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
         </select>
       </div>
@@ -44,34 +74,29 @@ const TextProperties: React.FC = () => {
       <div style={{ display: 'flex', gap: 8 }}>
         <div style={{ flex: 1 }}>
           <label className="label">{t('text.fontSize')}</label>
-          <select className="select" value={textSize} onChange={e => setTextSize(+e.target.value)} style={{ width: '100%' }}>
+          <select className="select" value={curSize} onChange={e => handleSize(+e.target.value)} style={{ width: '100%' }}>
             {FONT_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <div>
           <label className="label">{t('text.color')}</label>
-          <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)}
+          <input type="color" value={curColor} onChange={e => handleColor(e.target.value)}
             style={{ width: 44, height: 32, padding: 2, border: '1px solid var(--color-border)', borderRadius: 6, cursor: 'pointer' }} />
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: 4 }}>
-        <StyleBtn active={textBold} onClick={() => setTextBold(!textBold)} title={t('text.bold')}>
-          <strong>B</strong>
-        </StyleBtn>
-        <StyleBtn active={textItalic} onClick={() => setTextItalic(!textItalic)} title={t('text.italic')}>
-          <em>I</em>
-        </StyleBtn>
-        <StyleBtn active={textUnderline} onClick={() => setTextUnderline(!textUnderline)} title={t('text.underline')}>
-          <u>U</u>
-        </StyleBtn>
+        <StyleBtn active={curBold} onClick={handleBold} title={t('text.bold')}><strong>B</strong></StyleBtn>
+        <StyleBtn active={curItalic} onClick={handleItalic} title={t('text.italic')}><em>I</em></StyleBtn>
+        <StyleBtn active={curUnder} onClick={handleUnder} title={t('text.underline')}><u>U</u></StyleBtn>
       </div>
 
       <div>
         <label className="label">{t('text.direction')}</label>
         <div style={{ display: 'flex', gap: 4 }}>
           {(['auto','rtl','ltr'] as const).map(d => (
-            <StyleBtn key={d} active={textDirection === d} onClick={() => setTextDirection(d)} title={d === 'auto' ? 'אוטומטי' : d === 'rtl' ? t('text.rtl') : t('text.ltr')}>
+            <StyleBtn key={d} active={curDir === d} onClick={() => handleDir(d)}
+              title={d === 'auto' ? 'אוטומטי' : d === 'rtl' ? t('text.rtl') : t('text.ltr')}>
               {d === 'auto' ? 'A' : d}
             </StyleBtn>
           ))}
@@ -82,7 +107,8 @@ const TextProperties: React.FC = () => {
         <label className="label">{t('text.alignRight')}</label>
         <div style={{ display: 'flex', gap: 4 }}>
           {(['right','center','left','justify'] as const).map(a => (
-            <StyleBtn key={a} active={textAlign === a} onClick={() => setTextAlign(a)} title={t(`text.align${a.charAt(0).toUpperCase()+a.slice(1)}`)}>
+            <StyleBtn key={a} active={curAlign === a} onClick={() => handleAlign(a)}
+              title={t(`text.align${a.charAt(0).toUpperCase()+a.slice(1)}`)}>
               {a === 'right' ? '⇒' : a === 'left' ? '⇐' : a === 'center' ? '⇔' : '≡'}
             </StyleBtn>
           ))}

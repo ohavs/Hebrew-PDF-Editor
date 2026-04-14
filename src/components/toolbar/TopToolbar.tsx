@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { usePDFStore, useAnnotationsStore, useUIStore } from '../../store'
 import { usePDF } from '../../hooks/usePDF'
 import { embedAnnotationsIntoPdf, downloadBlob } from '../../utils/pdfExport'
@@ -10,8 +11,9 @@ export const TopToolbar: React.FC = () => {
   const { pdfDoc, pdfBytes, fileName, zoom, setZoom, currentPage, pageCount, setCurrentPage,
           viewMode, setViewMode, isSaving, setIsSaving, hasUnsavedChanges, pageInfos, pageOrder } = usePDFStore()
   const { annotations, formFields, undo, redo, past, future } = useAnnotationsStore()
-  const { darkMode, toggleDarkMode, language, setLanguage, addToast, isFullscreen, setFullscreen } = useUIStore()
+  const { darkMode, toggleDarkMode, language, setLanguage, addToast, isFullscreen, setFullscreen, sideToolbarOpen, toggleSideToolbar } = useUIStore()
   const { loadPDF } = usePDF()
+  const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pageInput, setPageInput] = useState('')
   const [showExportMenu, setShowExportMenu] = useState(false)
@@ -95,15 +97,17 @@ export const TopToolbar: React.FC = () => {
         color: 'white'
       }}
     >
-      {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginInlineEnd: 12, flexShrink: 0 }}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-        <span style={{ fontWeight: 700, fontSize: 14, color: 'white' }} className="desktop-only">
-          {t('app.name')}
-        </span>
-      </div>
+      {/* Home button */}
+      <TopBtn title="דף ראשי" onClick={() => navigate('/')}>
+        <HomeIcon />
+      </TopBtn>
+
+      <div className="toolbar-sep" style={{ background: 'rgba(255,255,255,0.15)' }} />
+
+      {/* Sidebar toggle */}
+      <TopBtn title={sideToolbarOpen ? 'הסתר סרגל כלים' : 'הצג סרגל כלים'} onClick={toggleSideToolbar} active={sideToolbarOpen}>
+        <SidebarIcon />
+      </TopBtn>
 
       <div className="toolbar-sep" style={{ background: 'rgba(255,255,255,0.15)' }} />
 
@@ -284,6 +288,8 @@ const TopBtn: React.FC<{ title?: string; onClick?: () => void; disabled?: boolea
   )
 
 // Icons
+const HomeIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+const SidebarIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" strokeWidth={2}/><path strokeWidth={2} d="M9 3v18" strokeLinecap="round"/></svg>
 const FolderIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
 const SaveIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
 const ExportIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>

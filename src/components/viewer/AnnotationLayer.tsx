@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { useAnnotationsStore, useUIStore } from '../../store'
 import type { Point, Rect, TextBoxAnnotation, StickyAnnotation, StampAnnotation, HighlightAnnotation, ShapeAnnotation } from '../../store/types'
 import { DrawingCanvas } from '../tools/DrawingCanvas'
@@ -24,23 +24,46 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
   const [isDrawing, setIsDrawing] = useState(false)
   const [drawStart, setDrawStart] = useState<Point | null>(null)
   const [tempRect, setTempRect] = useState<Rect | null>(null)
+  // Track whether something was selected at the moment of mousedown (to avoid creating textbox on deselect-click)
+  const selectedAtMouseDown = useRef<string | null>(null)
 
   const pageAnnotations = annotations.filter(a => a.pageIndex === pageIndex)
+
+  // Delete empty textboxes when switching away from text tool
+  useEffect(() => {
+    if (activeTool !== 'text') {
+      const state = useAnnotationsStore.getState()
+      state.annotations
+        .filter(a => a.type === 'textbox' && !(a as TextBoxAnnotation).content?.trim())
+        .forEach(a => state.deleteAnnotation(a.id))
+    }
+  }, [activeTool])
 
   const getRelativePos = (e: React.MouseEvent): Point => {
     const rect = layerRef.current!.getBoundingClientRect()
     return { x: e.clientX - rect.left, y: e.clientY - rect.top }
   }
 
-  const isRectTool = ['highlight', 'shapes', 'stamp'].includes(activeTool)
+  const isRectTool = ['highlight', 'shapes'].includes(activeTool)
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only handle clicks directly on the layer (empty canvas), not on annotation children
     if ((e.target as HTMLElement) !== layerRef.current) return
+    // Capture selection state BEFORE any changes
+    selectedAtMouseDown.current = selectedId
 
     const pos = getRelativePos(e)
 
     if (activeTool === 'text') {
+      // If something was selected, this click just deselects — don't create a new textbox
+      if (selectedAtMouseDown.current) {
+        selectAnnotation(null)
+        // Delete the empty box that was deselected
+        const deselected = annotations.find(a => a.id === selectedAtMouseDown.current)
+        if (deselected?.type === 'textbox' && !(deselected as TextBoxAnnotation).content?.trim()) {
+          deleteAnnotation(deselected.id)
+        }
+        return
+      }
       pushHistory()
       const tb: Omit<TextBoxAnnotation, 'id' | 'createdAt'> = {
         type: 'textbox', pageIndex,
@@ -126,7 +149,7 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
   }
 
   const handleLayerClick = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement) === layerRef.current) {
+    if ((e.target as HTMLElement) === layerRef.current && activeTool !== 'text') {
       selectAnnotation(null)
     }
   }
@@ -152,7 +175,6 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
       onMouseUp={handleMouseUp}
       onClick={handleLayerClick}
     >
-      {/* Temp rect preview */}
       {isDrawing && tempRect && tempRect.width > 2 && (
         <div style={{
           position: 'absolute', left: tempRect.x, top: tempRect.y,
@@ -163,12 +185,10 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
         }} />
       )}
 
-      {/* Draw canvas — always rendered so paths persist */}
       <DrawingCanvas pageIndex={pageIndex} width={pageWidth} height={pageHeight} />
 
-      {/* Render annotations */}
       {pageAnnotations.map(ann => {
-        if (ann.type === 'draw') return null // handled by DrawingCanvas
+        if (ann.type === 'draw') return null
         if (ann.type === 'textbox') return <TextBox key={ann.id} annotation={ann} />
         if (ann.type === 'highlight') {
           return <HighlightMark key={ann.id} id={ann.id} rect={ann.rect}
@@ -186,14 +206,9 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
 
 const HighlightMark: React.FC<{
   id: string; rect: Rect; color: string; opacity: number; type: string; isSelected: boolean
-}> = ({ id, rect, color, opacity, type, isSelected }) => {
+}> = ({ id, rect, color, opacity, isSelected }) => {
   const { deleteAnnotation, selectAnnotation } = useAnnotationsStore()
   const { activeTool } = useUIStore()
-
-  const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (activeTool === 'select') selectAnnotation(id)
-  }
 
   return (
     <div
@@ -205,7 +220,19 @@ const HighlightMark: React.FC<{
         cursor: 'pointer', pointerEvents: 'all', borderRadius: 2,
         outline: isSelected ? '2px solid #2563eb' : 'none'
       }}
-      onClick={handleClick}
-    />
+      onClick={e => { e.stopPropagation(); if (activeTool === 'select') selectAnnotation(id) }}
+    >
+      {isSelected && (
+        <button
+          onMouseDown={e => { e.stopPropagation(); deleteAnnotation(id) }}
+          style={{
+            position: 'absolute', top: -9, right: -9, width: 18, height: 18,
+            background: 'var(--color-danger)', color: 'white', border: 'none',
+            borderRadius: '50%', fontSize: 12, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 32
+          }}
+        >×</button>
+      )}
+    </div>
   )
 }

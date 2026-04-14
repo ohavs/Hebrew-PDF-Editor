@@ -7,7 +7,7 @@ interface Props { annotation: TextBoxAnnotation }
 
 export const TextBox: React.FC<Props> = ({ annotation }) => {
   const { updateAnnotation, deleteAnnotation, selectAnnotation, selectedId } = useAnnotationsStore()
-  const { activeTool, setTool } = useUIStore()
+  const { activeTool } = useUIStore()
   const isSelected = selectedId === annotation.id
   const contentRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
@@ -26,13 +26,17 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     e.stopPropagation()
-    if (e.key === 'Escape') { contentRef.current?.blur(); selectAnnotation(null) }
+    if (e.key === 'Escape') {
+      contentRef.current?.blur()
+      selectAnnotation(null)
+    }
   }
 
-  // Drag to move
   const startDrag = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).dataset.handle) return
-    e.preventDefault(); e.stopPropagation()
+    e.stopPropagation()
+    if (activeTool !== 'text' && activeTool !== 'select') return
+    e.preventDefault()
     selectAnnotation(annotation.id)
     hasMoved.current = false
     isDragging.current = true
@@ -42,14 +46,21 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
       if (!isDragging.current) return
       hasMoved.current = true
       updateAnnotation(annotation.id, {
-        rect: { ...annotation.rect, x: dragStart.current.ax + ev.clientX - dragStart.current.mx, y: dragStart.current.ay + ev.clientY - dragStart.current.my }
+        rect: { ...annotation.rect,
+          x: dragStart.current.ax + ev.clientX - dragStart.current.mx,
+          y: dragStart.current.ay + ev.clientY - dragStart.current.my
+        }
       })
     }
-    const onUp = () => { isDragging.current = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
-    window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp)
+    const onUp = () => {
+      isDragging.current = false
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
   }
 
-  // Click to focus (but don't re-create)
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (hasMoved.current) return
@@ -59,7 +70,6 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
     }
   }
 
-  // Resize handle
   const startResize = (e: React.MouseEvent) => {
     e.stopPropagation(); e.preventDefault()
     isResizing.current = true
@@ -73,21 +83,35 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
         }
       })
     }
-    const onUp = () => { isResizing.current = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
-    window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp)
+    const onUp = () => {
+      isResizing.current = false
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
   }
 
-  // Sync content without re-triggering input
+  // Sync ALL style + content when annotation props change (e.g. from PropertiesPanel)
   useEffect(() => {
     if (!contentRef.current) return
+    const el = contentRef.current
     const dir = annotation.direction === 'auto' ? getFirstCharDirection(annotation.content) : annotation.direction
-    contentRef.current.style.direction = dir
-    if (contentRef.current.textContent !== annotation.content) {
-      contentRef.current.textContent = annotation.content
+    el.style.direction = dir
+    el.style.fontFamily = `'${annotation.fontFamily}', 'Heebo', sans-serif`
+    el.style.fontSize = `${annotation.fontSize}px`
+    el.style.fontWeight = annotation.fontWeight
+    el.style.fontStyle = annotation.fontStyle
+    el.style.textDecoration = annotation.textDecoration
+    el.style.color = annotation.color
+    el.style.textAlign = annotation.align as string
+    if (el.textContent !== annotation.content) {
+      el.textContent = annotation.content
     }
-  }, [])
+  }, [annotation.fontFamily, annotation.fontSize, annotation.fontWeight, annotation.fontStyle,
+      annotation.textDecoration, annotation.color, annotation.align, annotation.direction, annotation.content])
 
-  // Auto-focus new empty box
+  // Auto-focus new empty boxes
   useEffect(() => {
     if (annotation.content === '' && isSelected) {
       setTimeout(() => contentRef.current?.focus(), 30)
@@ -102,11 +126,12 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
         position: 'absolute', left: annotation.rect.x, top: annotation.rect.y,
         width: annotation.rect.width, minHeight: annotation.rect.height,
         border: showBorder
-          ? `2px ${isSelected ? 'solid' : 'dashed'} ${isSelected ? 'var(--color-accent)' : 'rgba(37,99,235,0.35)'}`
+          ? `2px ${isSelected ? 'solid' : 'dashed'} ${isSelected ? 'var(--color-accent)' : 'rgba(37,99,235,0.25)'}`
           : 'none',
         background: 'transparent',
         cursor: activeTool === 'select' ? 'move' : 'text',
-        zIndex: 30, userSelect: 'none'
+        zIndex: 30, userSelect: 'none',
+        transition: 'border-color 150ms cubic-bezier(0.23,1,0.32,1)'
       }}
       onMouseDown={startDrag}
       onClick={handleClick}
@@ -117,6 +142,7 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
         suppressContentEditableWarning
         onInput={handleInput}
         onKeyDown={handleKeyDown}
+        onClick={e => e.stopPropagation()}
         style={{
           outline: 'none', padding: '3px 6px',
           fontFamily: `'${annotation.fontFamily}', 'Heebo', sans-serif`,
@@ -131,7 +157,6 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
 
       {isSelected && (
         <>
-          {/* Resize handle */}
           <div
             data-handle="resize"
             onMouseDown={startResize}
@@ -141,7 +166,6 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
               border: '1px solid white', borderRadius: 2, cursor: 'nwse-resize', zIndex: 31
             }}
           />
-          {/* Delete */}
           <button
             onMouseDown={e => { e.stopPropagation(); deleteAnnotation(annotation.id) }}
             style={{

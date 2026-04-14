@@ -18,7 +18,7 @@ const TOOLS: Array<{ id: ToolType; label: string; icon: React.ReactNode; group?:
 
 export const SideToolbar: React.FC = () => {
   const { t } = useTranslation()
-  const { activeTool, setTool, setSidePanel, sidePanel } = useUIStore()
+  const { activeTool, setTool, setSidePanel, sideToolbarOpen, setSideToolbarOpen } = useUIStore()
   const { pdfDoc } = usePDFStore()
 
   const handleToolClick = (tool: ToolType) => {
@@ -33,20 +33,21 @@ export const SideToolbar: React.FC = () => {
     <div
       className="no-print desktop-only"
       style={{
-        width: 52,
+        width: sideToolbarOpen ? 52 : 0,
         background: 'var(--color-surface)',
-        borderInlineEnd: '1px solid var(--color-border)',
+        borderInlineEnd: sideToolbarOpen ? '1px solid var(--color-border)' : 'none',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '8px 0',
+        padding: sideToolbarOpen ? '8px 0' : 0,
         gap: 2,
-        overflow: 'auto',
+        overflow: 'hidden',
         flexShrink: 0,
-        zIndex: 100
+        zIndex: 100,
+        transition: 'width 220ms cubic-bezier(0.23,1,0.32,1)'
       }}
     >
-      {groups.map((group, gi) => (
+      {sideToolbarOpen && groups.map((group, gi) => (
         <React.Fragment key={group}>
           {gi > 0 && <div className="divider" style={{ width: 30, margin: '4px 0' }} />}
           {TOOLS.filter(t => t.group === group).map(tool => (

@@ -15,6 +15,7 @@ const MAX_RECENT = 10
 interface UIState {
   activeTool: ToolType
   sidePanel: SidePanel
+  sideToolbarOpen: boolean
   rightPanelOpen: boolean
   darkMode: boolean
   language: 'he' | 'en'
@@ -55,6 +56,8 @@ interface UIState {
   setTool: (tool: ToolType) => void
   setSidePanel: (panel: SidePanel) => void
   toggleSidePanel: (panel: SidePanel) => void
+  setSideToolbarOpen: (v: boolean) => void
+  toggleSideToolbar: () => void
   setRightPanelOpen: (open: boolean) => void
   toggleDarkMode: () => void
   setLanguage: (lang: 'he' | 'en') => void
@@ -91,6 +94,7 @@ interface UIState {
 export const useUIStore = create<UIState>()((set) => ({
   activeTool: 'select',
   sidePanel: 'thumbnails',
+  sideToolbarOpen: true,
   rightPanelOpen: true,
   darkMode: localStorage.getItem('darkMode') === 'true',
   language: (localStorage.getItem('lang') as 'he'|'en') || 'he',
@@ -128,6 +132,8 @@ export const useUIStore = create<UIState>()((set) => ({
   setTool: (tool) => set({ activeTool: tool }),
   setSidePanel: (panel) => set({ sidePanel: panel }),
   toggleSidePanel: (panel) => set((s) => ({ sidePanel: s.sidePanel === panel ? null : panel })),
+  setSideToolbarOpen: (v) => set({ sideToolbarOpen: v }),
+  toggleSideToolbar: () => set((s) => ({ sideToolbarOpen: !s.sideToolbarOpen })),
   setRightPanelOpen: (open) => set({ rightPanelOpen: open }),
   toggleDarkMode: () => set((s) => {
     const v = !s.darkMode
