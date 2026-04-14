@@ -31,7 +31,6 @@ export const StickyNote: React.FC<Props> = ({ annotation }) => {
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (activeTool === 'eraser') { deleteAnnotation(annotation.id); return }
     updateAnnotation(annotation.id, { isOpen: !annotation.isOpen })
   }
 

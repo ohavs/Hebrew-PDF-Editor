@@ -33,7 +33,6 @@
     height: 100%;
     margin: 0;
     padding: 0;
-    overflow: hidden;
     background: var(--color-surface-2);
     color: var(--color-text);
   }
@@ -42,6 +41,17 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+  }
+
+  /* Editor layout needs overflow hidden; landing pages scroll normally */
+  .editor-root {
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  .page-root {
+    overflow-y: auto;
+    min-height: 100vh;
   }
 
   * { box-sizing: border-box; }

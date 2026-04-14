@@ -54,13 +54,12 @@ export default function App() {
 
   return (
     <div
+      className="editor-root"
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
         background: 'var(--color-surface-2)',
         color: 'var(--color-text)',
-        overflow: 'hidden'
       }}
     >
       {/* Top toolbar */}

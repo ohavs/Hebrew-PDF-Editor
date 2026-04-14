@@ -14,7 +14,7 @@ export const SignatureOverlay: React.FC<Props> = ({ annotation }) => {
   const resizeStart = useRef({ mx: 0, my: 0, w: 0, h: 0 })
 
   const startDrag = (e: React.MouseEvent) => {
-    if (activeTool === 'eraser') { deleteAnnotation(annotation.id); return }
+    // eraser tool removed
     if ((e.target as HTMLElement).classList.contains('resize-handle')) return
     e.preventDefault(); e.stopPropagation()
     selectAnnotation(annotation.id)

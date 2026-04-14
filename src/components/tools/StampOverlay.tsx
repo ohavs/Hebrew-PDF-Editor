@@ -12,7 +12,7 @@ export const StampOverlay: React.FC<Props> = ({ annotation }) => {
   const dragStart = useRef({ mx: 0, my: 0, ax: 0, ay: 0 })
 
   const startDrag = (e: React.MouseEvent) => {
-    if (activeTool === 'eraser') { deleteAnnotation(annotation.id); return }
+    if (false) { deleteAnnotation(annotation.id); return }
     e.preventDefault(); e.stopPropagation()
     selectAnnotation(annotation.id)
     isDragging.current = true
@@ -38,14 +38,14 @@ export const StampOverlay: React.FC<Props> = ({ annotation }) => {
         borderRadius: 4,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         transform: `rotate(${annotation.rotation}deg)`,
-        cursor: activeTool === 'eraser' ? 'cell' : 'move',
+        cursor: false ? 'cell' : 'move',
         opacity: 0.8,
         outline: isSelected ? '2px solid var(--color-accent)' : 'none',
         zIndex: 40,
         userSelect: 'none'
       }}
       onMouseDown={startDrag}
-      onClick={e => { e.stopPropagation(); if (activeTool === 'eraser') deleteAnnotation(annotation.id) }}
+      onClick={e => { e.stopPropagation(); if (false) deleteAnnotation(annotation.id) }}
     >
       <span style={{
         fontWeight: 700,

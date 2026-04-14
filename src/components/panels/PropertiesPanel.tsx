@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useUIStore, usePDFStore } from '../../store'
+import { useUIStore, usePDFStore, useAnnotationsStore } from '../../store'
 import { HEBREW_FONTS, FONT_SIZES } from '../../utils/textUtils'
 import { SignatureModal } from '../tools/SignatureModal'
 import { StampPanel } from '../tools/StampPanel'
@@ -12,7 +12,7 @@ export const PropertiesPanel: React.FC = () => {
 
   switch (activeTool) {
     case 'text': return <TextProperties />
-    case 'highlight': case 'underline': case 'strikethrough': return <MarkupProperties />
+    case 'highlight': return <MarkupProperties />
     case 'draw': return <DrawProperties />
     case 'shapes': return <ShapeProperties />
     case 'stamp': return <StampPanel />
@@ -138,8 +138,18 @@ const MarkupProperties: React.FC = () => {
 const DrawProperties: React.FC = () => {
   const { t } = useTranslation()
   const { drawColor, drawWidth, drawOpacity, setDrawColor, setDrawWidth, setDrawOpacity } = useUIStore()
+  const { annotations, deleteAnnotation, pushHistory } = useAnnotationsStore()
 
   const COLORS = ['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#000000']
+
+  const deleteLastDraw = () => {
+    const draws = [...annotations].filter(a => a.type === 'draw')
+    if (!draws.length) return
+    pushHistory()
+    deleteAnnotation(draws[draws.length - 1].id)
+  }
+
+  const drawCount = annotations.filter(a => a.type === 'draw').length
 
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -170,6 +180,18 @@ const DrawProperties: React.FC = () => {
         <input type="range" min="0.1" max="1" step="0.05" value={drawOpacity}
           onChange={e => setDrawOpacity(+e.target.value)} style={{ width: '100%' }} />
       </div>
+
+      <button
+        className="btn btn-secondary"
+        disabled={drawCount === 0}
+        onClick={deleteLastDraw}
+        style={{ marginTop: 4, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}
+      >
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+        מחק ציור אחרון {drawCount > 0 && `(${drawCount})`}
+      </button>
     </div>
   )
 }

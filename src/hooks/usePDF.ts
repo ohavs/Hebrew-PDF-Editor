@@ -41,7 +41,12 @@ export function usePDF() {
       const bytes = new Uint8Array(data)
       setIsLoading(true, 30)
 
-      const loadingTask = pdfjsLib.getDocument({ data: bytes.slice() })
+      const loadingTask = pdfjsLib.getDocument({
+        data: bytes.slice(),
+        cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/cmaps/',
+        cMapPacked: true,
+        standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/standard_fonts/',
+      })
       loadingTask.onProgress = (p: { loaded: number; total: number }) => {
         if (p.total > 0) setIsLoading(true, 30 + Math.round((p.loaded / p.total) * 60))
       }

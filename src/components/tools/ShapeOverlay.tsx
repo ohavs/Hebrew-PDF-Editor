@@ -12,7 +12,7 @@ export const ShapeOverlay: React.FC<Props> = ({ annotation }) => {
   const dragStart = useRef({ mx: 0, my: 0, ax: 0, ay: 0 })
 
   const startDrag = (e: React.MouseEvent) => {
-    if (activeTool === 'eraser') { deleteAnnotation(annotation.id); return }
+    if (false) { deleteAnnotation(annotation.id); return }
     if (activeTool !== 'select') return
     e.preventDefault(); e.stopPropagation()
     selectAnnotation(annotation.id)
@@ -62,13 +62,13 @@ export const ShapeOverlay: React.FC<Props> = ({ annotation }) => {
         position: 'absolute',
         left: x - sw, top: y - sw,
         width: svgW, height: svgH,
-        cursor: activeTool === 'select' ? 'move' : activeTool === 'eraser' ? 'cell' : 'default',
+        cursor: activeTool === 'select' ? 'move' : false ? 'cell' : 'default',
         outline: isSelected ? '1px solid var(--color-accent)' : 'none',
         zIndex: 25,
         userSelect: 'none'
       }}
       onMouseDown={startDrag}
-      onClick={e => { e.stopPropagation(); if (activeTool === 'eraser') deleteAnnotation(annotation.id); else selectAnnotation(annotation.id) }}
+      onClick={e => { e.stopPropagation(); if (false) deleteAnnotation(annotation.id); else selectAnnotation(annotation.id) }}
     >
       <svg width={svgW} height={svgH} style={{ overflow: 'visible' }}>
         {renderShape()}

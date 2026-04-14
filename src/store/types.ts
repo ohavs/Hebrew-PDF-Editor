@@ -1,6 +1,6 @@
 export type ToolType =
-  | 'select' | 'text' | 'highlight' | 'underline' | 'strikethrough'
-  | 'draw' | 'shapes' | 'sticky' | 'stamp' | 'eraser'
+  | 'select' | 'text' | 'highlight'
+  | 'draw' | 'shapes' | 'sticky' | 'stamp'
   | 'forms' | 'signature' | 'pages'
 
 export type ShapeType = 'rect' | 'ellipse' | 'line' | 'arrow'
