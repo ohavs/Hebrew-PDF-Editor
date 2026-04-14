@@ -146,7 +146,12 @@ export const PDFViewer: React.FC = () => {
       {...(pdfDoc ? {} : getRootProps())}
       ref={containerRef}
       className="flex-1 overflow-auto relative"
-      style={{ background: 'var(--color-surface-2)', position: 'relative' }}
+      style={{
+        background: 'var(--color-surface-2)',
+        backgroundImage: 'radial-gradient(var(--color-border) 1px, transparent 1px)',
+        backgroundSize: '24px 24px',
+        position: 'relative',
+      }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
     >
@@ -205,9 +210,9 @@ export const PDFViewer: React.FC = () => {
 
 const EmptyState: React.FC = () => {
   const { loadPDF } = usePDF()
-  const { addToast } = useUIStore()
   const { t } = useTranslation()
   const [urlInput, setUrlInput] = useState('')
+  const [dragging, setDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleUrlLoad = async () => {
@@ -216,37 +221,67 @@ const EmptyState: React.FC = () => {
   }
 
   return (
-    <div style={{ textAlign: 'center', padding: 40, maxWidth: 480 }}>
-      <div style={{ marginBottom: 24 }}>
-        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" style={{ margin: '0 auto' }}>
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      </div>
-      <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8, color: 'var(--color-text)' }}>
-        {t('viewer.dropHere')}
-      </h2>
-      <p style={{ color: 'var(--color-text-muted)', marginBottom: 24 }}>
-        {t('viewer.or')}
-      </p>
-      <button
-        className="btn btn-primary"
-        style={{ marginBottom: 16, fontSize: 15 }}
+    <div style={{
+      textAlign: 'center',
+      padding: '40px 24px',
+      maxWidth: 420,
+      animation: 'fadeUpEmptyState 0.35s cubic-bezier(0.23,1,0.32,1) both',
+    }}>
+      <style>{`
+        @keyframes fadeUpEmptyState {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+
+      {/* Drop zone card */}
+      <div
         onClick={() => fileInputRef.current?.click()}
+        onDragOver={e => { e.preventDefault(); setDragging(true) }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) loadPDF(f) }}
+        style={{
+          border: `2px dashed ${dragging ? 'var(--color-accent)' : 'var(--color-border)'}`,
+          borderRadius: 20,
+          padding: '40px 32px',
+          cursor: 'pointer',
+          background: dragging ? 'rgba(37,99,235,0.04)' : 'var(--color-surface)',
+          transition: 'border-color 200ms ease-out, background 200ms ease-out, transform 160ms cubic-bezier(0.23,1,0.32,1)',
+          marginBottom: 16,
+          transform: dragging ? 'scale(1.02)' : 'scale(1)',
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--color-accent)' }}
+        onMouseLeave={e => { if (!dragging) (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--color-border)' }}
       >
-        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-        </svg>
-        {t('toolbar.open')}
-      </button>
+        {/* PDF illustration */}
+        <div style={{ marginBottom: 20 }}>
+          <svg width="64" height="64" viewBox="0 0 48 48" fill="none" style={{ margin: '0 auto', display: 'block' }}>
+            <rect x="6" y="4" width="26" height="36" rx="4" fill="rgba(37,99,235,0.08)" stroke="var(--color-accent)" strokeWidth="1.5"/>
+            <path d="M32 4l10 10h-10V4z" fill="rgba(37,99,235,0.15)" stroke="var(--color-accent)" strokeWidth="1.5"/>
+            <path d="M12 20h16M12 26h10" stroke="var(--color-accent)" strokeWidth="1.5" strokeLinecap="round"/>
+            <circle cx="38" cy="36" r="9" fill="rgba(37,99,235,0.1)" stroke="var(--color-accent)" strokeWidth="1.5"/>
+            <path d="M38 31v10M33 36h10" stroke="var(--color-accent)" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+        </div>
+
+        <div style={{ fontWeight: 700, fontSize: 17, color: 'var(--color-text)', marginBottom: 8 }}>
+          גרור קובץ PDF לכאן
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+          או לחץ לבחירת קובץ
+        </div>
+      </div>
+
       <input
         ref={fileInputRef}
         type="file"
         accept=".pdf,application/pdf"
-        capture="environment"
         style={{ display: 'none' }}
         onChange={e => { if (e.target.files?.[0]) loadPDF(e.target.files[0]) }}
       />
-      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+
+      {/* URL input */}
+      <div style={{ display: 'flex', gap: 8, direction: 'ltr' }}>
         <input
           className="input"
           placeholder={t('viewer.pasteUrl')}
@@ -254,8 +289,9 @@ const EmptyState: React.FC = () => {
           onChange={e => setUrlInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleUrlLoad()}
           dir="ltr"
+          style={{ flex: 1, fontSize: 12 }}
         />
-        <button className="btn btn-secondary" onClick={handleUrlLoad} style={{ flexShrink: 0 }}>
+        <button className="btn btn-secondary" onClick={handleUrlLoad} style={{ flexShrink: 0, fontSize: 12 }}>
           {t('viewer.loadUrl')}
         </button>
       </div>

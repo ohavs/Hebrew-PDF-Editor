@@ -14,6 +14,9 @@ export const LeftPanel: React.FC = () => {
   const { t } = useTranslation()
   const { sidePanel, setSidePanel } = useUIStore()
 
+  const activeIdx = TABS.findIndex(tab => tab.id === sidePanel)
+  const indicatorLeft = activeIdx >= 0 ? `${(activeIdx / TABS.length) * 100}%` : '0%'
+
   return (
     <div
       className="no-print desktop-only"
@@ -27,24 +30,37 @@ export const LeftPanel: React.FC = () => {
         overflow: 'hidden'
       }}
     >
-      {/* Tab bar */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
-        {TABS.map(tab => (
+      {/* Tab bar with sliding indicator */}
+      <div style={{ position: 'relative', display: 'flex', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
+        {/* Sliding indicator */}
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: indicatorLeft,
+          width: `${100 / TABS.length}%`,
+          height: 2,
+          background: 'var(--color-accent)',
+          borderRadius: '2px 2px 0 0',
+          transition: 'left 220ms cubic-bezier(0.23,1,0.32,1)',
+          pointerEvents: 'none',
+        }} />
+        {TABS.map((tab, i) => (
           <button
             key={tab.id}
             onClick={() => setSidePanel(tab.id)}
             style={{
               flex: 1,
-              padding: '8px 4px',
+              padding: '9px 4px',
               fontSize: 11,
-              fontWeight: 500,
+              fontWeight: 600,
               background: 'transparent',
               border: 'none',
-              borderBottom: `2px solid ${sidePanel === tab.id ? 'var(--color-accent)' : 'transparent'}`,
+              borderBottom: '2px solid transparent',
               color: sidePanel === tab.id ? 'var(--color-accent)' : 'var(--color-text-muted)',
               cursor: 'pointer',
-              transition: 'all 0.15s',
-              fontFamily: 'inherit'
+              transition: 'color 180ms ease-out',
+              fontFamily: 'inherit',
+              letterSpacing: '0.01em',
             }}
           >
             {t(tab.label)}

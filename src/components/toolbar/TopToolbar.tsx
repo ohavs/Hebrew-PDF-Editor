@@ -273,15 +273,38 @@ export const TopToolbar: React.FC = () => {
 const TopBtn: React.FC<{ title?: string; onClick?: () => void; disabled?: boolean; active?: boolean; children: React.ReactNode }> =
   ({ title, onClick, disabled, active, children }) => (
     <button
-      className="btn-icon"
       title={title}
       onClick={onClick}
       disabled={disabled}
       style={{
-        color: active ? '#60a5fa' : 'rgba(255,255,255,0.75)',
-        background: active ? 'rgba(96,165,250,0.15)' : 'transparent',
-        minWidth: 32, minHeight: 32, padding: 6
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+        minWidth: 32,
+        minHeight: 32,
+        padding: '5px 7px',
+        border: 'none',
+        borderRadius: 7,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        outline: 'none',
+        fontFamily: 'inherit',
+        fontSize: 13,
+        color: active ? '#93c5fd' : 'rgba(255,255,255,0.7)',
+        background: active ? 'rgba(147,197,253,0.15)' : 'transparent',
+        opacity: disabled ? 0.4 : 1,
+        transition: 'background 140ms ease-out, color 140ms ease-out, transform 150ms cubic-bezier(0.23,1,0.32,1)',
       }}
+      onMouseEnter={e => {
+        if (!disabled && !active) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.1)'
+        if (!disabled && !active) (e.currentTarget as HTMLButtonElement).style.color = 'white'
+      }}
+      onMouseLeave={e => {
+        if (!active) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+        if (!active) (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.7)'
+      }}
+      onMouseDown={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.9)' }}
+      onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
     >
       {children}
     </button>
