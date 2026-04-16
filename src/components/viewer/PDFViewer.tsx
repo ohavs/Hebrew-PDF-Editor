@@ -14,10 +14,10 @@ export const PDFViewer: React.FC = () => {
   const [visiblePages, setVisiblePages] = useState<Set<number>>(new Set([0]))
   const lastPinchRef = useRef<number>(0)
 
-  // Drag-and-drop to open PDF
+  // Drag-and-drop to open PDF (noClick: true — EmptyState handles clicks itself)
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { 'application/pdf': ['.pdf'] },
-    noClick: !!pdfDoc,
+    noClick: true,
     noKeyboard: true,
     onDrop: (files) => {
       if (files[0]) loadPDF(files[0])

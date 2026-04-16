@@ -15,6 +15,7 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
   const isResizing = useRef(false)
   const resizeStart = useRef({ mx: 0, my: 0, w: 0, h: 0 })
   const hasMoved = useRef(false)
+  const lastTapRef = useRef(0)
   const [isHovered, setIsHovered] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
 
@@ -130,6 +131,66 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
     window.addEventListener('mouseup', onUp)
   }, [annotation.id, annotation.rect, updateAnnotation])
 
+  // ── Touch: drag to move ───────────────────────────────────────────────────
+  const startTouchDrag = useCallback((e: React.TouchEvent) => {
+    if ((e.target as HTMLElement).dataset.handle) return
+    if (!isInteractive) return
+    if (isEditing) return
+    if (e.touches.length !== 1) return
+    e.stopPropagation()
+    e.preventDefault()
+
+    const touch = e.touches[0]
+    selectAnnotation(annotation.id)
+    hasMoved.current = false
+    isDragging.current = true
+    dragStart.current = { mx: touch.clientX, my: touch.clientY, ax: annotation.rect.x, ay: annotation.rect.y }
+
+    const onMove = (ev: TouchEvent) => {
+      if (!isDragging.current || ev.touches.length !== 1) return
+      const t = ev.touches[0]
+      const dx = t.clientX - dragStart.current.mx
+      const dy = t.clientY - dragStart.current.my
+      if (Math.abs(dx) + Math.abs(dy) > 3) hasMoved.current = true
+      updateAnnotation(annotation.id, {
+        rect: { ...annotation.rect, x: dragStart.current.ax + dx, y: dragStart.current.ay + dy }
+      })
+      ev.preventDefault()
+    }
+    const onEnd = () => {
+      isDragging.current = false
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onEnd)
+    }
+    window.addEventListener('touchmove', onMove, { passive: false })
+    window.addEventListener('touchend', onEnd)
+  }, [annotation.id, annotation.rect, isInteractive, isEditing, selectAnnotation, updateAnnotation])
+
+  // Touch tap / double-tap
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation()
+    if (hasMoved.current) return
+    const now = Date.now()
+    if (now - lastTapRef.current < 300) {
+      // Double-tap → enter edit mode, select all
+      selectAnnotation(annotation.id)
+      setIsEditing(true)
+      setTimeout(() => {
+        const el = contentRef.current
+        if (!el) return
+        el.focus()
+        const range = document.createRange()
+        range.selectNodeContents(el)
+        const sel = window.getSelection()
+        sel?.removeAllRanges()
+        sel?.addRange(range)
+      }, 20)
+    } else {
+      selectAnnotation(annotation.id)
+    }
+    lastTapRef.current = now
+  }, [annotation.id, selectAnnotation])
+
   // Auto-focus when newly created (empty box + selected)
   useEffect(() => {
     if (annotation.content === '' && isSelected && !isEditing) {
@@ -177,6 +238,8 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
       onMouseDown={startDrag}
       onClick={handleClick}
       onDoubleClick={handleDblClick}
+      onTouchStart={startTouchDrag}
+      onTouchEnd={handleTouchEnd}
     >
       <div
         ref={contentRef}

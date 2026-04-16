@@ -23,12 +23,10 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
   const [isDrawing, setIsDrawing] = useState(false)
   const [drawStart, setDrawStart] = useState<Point | null>(null)
   const [tempRect, setTempRect] = useState<Rect | null>(null)
-  // Track whether something was selected at the moment of mousedown (to avoid creating textbox on deselect-click)
   const selectedAtMouseDown = useRef<string | null>(null)
 
   const pageAnnotations = annotations.filter(a => a.pageIndex === pageIndex)
 
-  // Delete empty textboxes when switching away from text tool
   useEffect(() => {
     if (activeTool !== 'text') {
       const state = useAnnotationsStore.getState()
@@ -38,25 +36,23 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
     }
   }, [activeTool])
 
-  const getRelativePos = (e: React.MouseEvent): Point => {
+  const getRelativePos = (clientX: number, clientY: number): Point => {
     const rect = layerRef.current!.getBoundingClientRect()
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+    return { x: clientX - rect.left, y: clientY - rect.top }
   }
 
   const isRectTool = ['highlight', 'shapes'].includes(activeTool)
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement) !== layerRef.current) return
-    // Capture selection state BEFORE any changes
-    selectedAtMouseDown.current = selectedId
+  // ── Shared interaction logic ──────────────────────────────────────────────
 
-    const pos = getRelativePos(e)
+  const handleInteractStart = (clientX: number, clientY: number, targetEl: EventTarget | null) => {
+    if ((targetEl as HTMLElement) !== layerRef.current) return
+    selectedAtMouseDown.current = selectedId
+    const pos = getRelativePos(clientX, clientY)
 
     if (activeTool === 'text') {
-      // If something was selected, this click just deselects — don't create a new textbox
       if (selectedAtMouseDown.current) {
         selectAnnotation(null)
-        // Delete the empty box that was deselected
         const deselected = annotations.find(a => a.id === selectedAtMouseDown.current)
         if (deselected?.type === 'textbox' && !(deselected as TextBoxAnnotation).content?.trim()) {
           deleteAnnotation(deselected.id)
@@ -96,18 +92,18 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
     }
   }
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleInteractMove = (clientX: number, clientY: number) => {
     if (!isDrawing || !drawStart) return
-    const pos = getRelativePos(e)
+    const pos = getRelativePos(clientX, clientY)
     setTempRect({
       x: Math.min(pos.x, drawStart.x), y: Math.min(pos.y, drawStart.y),
       width: Math.abs(pos.x - drawStart.x), height: Math.abs(pos.y - drawStart.y)
     })
   }
 
-  const handleMouseUp = (e: React.MouseEvent) => {
+  const handleInteractEnd = (clientX: number, clientY: number) => {
     if (!isDrawing || !drawStart || !tempRect) { setIsDrawing(false); return }
-    const pos = getRelativePos(e)
+    const pos = getRelativePos(clientX, clientY)
     const w = Math.abs(pos.x - drawStart.x)
     const h = Math.abs(pos.y - drawStart.y)
     if (w < 5 && h < 5) { setIsDrawing(false); setTempRect(null); return }
@@ -136,12 +132,41 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
     setIsDrawing(false); setDrawStart(null); setTempRect(null)
   }
 
+  // ── Mouse handlers ────────────────────────────────────────────────────────
+  const handleMouseDown = (e: React.MouseEvent) => {
+    handleInteractStart(e.clientX, e.clientY, e.target)
+  }
+  const handleMouseMove = (e: React.MouseEvent) => handleInteractMove(e.clientX, e.clientY)
+  const handleMouseUp   = (e: React.MouseEvent) => handleInteractEnd(e.clientX, e.clientY)
+
   const handleLayerClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement) === layerRef.current && activeTool !== 'text') {
       selectAnnotation(null)
     }
   }
 
+  // ── Touch handlers ────────────────────────────────────────────────────────
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (activeTool === 'select') return
+    if (e.touches.length !== 1) return
+    e.preventDefault()
+    const t = e.touches[0]
+    handleInteractStart(t.clientX, t.clientY, e.target)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return
+    e.preventDefault()
+    const t = e.touches[0]
+    handleInteractMove(t.clientX, t.clientY)
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const t = e.changedTouches[0]
+    handleInteractEnd(t.clientX, t.clientY)
+  }
+
+  // ── Cursor ────────────────────────────────────────────────────────────────
   const cursor =
     activeTool === 'text' ? 'text' :
     activeTool === 'stamp' ? 'copy' :
@@ -155,12 +180,16 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
         position: 'absolute', top: 0, left: 0,
         width: pageWidth, height: pageHeight,
         pointerEvents: activeTool === 'select' ? 'none' : 'all',
-        cursor, zIndex: 10
+        cursor, zIndex: 10,
+        touchAction: activeTool === 'select' ? 'auto' : 'none',
       }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onClick={handleLayerClick}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       {isDrawing && tempRect && tempRect.width > 2 && (() => {
         const r = tempRect
