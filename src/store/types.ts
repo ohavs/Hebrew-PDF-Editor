@@ -1,7 +1,7 @@
 export type ToolType =
   | 'select' | 'text' | 'highlight'
   | 'draw' | 'shapes' | 'stamp'
-  | 'forms' | 'signature' | 'pages'
+  | 'signature' | 'pages'
 
 export type ShapeType = 'rect' | 'ellipse' | 'line' | 'arrow'
 export type ViewMode = 'single' | 'continuous' | 'two-page'

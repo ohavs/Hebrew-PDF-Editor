@@ -5,8 +5,6 @@ import { HEBREW_FONTS, FONT_SIZES } from '../../utils/textUtils'
 import { SignatureModal } from '../tools/SignatureModal'
 import { StampPanel } from '../tools/StampPanel'
 import { PageManagement } from './PageManagement'
-import { FormsPanel } from './FormsPanel'
-
 export const PropertiesPanel: React.FC = () => {
   const { activeTool } = useUIStore()
 
@@ -18,7 +16,6 @@ export const PropertiesPanel: React.FC = () => {
     case 'stamp': return <StampPanel />
     case 'signature': return <SignatureProperties />
     case 'pages': return <PageManagement />
-    case 'forms': return <FormsPanel />
     default: return <DefaultProperties />
   }
 }
@@ -270,39 +267,88 @@ const ShapeProperties: React.FC = () => {
   )
 }
 
-// Signature properties (launches modal)
+// Signature properties (launches modal + shows saved signatures)
 const SignatureProperties: React.FC = () => {
   const { t } = useTranslation()
   const [showModal, setShowModal] = useState(false)
-  const { pdfDoc } = usePDFStore()
+  const { pdfDoc, currentPage } = usePDFStore()
+  const { savedSignatures, removeSavedSignature, addToast } = useUIStore()
+  const { addAnnotation, pushHistory } = useAnnotationsStore()
+
+  const placeSignature = (imageData: string) => {
+    pushHistory()
+    addAnnotation({
+      type: 'signature', pageIndex: currentPage,
+      rect: { x: 80, y: 280, width: 220, height: 90 },
+      imageData, rotation: 0,
+    } as any)
+    addToast(t('signature.placedSignature'), 'success')
+  }
 
   return (
-    <div style={{ padding: 12 }}>
+    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div className="panel-title">{t('tools.signature')}</div>
-      <button className="btn btn-primary" style={{ width: '100%', marginTop: 8 }}
+      <button className="btn btn-primary" style={{ width: '100%' }}
         disabled={!pdfDoc} onClick={() => setShowModal(true)}>
         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
         </svg>
         {t('signature.draw')}
       </button>
-      {showModal && <SignatureModal onClose={() => setShowModal(false)} />}
-    </div>
-  )
-}
 
-// Sticky note properties
-const StickyProperties: React.FC = () => {
-  const { t } = useTranslation()
-  const { authorName, setAuthorName } = useUIStore()
-  return (
-    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div className="panel-title">{t('tools.sticky')}</div>
-      <div>
-        <label className="label">{t('annotation.author')}</label>
-        <input className="input" value={authorName} onChange={e => setAuthorName(e.target.value)} placeholder="שמך" />
-      </div>
-      <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>לחץ על הדף להוסיף פתק</p>
+      {savedSignatures.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+            חתימות שמורות
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {savedSignatures.map(sig => (
+              <div key={sig.id} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                border: '1px solid var(--color-border)', borderRadius: 8,
+                padding: '4px 8px', background: 'white',
+                cursor: pdfDoc ? 'pointer' : 'not-allowed',
+                opacity: pdfDoc ? 1 : 0.5,
+                transition: 'border-color 130ms cubic-bezier(0.23,1,0.32,1)',
+              }}
+                onMouseEnter={e => { if (pdfDoc) (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--color-accent)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--color-border)' }}
+                onMouseDown={e => { if (pdfDoc) (e.currentTarget as HTMLDivElement).style.transform = 'scale(0.97)' }}
+                onMouseUp={e => { (e.currentTarget as HTMLDivElement).style.transform = '' }}
+                onClick={() => pdfDoc && placeSignature(sig.imageData)}
+                title={`הוסף "${sig.name}"`}
+              >
+                <img src={sig.imageData} alt={sig.name}
+                  style={{ height: 34, width: 76, objectFit: 'contain', flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {sig.name}
+                </span>
+                <button
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={e => { e.stopPropagation(); removeSavedSignature(sig.id) }}
+                  style={{
+                    width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                    background: 'transparent', color: 'var(--color-text-muted)',
+                    border: '1px solid var(--color-border)', cursor: 'pointer',
+                    fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'background 110ms ease, color 110ms ease',
+                  }}
+                  onMouseEnter={e => {
+                    const b = e.currentTarget as HTMLButtonElement
+                    b.style.background = 'var(--color-danger)'; b.style.color = 'white'; b.style.borderColor = 'var(--color-danger)'
+                  }}
+                  onMouseLeave={e => {
+                    const b = e.currentTarget as HTMLButtonElement
+                    b.style.background = 'transparent'; b.style.color = 'var(--color-text-muted)'; b.style.borderColor = 'var(--color-border)'
+                  }}
+                >×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showModal && <SignatureModal onClose={() => setShowModal(false)} />}
     </div>
   )
 }

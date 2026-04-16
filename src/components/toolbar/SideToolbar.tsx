@@ -10,7 +10,6 @@ const TOOLS: Array<{ id: ToolType; label: string; icon: React.ReactNode; group?:
   { id: 'draw', label: 'tools.draw', icon: <DrawIcon />, group: 'draw' },
   { id: 'shapes', label: 'tools.shapes', icon: <ShapesIcon />, group: 'draw' },
   { id: 'stamp', label: 'tools.stamp', icon: <StampIcon />, group: 'draw' },
-  { id: 'forms', label: 'tools.forms', icon: <FormsIcon />, group: 'forms' },
   { id: 'signature', label: 'tools.signature', icon: <SigIcon />, group: 'forms' },
   { id: 'pages', label: 'tools.pages', icon: <PagesIcon />, group: 'pages' },
 ]
@@ -23,7 +22,6 @@ export const SideToolbar: React.FC = () => {
   const handleToolClick = (tool: ToolType) => {
     setTool(tool)
     if (tool === 'pages') setSidePanel('pages')
-    else if (tool === 'forms') setSidePanel('forms')
   }
 
   const groups = ['base', 'annotate', 'draw', 'forms', 'pages']

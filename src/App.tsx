@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { useUIStore } from './store'
 import { TopToolbar } from './components/toolbar/TopToolbar'
-import { HorizontalToolbar, BottomToolbar } from './components/toolbar/HorizontalToolbar'
+import { HorizontalToolbar } from './components/toolbar/HorizontalToolbar'
+import { MobilePropertiesDrawer } from './components/panels/MobilePropertiesDrawer'
 import { LeftPanel } from './components/panels/LeftPanel'
 import { RightPanel } from './components/panels/RightPanel'
 import { PDFViewer } from './components/viewer/PDFViewer'
@@ -80,8 +81,8 @@ export default function App() {
         <RightPanel />
       </div>
 
-      {/* Mobile bottom toolbar */}
-      <BottomToolbar />
+      {/* Mobile properties drawer */}
+      <MobilePropertiesDrawer />
 
       {/* Toasts */}
       <ToastContainer />

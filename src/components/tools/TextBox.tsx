@@ -20,13 +20,13 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
 
   const isInteractive = activeTool === 'text' || activeTool === 'select'
 
-  const handleInput = () => {
+  const handleInput = useCallback(() => {
     const text = contentRef.current?.textContent || ''
     if (annotation.direction === 'auto' && contentRef.current) {
       contentRef.current.style.direction = getFirstCharDirection(text)
     }
     updateAnnotation(annotation.id, { content: text })
-  }
+  }, [annotation.id, annotation.direction, updateAnnotation])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     e.stopPropagation()
@@ -37,9 +37,28 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
     }
   }
 
+  // Sync textContent only when not editing (avoid interrupting user input)
+  useEffect(() => {
+    if (isEditing || !contentRef.current) return
+    const el = contentRef.current
+    if (el.textContent !== annotation.content) {
+      el.textContent = annotation.content
+    }
+  }, [annotation.content, isEditing])
+
+  // Always sync direction from first character
+  useEffect(() => {
+    if (!contentRef.current || !isEditing) return
+    const dir = annotation.direction === 'auto'
+      ? getFirstCharDirection(annotation.content)
+      : annotation.direction
+    contentRef.current.style.direction = dir
+  }, [annotation.direction, annotation.content, isEditing])
+
   const startDrag = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).dataset.handle) return
     if (!isInteractive) return
+    if (isEditing) return  // Don't drag while editing
     e.stopPropagation()
     e.preventDefault()
 
@@ -64,13 +83,12 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
-  }, [annotation.id, annotation.rect, isInteractive, selectAnnotation, updateAnnotation])
+  }, [annotation.id, annotation.rect, isInteractive, isEditing, selectAnnotation, updateAnnotation])
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     if (hasMoved.current) return
     selectAnnotation(annotation.id)
-    // Single click selects; double click (handleDblClick) enters edit mode
   }, [annotation.id, selectAnnotation])
 
   const handleDblClick = useCallback((e: React.MouseEvent) => {
@@ -78,17 +96,15 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
     selectAnnotation(annotation.id)
     setIsEditing(true)
     setTimeout(() => {
-      contentRef.current?.focus()
-      // Place cursor at end
       const el = contentRef.current
-      if (el) {
-        const range = document.createRange()
-        range.selectNodeContents(el)
-        range.collapse(false)
-        const sel = window.getSelection()
-        sel?.removeAllRanges()
-        sel?.addRange(range)
-      }
+      if (!el) return
+      el.focus()
+      // Select all text on double-click (like a regular input field)
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      const sel = window.getSelection()
+      sel?.removeAllRanges()
+      sel?.addRange(range)
     }, 20)
   }, [annotation.id, selectAnnotation])
 
@@ -114,42 +130,19 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
     window.addEventListener('mouseup', onUp)
   }, [annotation.id, annotation.rect, updateAnnotation])
 
-  // Sync ALL style + content when annotation props change
-  useEffect(() => {
-    if (!contentRef.current) return
-    const el = contentRef.current
-    const dir = annotation.direction === 'auto' ? getFirstCharDirection(annotation.content) : annotation.direction
-    el.style.direction = dir
-    el.style.fontFamily = `'${annotation.fontFamily}', 'Heebo', sans-serif`
-    el.style.fontSize = `${annotation.fontSize}px`
-    el.style.fontWeight = annotation.fontWeight
-    el.style.fontStyle = annotation.fontStyle
-    el.style.textDecoration = annotation.textDecoration
-    el.style.color = annotation.color
-    el.style.textAlign = annotation.align as string
-    if (el.textContent !== annotation.content) {
-      el.textContent = annotation.content
-    }
-  }, [annotation.fontFamily, annotation.fontSize, annotation.fontWeight, annotation.fontStyle,
-      annotation.textDecoration, annotation.color, annotation.align, annotation.direction, annotation.content])
-
   // Auto-focus when newly created (empty box + selected)
   useEffect(() => {
     if (annotation.content === '' && isSelected && !isEditing) {
       setIsEditing(true)
       setTimeout(() => contentRef.current?.focus(), 30)
     }
-  }, [isSelected])
+  }, [isSelected]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // When deselected, stop editing mode
   useEffect(() => {
     if (!isSelected) setIsEditing(false)
   }, [isSelected])
 
-  // Border logic:
-  // - Selected: solid blue border
-  // - Hovered (text/select tool): subtle dashed border so user can see it exists
-  // - Otherwise: invisible (no border)
   const showSolidBorder = isSelected
   const showHoverBorder = !isSelected && isHovered && isInteractive
   const border = showSolidBorder
@@ -157,6 +150,10 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
     : showHoverBorder
     ? '1.5px dashed rgba(37,99,235,0.35)'
     : '1.5px dashed transparent'
+
+  const dir = annotation.direction === 'auto'
+    ? getFirstCharDirection(annotation.content)
+    : annotation.direction
 
   return (
     <div
@@ -183,15 +180,15 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
     >
       <div
         ref={contentRef}
-        contentEditable={isEditing || isSelected}
+        contentEditable={isEditing}
         suppressContentEditableWarning
         onInput={handleInput}
         onKeyDown={handleKeyDown}
         onFocus={() => setIsEditing(true)}
         onBlur={() => {
-          // slight delay so click-outside deselect can fire first
-          setTimeout(() => setIsEditing(false), 80)
+          setTimeout(() => setIsEditing(false), 100)
         }}
+        onMouseDown={e => { if (isEditing) e.stopPropagation() }}
         onClick={e => e.stopPropagation()}
         style={{
           outline: 'none',
@@ -203,7 +200,7 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
           textDecoration: annotation.textDecoration,
           color: annotation.color,
           textAlign: annotation.align as any,
-          direction: annotation.direction === 'auto' ? 'rtl' : annotation.direction,
+          direction: dir,
           unicodeBidi: 'plaintext',
           wordBreak: 'break-word',
           whiteSpace: 'pre-wrap',
@@ -215,7 +212,6 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
 
       {isSelected && (
         <>
-          {/* Resize handle (bottom-right) */}
           <div
             data-handle="resize"
             onMouseDown={startResize}
@@ -230,7 +226,6 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
               boxShadow: '0 1px 4px rgba(37,99,235,0.4)',
             }}
           />
-          {/* Delete button */}
           <button
             onMouseDown={e => { e.stopPropagation(); deleteAnnotation(annotation.id) }}
             style={{
@@ -248,7 +243,6 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
               boxShadow: '0 1px 4px rgba(239,68,68,0.4)',
             }}
           >×</button>
-          {/* Edit hint when selected but not editing */}
           {!isEditing && annotation.content && (
             <div style={{
               position: 'absolute', top: -22, left: 0,

@@ -18,10 +18,7 @@ const GROUPS: ToolDef[][] = [
     { id: 'stamp', label: 'חותמת', icon: <StampIcon /> },
   ],
   [
-    { id: 'forms', label: 'טפסים', icon: <FormsIcon /> },
     { id: 'signature', label: 'חתימה', icon: <SigIcon /> },
-  ],
-  [
     { id: 'pages', label: 'דפים', icon: <PagesIcon /> },
   ],
 ]
@@ -33,7 +30,6 @@ export const HorizontalToolbar: React.FC = () => {
   const handleTool = (id: ToolType) => {
     setTool(id)
     if (id === 'pages') setSidePanel('pages')
-    else if (id === 'forms') setSidePanel('forms')
   }
 
   return (
@@ -138,7 +134,7 @@ export const BottomToolbar: React.FC = () => {
     { id: 'text', label: 'טקסט', icon: <TextIcon /> },
     { id: 'highlight', label: 'הדגשה', icon: <HighlightIcon /> },
     { id: 'draw', label: 'ציור', icon: <DrawIcon /> },
-    { id: 'forms', label: 'טפסים', icon: <FormsIcon /> },
+    { id: 'shapes', label: 'צורות', icon: <ShapesIcon /> },
     { id: 'signature', label: 'חתימה', icon: <SigIcon /> },
   ]
   return (
@@ -187,9 +183,6 @@ function ShapesIcon() {
 }
 function StampIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
-}
-function FormsIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
 }
 function SigIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/><path strokeLinecap="round" d="M3 21h18" strokeWidth="1.5"/></svg>

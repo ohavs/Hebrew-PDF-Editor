@@ -430,9 +430,39 @@ input[type=checkbox] {
 /* Responsive mobile */
 @media (max-width: 767px) {
   .desktop-only { display: none !important; }
+  .editor-root { padding-bottom: 0; }
 }
 @media (min-width: 768px) {
   .mobile-only { display: none !important; }
+}
+
+/* Mobile properties drawer */
+.mobile-props-drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  border-radius: 16px 16px 0 0;
+  z-index: 400;
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.12);
+  max-height: 70vh;
+  overflow-y: auto;
+  transform: translateY(0);
+  transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.mobile-props-drawer.hidden {
+  transform: translateY(100%);
+  pointer-events: none;
+}
+.mobile-props-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 2px;
+  margin: 10px auto 0;
+  cursor: pointer;
 }
 
 /* Print */

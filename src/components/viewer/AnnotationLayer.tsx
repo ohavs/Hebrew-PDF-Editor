@@ -17,7 +17,8 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
   const layerRef = useRef<HTMLDivElement>(null)
   const { annotations, addAnnotation, deleteAnnotation, selectedId, selectAnnotation, pushHistory } = useAnnotationsStore()
   const { activeTool, highlightColor, highlightOpacity, stampText, stampColor, stampIsHebrew,
-          textFont, textSize, textBold, textItalic, textUnderline, textColor, textAlign, textDirection } = useUIStore()
+          textFont, textSize, textBold, textItalic, textUnderline, textColor, textAlign, textDirection,
+          shapeType, shapeFill, shapeStroke, shapeWidth } = useUIStore()
 
   const [isDrawing, setIsDrawing] = useState(false)
   const [drawStart, setDrawStart] = useState<Point | null>(null)
@@ -161,15 +162,50 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
       onMouseUp={handleMouseUp}
       onClick={handleLayerClick}
     >
-      {isDrawing && tempRect && tempRect.width > 2 && (
-        <div style={{
-          position: 'absolute', left: tempRect.x, top: tempRect.y,
-          width: tempRect.width, height: tempRect.height,
-          border: '2px dashed rgba(37,99,235,0.6)',
-          background: activeTool === 'highlight' ? highlightColor : 'rgba(37,99,235,0.05)',
-          pointerEvents: 'none'
-        }} />
-      )}
+      {isDrawing && tempRect && tempRect.width > 2 && (() => {
+        const r = tempRect
+        if (activeTool === 'highlight') {
+          return (
+            <div style={{
+              position: 'absolute', left: r.x, top: r.y, width: r.width, height: r.height,
+              background: highlightColor, opacity: highlightOpacity,
+              mixBlendMode: 'multiply' as const, pointerEvents: 'none', borderRadius: 2,
+            }} />
+          )
+        }
+        if (activeTool === 'shapes') {
+          const sw = shapeWidth
+          const svgW = r.width + sw * 2, svgH = r.height + sw * 2
+          const ox = sw, oy = sw
+          const shapeProps = { stroke: shapeStroke, strokeWidth: sw, fill: shapeFill !== 'transparent' ? shapeFill : 'none', opacity: 0.85 }
+          let shapeEl: React.ReactNode = null
+          if (shapeType === 'rect') shapeEl = <rect x={ox} y={oy} width={r.width} height={r.height} rx={2} {...shapeProps} />
+          else if (shapeType === 'ellipse') shapeEl = <ellipse cx={ox + r.width/2} cy={oy + r.height/2} rx={r.width/2} ry={r.height/2} {...shapeProps} />
+          else if (shapeType === 'line') shapeEl = <line x1={ox} y1={oy + r.height} x2={ox + r.width} y2={oy} stroke={shapeStroke} strokeWidth={sw} />
+          else if (shapeType === 'arrow') {
+            const x1 = ox, y1 = oy + r.height, x2 = ox + r.width, y2 = oy
+            const dx = x2-x1, dy = y2-y1, len = Math.sqrt(dx*dx+dy*dy)
+            if (len >= 4) {
+              const hl = Math.max(10, Math.min(24, len*0.25)), ang = Math.atan2(dy,dx), sp = 0.42
+              const tx = x2, ty = y2
+              const p1x = tx-hl*Math.cos(ang-sp), p1y = ty-hl*Math.sin(ang-sp)
+              const p2x = tx-hl*Math.cos(ang+sp), p2y = ty-hl*Math.sin(ang+sp)
+              const bmx = (p1x+p2x)/2, bmy = (p1y+p2y)/2
+              shapeEl = <g>
+                <line x1={x1} y1={y1} x2={bmx} y2={bmy} stroke={shapeStroke} strokeWidth={sw} strokeLinecap="round"/>
+                <polygon points={`${tx},${ty} ${p1x},${p1y} ${p2x},${p2y}`} fill={shapeStroke} />
+              </g>
+            }
+          }
+          return (
+            <svg style={{ position: 'absolute', left: r.x - sw, top: r.y - sw, overflow: 'visible', pointerEvents: 'none' }}
+              width={svgW} height={svgH}>
+              {shapeEl}
+            </svg>
+          )
+        }
+        return null
+      })()}
 
       <DrawingCanvas pageIndex={pageIndex} width={pageWidth} height={pageHeight} />
 
