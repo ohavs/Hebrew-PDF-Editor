@@ -1,9 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { useAnnotationsStore, useUIStore } from '../../store'
-import type { Point, Rect, TextBoxAnnotation, StickyAnnotation, StampAnnotation, HighlightAnnotation, ShapeAnnotation } from '../../store/types'
+import type { Point, Rect, TextBoxAnnotation, StampAnnotation, HighlightAnnotation, ShapeAnnotation } from '../../store/types'
 import { DrawingCanvas } from '../tools/DrawingCanvas'
 import { TextBox } from '../tools/TextBox'
-import { StickyNote } from '../tools/StickyNote'
 import { StampOverlay } from '../tools/StampOverlay'
 import { SignatureOverlay } from '../tools/SignatureOverlay'
 import { ShapeOverlay } from '../tools/ShapeOverlay'
@@ -18,8 +17,7 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
   const layerRef = useRef<HTMLDivElement>(null)
   const { annotations, addAnnotation, deleteAnnotation, selectedId, selectAnnotation, pushHistory } = useAnnotationsStore()
   const { activeTool, highlightColor, highlightOpacity, stampText, stampColor, stampIsHebrew,
-          textFont, textSize, textBold, textItalic, textUnderline, textColor, textAlign, textDirection,
-          authorName } = useUIStore()
+          textFont, textSize, textBold, textItalic, textUnderline, textColor, textAlign, textDirection } = useUIStore()
 
   const [isDrawing, setIsDrawing] = useState(false)
   const [drawStart, setDrawStart] = useState<Point | null>(null)
@@ -72,20 +70,9 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
         fontWeight: textBold ? 'bold' : 'normal',
         fontStyle: textItalic ? 'italic' : 'normal',
         textDecoration: textUnderline ? 'underline' : 'none',
-        color: textColor, align: textAlign, direction: textDirection, author: authorName
+        color: textColor, align: textAlign, direction: textDirection
       }
       addAnnotation(tb)
-      return
-    }
-
-    if (activeTool === 'sticky') {
-      pushHistory()
-      const sticky: Omit<StickyAnnotation, 'id' | 'createdAt'> = {
-        type: 'sticky', pageIndex, position: pos,
-        content: '', color: '#fef9c3',
-        author: authorName || 'משתמש', isOpen: true
-      }
-      addAnnotation(sticky)
       return
     }
 
@@ -95,7 +82,7 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
         type: 'stamp', pageIndex,
         rect: { x: pos.x - 60, y: pos.y - 20, width: 120, height: 40 },
         text: stampText, isHebrew: stampIsHebrew,
-        color: stampColor, fontSize: 20, rotation: -15, author: authorName
+        color: stampColor, fontSize: 20, rotation: -15
       }
       addAnnotation(stamp)
       return
@@ -132,7 +119,7 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
     if (activeTool === 'highlight') {
       const hl: Omit<HighlightAnnotation, 'id' | 'createdAt'> = {
         type: 'highlight', pageIndex, rect,
-        color: highlightColor, opacity: highlightOpacity, author: authorName
+        color: highlightColor, opacity: highlightOpacity
       }
       addAnnotation(hl)
     } else if (activeTool === 'shapes') {
@@ -140,7 +127,7 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
       const shape: Omit<ShapeAnnotation, 'id' | 'createdAt'> = {
         type: 'shape', pageIndex, rect,
         shape: shapeType, strokeColor: shapeStroke,
-        fillColor: shapeFill, strokeWidth: shapeWidth, opacity: 1, author: authorName
+        fillColor: shapeFill, strokeWidth: shapeWidth, opacity: 1
       }
       addAnnotation(shape)
     }
@@ -157,7 +144,6 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
   const cursor =
     activeTool === 'text' ? 'text' :
     activeTool === 'stamp' ? 'copy' :
-    activeTool === 'sticky' ? 'cell' :
     (isRectTool || activeTool === 'highlight') ? 'crosshair' :
     activeTool === 'draw' ? 'crosshair' : 'default'
 
@@ -194,7 +180,6 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
           return <HighlightMark key={ann.id} id={ann.id} rect={ann.rect}
             color={ann.color} opacity={ann.opacity} type={ann.type} isSelected={selectedId === ann.id} />
         }
-        if (ann.type === 'sticky') return <StickyNote key={ann.id} annotation={ann} />
         if (ann.type === 'stamp') return <StampOverlay key={ann.id} annotation={ann} />
         if (ann.type === 'signature') return <SignatureOverlay key={ann.id} annotation={ann} />
         if (ann.type === 'shape') return <ShapeOverlay key={ann.id} annotation={ann} />

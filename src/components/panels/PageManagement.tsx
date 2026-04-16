@@ -105,8 +105,17 @@ export const PageManagement: React.FC = () => {
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div className="panel-title">{t('tools.pages')}</div>
-      <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 4 }}>
-        דף נוכחי: {currentPage + 1} / {pageCount}
+      {/* Selected page indicator */}
+      <div style={{
+        background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.2)',
+        borderRadius: 8, padding: '8px 10px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <svg width="14" height="14" fill="none" stroke="var(--color-accent)" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        <span style={{ color: 'var(--color-accent)', fontWeight: 600 }}>דף {currentPage + 1}</span>
+        <span style={{ color: 'var(--color-text-muted)' }}>מתוך {pageCount}</span>
+        <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginRight: 'auto' }}>לחץ על דף לבחירה</span>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>

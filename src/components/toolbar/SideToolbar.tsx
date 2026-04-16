@@ -9,7 +9,6 @@ const TOOLS: Array<{ id: ToolType; label: string; icon: React.ReactNode; group?:
   { id: 'highlight', label: 'tools.highlight', icon: <HighlightIcon />, group: 'annotate' },
   { id: 'draw', label: 'tools.draw', icon: <DrawIcon />, group: 'draw' },
   { id: 'shapes', label: 'tools.shapes', icon: <ShapesIcon />, group: 'draw' },
-  { id: 'sticky', label: 'tools.sticky', icon: <StickyIcon />, group: 'draw' },
   { id: 'stamp', label: 'tools.stamp', icon: <StampIcon />, group: 'draw' },
   { id: 'forms', label: 'tools.forms', icon: <FormsIcon />, group: 'forms' },
   { id: 'signature', label: 'tools.signature', icon: <SigIcon />, group: 'forms' },

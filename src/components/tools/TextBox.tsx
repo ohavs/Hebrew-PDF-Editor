@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState, useCallback } from 'react'
 import { useAnnotationsStore, useUIStore } from '../../store'
 import type { TextBoxAnnotation } from '../../store/types'
 import { getFirstCharDirection } from '../../utils/textUtils'
@@ -15,6 +15,10 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
   const isResizing = useRef(false)
   const resizeStart = useRef({ mx: 0, my: 0, w: 0, h: 0 })
   const hasMoved = useRef(false)
+  const [isHovered, setIsHovered] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+
+  const isInteractive = activeTool === 'text' || activeTool === 'select'
 
   const handleInput = () => {
     const text = contentRef.current?.textContent || ''
@@ -28,15 +32,17 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
     e.stopPropagation()
     if (e.key === 'Escape') {
       contentRef.current?.blur()
+      setIsEditing(false)
       selectAnnotation(null)
     }
   }
 
-  const startDrag = (e: React.MouseEvent) => {
+  const startDrag = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).dataset.handle) return
+    if (!isInteractive) return
     e.stopPropagation()
-    if (activeTool !== 'text' && activeTool !== 'select') return
     e.preventDefault()
+
     selectAnnotation(annotation.id)
     hasMoved.current = false
     isDragging.current = true
@@ -44,12 +50,11 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
 
     const onMove = (ev: MouseEvent) => {
       if (!isDragging.current) return
-      hasMoved.current = true
+      const dx = ev.clientX - dragStart.current.mx
+      const dy = ev.clientY - dragStart.current.my
+      if (Math.abs(dx) + Math.abs(dy) > 3) hasMoved.current = true
       updateAnnotation(annotation.id, {
-        rect: { ...annotation.rect,
-          x: dragStart.current.ax + ev.clientX - dragStart.current.mx,
-          y: dragStart.current.ay + ev.clientY - dragStart.current.my
-        }
+        rect: { ...annotation.rect, x: dragStart.current.ax + dx, y: dragStart.current.ay + dy }
       })
     }
     const onUp = () => {
@@ -59,18 +64,35 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
-  }
+  }, [annotation.id, annotation.rect, isInteractive, selectAnnotation, updateAnnotation])
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     if (hasMoved.current) return
     selectAnnotation(annotation.id)
-    if (activeTool === 'text' || activeTool === 'select') {
-      setTimeout(() => contentRef.current?.focus(), 10)
-    }
-  }
+    // Single click selects; double click (handleDblClick) enters edit mode
+  }, [annotation.id, selectAnnotation])
 
-  const startResize = (e: React.MouseEvent) => {
+  const handleDblClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    selectAnnotation(annotation.id)
+    setIsEditing(true)
+    setTimeout(() => {
+      contentRef.current?.focus()
+      // Place cursor at end
+      const el = contentRef.current
+      if (el) {
+        const range = document.createRange()
+        range.selectNodeContents(el)
+        range.collapse(false)
+        const sel = window.getSelection()
+        sel?.removeAllRanges()
+        sel?.addRange(range)
+      }
+    }, 20)
+  }, [annotation.id, selectAnnotation])
+
+  const startResize = useCallback((e: React.MouseEvent) => {
     e.stopPropagation(); e.preventDefault()
     isResizing.current = true
     resizeStart.current = { mx: e.clientX, my: e.clientY, w: annotation.rect.width, h: annotation.rect.height }
@@ -90,9 +112,9 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
-  }
+  }, [annotation.id, annotation.rect, updateAnnotation])
 
-  // Sync ALL style + content when annotation props change (e.g. from PropertiesPanel)
+  // Sync ALL style + content when annotation props change
   useEffect(() => {
     if (!contentRef.current) return
     const el = contentRef.current
@@ -111,70 +133,133 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
   }, [annotation.fontFamily, annotation.fontSize, annotation.fontWeight, annotation.fontStyle,
       annotation.textDecoration, annotation.color, annotation.align, annotation.direction, annotation.content])
 
-  // Auto-focus new empty boxes
+  // Auto-focus when newly created (empty box + selected)
   useEffect(() => {
-    if (annotation.content === '' && isSelected) {
+    if (annotation.content === '' && isSelected && !isEditing) {
+      setIsEditing(true)
       setTimeout(() => contentRef.current?.focus(), 30)
     }
   }, [isSelected])
 
-  const showBorder = isSelected || activeTool === 'text'
+  // When deselected, stop editing mode
+  useEffect(() => {
+    if (!isSelected) setIsEditing(false)
+  }, [isSelected])
+
+  // Border logic:
+  // - Selected: solid blue border
+  // - Hovered (text/select tool): subtle dashed border so user can see it exists
+  // - Otherwise: invisible (no border)
+  const showSolidBorder = isSelected
+  const showHoverBorder = !isSelected && isHovered && isInteractive
+  const border = showSolidBorder
+    ? '2px solid var(--color-accent)'
+    : showHoverBorder
+    ? '1.5px dashed rgba(37,99,235,0.35)'
+    : '1.5px dashed transparent'
 
   return (
     <div
       style={{
-        position: 'absolute', left: annotation.rect.x, top: annotation.rect.y,
-        width: annotation.rect.width, minHeight: annotation.rect.height,
-        border: showBorder
-          ? `2px ${isSelected ? 'solid' : 'dashed'} ${isSelected ? 'var(--color-accent)' : 'rgba(37,99,235,0.25)'}`
-          : 'none',
-        background: 'transparent',
-        cursor: activeTool === 'select' ? 'move' : 'text',
-        zIndex: 30, userSelect: 'none',
-        transition: 'border-color 150ms cubic-bezier(0.23,1,0.32,1)'
+        position: 'absolute',
+        left: annotation.rect.x,
+        top: annotation.rect.y,
+        width: annotation.rect.width,
+        minHeight: annotation.rect.height,
+        border,
+        background: isSelected ? 'rgba(37,99,235,0.02)' : 'transparent',
+        cursor: isInteractive ? (isEditing ? 'text' : 'move') : 'default',
+        zIndex: isSelected ? 35 : 30,
+        userSelect: 'none',
+        borderRadius: 3,
+        transition: 'border-color 120ms cubic-bezier(0.23,1,0.32,1), background 120ms ease',
+        boxShadow: isSelected ? '0 0 0 3px rgba(37,99,235,0.12)' : 'none',
       }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       onMouseDown={startDrag}
       onClick={handleClick}
+      onDoubleClick={handleDblClick}
     >
       <div
         ref={contentRef}
-        contentEditable
+        contentEditable={isEditing || isSelected}
         suppressContentEditableWarning
         onInput={handleInput}
         onKeyDown={handleKeyDown}
+        onFocus={() => setIsEditing(true)}
+        onBlur={() => {
+          // slight delay so click-outside deselect can fire first
+          setTimeout(() => setIsEditing(false), 80)
+        }}
         onClick={e => e.stopPropagation()}
         style={{
-          outline: 'none', padding: '3px 6px',
+          outline: 'none',
+          padding: '4px 7px',
           fontFamily: `'${annotation.fontFamily}', 'Heebo', sans-serif`,
-          fontSize: annotation.fontSize, fontWeight: annotation.fontWeight,
-          fontStyle: annotation.fontStyle, textDecoration: annotation.textDecoration,
-          color: annotation.color, textAlign: annotation.align as any,
+          fontSize: annotation.fontSize,
+          fontWeight: annotation.fontWeight,
+          fontStyle: annotation.fontStyle,
+          textDecoration: annotation.textDecoration,
+          color: annotation.color,
+          textAlign: annotation.align as any,
           direction: annotation.direction === 'auto' ? 'rtl' : annotation.direction,
-          unicodeBidi: 'plaintext', wordBreak: 'break-word', whiteSpace: 'pre-wrap',
-          cursor: 'text', minHeight: annotation.rect.height - 6
+          unicodeBidi: 'plaintext',
+          wordBreak: 'break-word',
+          whiteSpace: 'pre-wrap',
+          cursor: isEditing ? 'text' : 'inherit',
+          minHeight: annotation.rect.height - 8,
+          userSelect: isEditing ? 'text' : 'none',
         }}
       />
 
       {isSelected && (
         <>
+          {/* Resize handle (bottom-right) */}
           <div
             data-handle="resize"
             onMouseDown={startResize}
             style={{
               position: 'absolute', bottom: -5, right: -5,
-              width: 10, height: 10, background: 'var(--color-accent)',
-              border: '1px solid white', borderRadius: 2, cursor: 'nwse-resize', zIndex: 31
+              width: 10, height: 10,
+              background: 'var(--color-accent)',
+              border: '2px solid white',
+              borderRadius: 2,
+              cursor: 'nwse-resize',
+              zIndex: 36,
+              boxShadow: '0 1px 4px rgba(37,99,235,0.4)',
             }}
           />
+          {/* Delete button */}
           <button
             onMouseDown={e => { e.stopPropagation(); deleteAnnotation(annotation.id) }}
             style={{
-              position: 'absolute', top: -9, right: -9, width: 18, height: 18,
-              background: 'var(--color-danger)', color: 'white', border: 'none',
-              borderRadius: '50%', fontSize: 12, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 32
+              position: 'absolute', top: -11, right: -11,
+              width: 20, height: 20,
+              background: 'var(--color-danger)',
+              color: 'white',
+              border: '2px solid white',
+              borderRadius: '50%',
+              fontSize: 13,
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 36,
+              lineHeight: 1,
+              boxShadow: '0 1px 4px rgba(239,68,68,0.4)',
             }}
           >×</button>
+          {/* Edit hint when selected but not editing */}
+          {!isEditing && annotation.content && (
+            <div style={{
+              position: 'absolute', top: -22, left: 0,
+              fontSize: 10, color: 'rgba(37,99,235,0.7)',
+              background: 'white', padding: '1px 5px', borderRadius: 3,
+              border: '1px solid rgba(37,99,235,0.2)',
+              pointerEvents: 'none', whiteSpace: 'nowrap',
+            }}>
+              לחץ פעמיים לעריכה
+            </div>
+          )}
         </>
       )}
     </div>

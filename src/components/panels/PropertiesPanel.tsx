@@ -19,7 +19,6 @@ export const PropertiesPanel: React.FC = () => {
     case 'signature': return <SignatureProperties />
     case 'pages': return <PageManagement />
     case 'forms': return <FormsPanel />
-    case 'sticky': return <StickyProperties />
     default: return <DefaultProperties />
   }
 }

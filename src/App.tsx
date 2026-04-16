@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useUIStore } from './store'
 import { TopToolbar } from './components/toolbar/TopToolbar'
-import { SideToolbar, BottomToolbar } from './components/toolbar/SideToolbar'
+import { HorizontalToolbar, BottomToolbar } from './components/toolbar/HorizontalToolbar'
 import { LeftPanel } from './components/panels/LeftPanel'
 import { RightPanel } from './components/panels/RightPanel'
 import { PDFViewer } from './components/viewer/PDFViewer'
@@ -65,13 +65,13 @@ export default function App() {
       {/* Top toolbar */}
       <TopToolbar />
 
+      {/* Horizontal tool bar */}
+      <HorizontalToolbar />
+
       {/* Main area */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Left panel (thumbnails + annotations) */}
         <LeftPanel />
-
-        {/* Side toolbar (tools) */}
-        <SideToolbar />
 
         {/* PDF Viewer canvas */}
         <PDFViewer />

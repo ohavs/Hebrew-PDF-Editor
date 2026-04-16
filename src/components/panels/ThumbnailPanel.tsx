@@ -27,6 +27,8 @@ export const ThumbnailPanel: React.FC = () => {
     if (!pdfDoc) return
     renderedRef.current.clear()
 
+    thumbRefs.current.clear()
+
     observerRef.current = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -34,7 +36,12 @@ export const ThumbnailPanel: React.FC = () => {
           renderThumb(idx)
         }
       })
-    }, { threshold: 0.1 })
+    }, { threshold: 0.01 })
+
+    // Observe all already-registered canvases (handles race with setThumbRef)
+    thumbRefs.current.forEach((canvas) => {
+      observerRef.current?.observe(canvas)
+    })
 
     return () => observerRef.current?.disconnect()
   }, [pdfDoc, renderThumb])
@@ -42,9 +49,15 @@ export const ThumbnailPanel: React.FC = () => {
   const setThumbRef = useCallback((pageIdx: number, canvas: HTMLCanvasElement | null) => {
     if (canvas) {
       thumbRefs.current.set(pageIdx, canvas)
-      observerRef.current?.observe(canvas.parentElement!)
+      // Observe the canvas itself (it has data-page-idx); render immediately if already visible
+      if (observerRef.current) {
+        observerRef.current.observe(canvas)
+      } else {
+        // Observer not ready yet — render directly
+        renderThumb(pageIdx)
+      }
     }
-  }, [])
+  }, [renderThumb])
 
   // Drag and drop
   const handleDragStart = (idx: number) => setDragIdx(idx)

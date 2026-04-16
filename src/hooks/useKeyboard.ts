@@ -88,7 +88,7 @@ export function useKeyboard() {
         case 'h': setTool('highlight'); break
         case 'd': setTool('draw'); break
         case 's': setTool('shapes'); break
-        case 'n': setTool('sticky'); break
+        case 'n': setTool('stamp'); break
       }
     }
 

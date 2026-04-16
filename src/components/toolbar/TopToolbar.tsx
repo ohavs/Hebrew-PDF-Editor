@@ -1,8 +1,7 @@
-import React, { useRef, useState } from 'react'
+import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { usePDFStore, useAnnotationsStore, useUIStore } from '../../store'
-import { usePDF } from '../../hooks/usePDF'
 import { embedAnnotationsIntoPdf, downloadBlob } from '../../utils/pdfExport'
 import i18n from '../../i18n'
 
@@ -12,26 +11,10 @@ export const TopToolbar: React.FC = () => {
           viewMode, setViewMode, isSaving, setIsSaving, hasUnsavedChanges, pageInfos, pageOrder } = usePDFStore()
   const { annotations, formFields, undo, redo, past, future } = useAnnotationsStore()
   const { darkMode, toggleDarkMode, language, setLanguage, addToast, isFullscreen, setFullscreen, sideToolbarOpen, toggleSideToolbar } = useUIStore()
-  const { loadPDF } = usePDF()
   const navigate = useNavigate()
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const [pageInput, setPageInput] = useState('')
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [zoomInput, setZoomInput] = useState('')
-
-  const handleOpen = () => fileInputRef.current?.click()
-
-  const handleSave = async () => {
-    if (!pdfBytes || !pdfDoc) return
-    setIsSaving(true)
-    try {
-      const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder)
-      downloadBlob(result, fileName || 'document-edited.pdf')
-      addToast(t('file.saved'), 'success')
-      usePDFStore.getState().setHasUnsavedChanges(false)
-    } catch { addToast('שגיאה בשמירה', 'error') }
-    finally { setIsSaving(false) }
-  }
 
   const handleExport = async (format: 'pdf' | 'flattened' | 'pdfa') => {
     if (!pdfBytes) return
@@ -112,17 +95,8 @@ export const TopToolbar: React.FC = () => {
       <div className="toolbar-sep" style={{ background: 'rgba(255,255,255,0.15)' }} />
 
       {/* File actions */}
-      <input ref={fileInputRef} type="file" accept=".pdf" capture="environment" style={{ display: 'none' }}
-        onChange={e => { if (e.target.files?.[0]) loadPDF(e.target.files[0]) }} />
-
-      <TopBtn title={t('toolbar.open')} onClick={handleOpen}>
-        <FolderIcon />
-      </TopBtn>
       {pdfDoc && (
         <>
-          <TopBtn title={t('toolbar.save')} onClick={handleSave} disabled={isSaving || !pdfBytes}>
-            <SaveIcon />
-          </TopBtn>
           <div style={{ position: 'relative' }}>
             <TopBtn title={t('file.exportAs')} onClick={() => setShowExportMenu(!showExportMenu)}>
               <ExportIcon />
@@ -313,8 +287,6 @@ const TopBtn: React.FC<{ title?: string; onClick?: () => void; disabled?: boolea
 // Icons
 const HomeIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
 const SidebarIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" strokeWidth={2}/><path strokeWidth={2} d="M9 3v18" strokeLinecap="round"/></svg>
-const FolderIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
-const SaveIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
 const ExportIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
 const PrintIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
 const UndoIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6M3 10l6-6"/></svg>

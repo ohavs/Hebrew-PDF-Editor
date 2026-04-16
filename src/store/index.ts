@@ -53,6 +53,11 @@ interface UIState {
   autoSaveInterval: number
   dateFormat: 'gregorian' | 'hebrew'
 
+  // Saved signatures
+  savedSignatures: Array<{ id: string; name: string; imageData: string }>
+  addSavedSignature: (sig: { name: string; imageData: string }) => void
+  removeSavedSignature: (id: string) => void
+
   setTool: (tool: ToolType) => void
   setSidePanel: (panel: SidePanel) => void
   toggleSidePanel: (panel: SidePanel) => void
@@ -129,6 +134,8 @@ export const useUIStore = create<UIState>()((set) => ({
   autoSaveInterval: 30,
   dateFormat: 'gregorian',
 
+  savedSignatures: JSON.parse(localStorage.getItem('savedSignatures') || '[]'),
+
   setTool: (tool) => set({ activeTool: tool }),
   setSidePanel: (panel) => set({ sidePanel: panel }),
   toggleSidePanel: (panel) => set((s) => ({ sidePanel: s.sidePanel === panel ? null : panel })),
@@ -179,6 +186,16 @@ export const useUIStore = create<UIState>()((set) => ({
   setAuthorName: (n) => { localStorage.setItem('authorName', n); set({ authorName: n }) },
   setAutoSaveInterval: (n) => set({ autoSaveInterval: n }),
   setDateFormat: (f) => set({ dateFormat: f }),
+  addSavedSignature: (sig) => set((s) => {
+    const updated = [...s.savedSignatures, { ...sig, id: Math.random().toString(36).slice(2) }]
+    localStorage.setItem('savedSignatures', JSON.stringify(updated))
+    return { savedSignatures: updated }
+  }),
+  removeSavedSignature: (id) => set((s) => {
+    const updated = s.savedSignatures.filter(s => s.id !== id)
+    localStorage.setItem('savedSignatures', JSON.stringify(updated))
+    return { savedSignatures: updated }
+  }),
 }))
 
 // ────────────────────────────────────────────────
