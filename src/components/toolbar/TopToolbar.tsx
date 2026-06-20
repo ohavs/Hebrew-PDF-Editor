@@ -148,32 +148,55 @@ export const TopToolbar: React.FC = () => {
       {/* Zoom controls */}
       {pdfDoc && (
         <>
-          <TopBtn title={t('toolbar.zoomOut')} onClick={() => setZoom(zoom - 0.1)}>
+          <TopBtn title={t('toolbar.zoomOut')} onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}>
             <ZoomOutIcon />
           </TopBtn>
-          <input
-            className="input"
-            style={{ width: 60, textAlign: 'center', fontSize: 12, padding: '4px 6px', direction: 'ltr',
-                     background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-                     color: 'white', borderRadius: 6 }}
-            value={zoomInput || `${Math.round(zoom * 100)}%`}
-            onChange={e => setZoomInput(e.target.value)}
-            onFocus={() => setZoomInput(String(Math.round(zoom * 100)))}
-            onBlur={() => setZoomInput('')}
-            onKeyDown={handleZoomSubmit}
-          />
-          <TopBtn title={t('toolbar.zoomIn')} onClick={() => setZoom(zoom + 0.1)}>
+          <select
+            value=""
+            onChange={e => {
+              const v = e.target.value
+              if (v === 'fit-width') {
+                const container = document.querySelector('.flex-1.overflow-auto') as HTMLElement
+                if (container) {
+                  const w = container.clientWidth - 80
+                  const page = usePDFStore.getState().pageInfos[0]
+                  if (page?.width > 0) setZoom(w / page.width)
+                }
+              } else if (v === 'fit-page') {
+                const container = document.querySelector('.flex-1.overflow-auto') as HTMLElement
+                if (container) {
+                  const h = container.clientHeight - 64
+                  const page = usePDFStore.getState().pageInfos[0]
+                  if (page?.height > 0) setZoom(h / page.height)
+                }
+              } else {
+                setZoom(parseFloat(v))
+              }
+            }}
+            style={{
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              color: 'white',
+              borderRadius: 6,
+              padding: '4px 6px',
+              fontSize: 12,
+              width: 72,
+              direction: 'ltr',
+              cursor: 'pointer',
+              outline: 'none',
+              appearance: 'none',
+              textAlign: 'center',
+            }}
+          >
+            <option value="" disabled style={{ background: '#1e293b' }}>{Math.round(zoom * 100)}%</option>
+            <option value="fit-width" style={{ background: '#1e293b' }}>התאם רוחב</option>
+            <option value="fit-page" style={{ background: '#1e293b' }}>התאם דף</option>
+            {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2].map(v => (
+              <option key={v} value={v} style={{ background: '#1e293b' }}>{Math.round(v * 100)}%</option>
+            ))}
+          </select>
+          <TopBtn title={t('toolbar.zoomIn')} onClick={() => setZoom(Math.min(4, zoom + 0.1))}>
             <ZoomInIcon />
-          </TopBtn>
-          <TopBtn title={t('toolbar.fitWidth')} onClick={() => {
-            const container = document.querySelector('.flex-1.overflow-auto') as HTMLElement
-            if (container && pdfDoc) {
-              const w = container.clientWidth - 80
-              const page = usePDFStore.getState().pageInfos[0]
-              if (page?.width > 0) setZoom(w / page.width)
-            }
-          }}>
-            <FitWidthIcon />
           </TopBtn>
           <div className="toolbar-sep" style={{ background: 'rgba(255,255,255,0.15)' }} />
         </>

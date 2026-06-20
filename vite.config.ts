@@ -2,6 +2,30 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import fs from 'fs'
+import path from 'path'
+
+function copyPdfjsAssets() {
+  const copy = () => {
+    const cmapSrc = path.resolve('node_modules/pdfjs-dist/cmaps')
+    const cmapDest = path.resolve('public/cmaps')
+    if (fs.existsSync(cmapSrc) && !fs.existsSync(cmapDest)) {
+      fs.mkdirSync(cmapDest, { recursive: true })
+      fs.readdirSync(cmapSrc).forEach(f =>
+        fs.copyFileSync(path.join(cmapSrc, f), path.join(cmapDest, f))
+      )
+    }
+    const sfSrc = path.resolve('node_modules/pdfjs-dist/standard_fonts')
+    const sfDest = path.resolve('public/standard_fonts')
+    if (fs.existsSync(sfSrc) && !fs.existsSync(sfDest)) {
+      fs.mkdirSync(sfDest, { recursive: true })
+      fs.readdirSync(sfSrc).forEach(f =>
+        fs.copyFileSync(path.join(sfSrc, f), path.join(sfDest, f))
+      )
+    }
+  }
+  return { name: 'copy-pdfjs-assets', buildStart: copy, configureServer: copy }
+}
 
 const base = process.env.GITHUB_PAGES === 'true'
   ? '/Hebrew-PDF-Editor/'
@@ -10,6 +34,7 @@ const base = process.env.GITHUB_PAGES === 'true'
 export default defineConfig({
   base,
   plugins: [
+    copyPdfjsAssets(),
     react(),
     tailwindcss(),
     VitePWA({

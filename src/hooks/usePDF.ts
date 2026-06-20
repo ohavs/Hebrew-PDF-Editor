@@ -41,13 +41,15 @@ export function usePDF() {
       const bytes = new Uint8Array(data)
       setIsLoading(true, 30)
 
-      const pdfJsVersion = pdfjsLib.version || '5.6.205'
+      const base = import.meta.env.BASE_URL || '/'
       const loadingTask = pdfjsLib.getDocument({
         data: bytes.slice(),
-        cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfJsVersion}/cmaps/`,
+        cMapUrl: `${base}cmaps/`,
         cMapPacked: true,
-        standardFontDataUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfJsVersion}/standard_fonts/`,
+        standardFontDataUrl: `${base}standard_fonts/`,
         useSystemFonts: true,
+        fontExtraProperties: true,
+        isEvalSupported: false,
       })
       loadingTask.onProgress = (p: { loaded: number; total: number }) => {
         if (p.total > 0) setIsLoading(true, 30 + Math.round((p.loaded / p.total) * 60))
