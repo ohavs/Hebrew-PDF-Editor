@@ -19,17 +19,20 @@ const GROUPS: ToolDef[][] = [
   ],
   [
     { id: 'signature', label: 'חתימה', icon: <SigIcon /> },
-    { id: 'pages', label: 'דפים', icon: <PagesIcon /> },
+    { id: 'toolbox', label: 'כלי PDF', icon: <ToolboxIcon /> },
   ],
 ]
 
 export const HorizontalToolbar: React.FC = () => {
-  const { activeTool, setTool, setSidePanel } = useUIStore()
+  const { activeTool, setTool, setToolboxOpen } = useUIStore()
   const { pdfDoc } = usePDFStore()
 
   const handleTool = (id: ToolType) => {
+    if (id === 'toolbox') {
+      setToolboxOpen(true)
+      return
+    }
     setTool(id)
-    if (id === 'pages') setSidePanel('pages')
   }
 
   return (
@@ -127,16 +130,17 @@ export const HorizontalToolbar: React.FC = () => {
 
 // Mobile bottom toolbar (kept for mobile)
 export const BottomToolbar: React.FC = () => {
-  const { activeTool, setTool } = useUIStore()
+  const { activeTool, setTool, setToolboxOpen } = useUIStore()
   const { pdfDoc } = usePDFStore()
   const mobileDefs: ToolDef[] = [
     { id: 'select', label: 'בחר', icon: <SelectIcon /> },
     { id: 'text', label: 'טקסט', icon: <TextIcon /> },
     { id: 'highlight', label: 'הדגשה', icon: <HighlightIcon /> },
     { id: 'draw', label: 'ציור', icon: <DrawIcon /> },
-    { id: 'shapes', label: 'צורות', icon: <ShapesIcon /> },
     { id: 'signature', label: 'חתימה', icon: <SigIcon /> },
+    { id: 'toolbox', label: 'כלים', icon: <ToolboxIcon /> },
   ]
+  const handle = (id: ToolType) => { if (id === 'toolbox') setToolboxOpen(true); else setTool(id) }
   return (
     <div className="no-print mobile-only" style={{
       position: 'fixed', bottom: 0, left: 0, right: 0, height: 60,
@@ -148,7 +152,7 @@ export const BottomToolbar: React.FC = () => {
         const active = activeTool === tool.id
         const disabled = !pdfDoc && tool.id !== 'select'
         return (
-          <button key={tool.id} disabled={disabled} onClick={() => setTool(tool.id)}
+          <button key={tool.id} disabled={disabled} onClick={() => handle(tool.id)}
             style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
               padding: '4px 8px', border: 'none', borderRadius: 8,
@@ -187,6 +191,6 @@ function StampIcon() {
 function SigIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/><path strokeLinecap="round" d="M3 21h18" strokeWidth="1.5"/></svg>
 }
-function PagesIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H7m12 0a2 2 0 012 2v6a2 2 0 01-2 2H7a2 2 0 01-2-2v-6a2 2 0 012-2m12 0V9a2 2 0 00-2-2M7 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M9 7h6"/></svg>
+function ToolboxIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M20 7h-3V5a2 2 0 00-2-2H9a2 2 0 00-2 2v2H4a1 1 0 00-1 1v11a2 2 0 002 2h14a2 2 0 002-2V8a1 1 0 00-1-1zM9 7V5h6v2M3 12h18M10 12v2h4v-2"/></svg>
 }

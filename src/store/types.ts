@@ -1,10 +1,10 @@
 export type ToolType =
   | 'select' | 'text' | 'highlight'
   | 'draw' | 'shapes' | 'stamp'
-  | 'signature' | 'pages'
+  | 'signature' | 'pages' | 'toolbox'
 
 export type ShapeType = 'rect' | 'ellipse' | 'line' | 'arrow'
-export type ViewMode = 'single' | 'continuous' | 'two-page'
+export type ViewMode = 'continuous' | 'two-page'
 export type HighlightColor = 'yellow' | 'green' | 'pink' | 'blue'
 export type AlignType = 'left' | 'center' | 'right' | 'justify'
 export type ExportFormat = 'pdf' | 'flattened' | 'pdfa'

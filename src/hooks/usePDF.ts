@@ -15,25 +15,27 @@ export function usePDF() {
   const { loadFromStorage } = useAnnotationsStore()
   const { addToast } = useUIStore()
 
-  const loadPDF = useCallback(async (source: File | string | ArrayBuffer) => {
+  const loadPDF = useCallback(async (source: File | string | ArrayBuffer, opts?: { name?: string }) => {
     setIsLoading(true, 0)
     try {
       let data: ArrayBuffer
-      let name = 'document.pdf'
+      let name = opts?.name || 'document.pdf'
 
       if (source instanceof File) {
         if (source.size > 50 * 1024 * 1024) {
           addToast('הקובץ גדול מ-50MB. הביצועים עלולים להיות איטיים.', 'warning')
         }
         data = await source.arrayBuffer()
-        name = source.name
+        if (!opts?.name) name = source.name
       } else if (typeof source === 'string') {
         const resp = await fetch(source)
         if (!resp.ok) throw new Error('Network error')
         data = await resp.arrayBuffer()
-        const parts = source.split('/')
-        name = decodeURIComponent(parts[parts.length - 1] || 'document.pdf')
-        if (!name.endsWith('.pdf')) name += '.pdf'
+        if (!opts?.name) {
+          const parts = source.split('/')
+          name = decodeURIComponent(parts[parts.length - 1] || 'document.pdf')
+          if (!name.endsWith('.pdf')) name += '.pdf'
+        }
       } else {
         data = source
       }

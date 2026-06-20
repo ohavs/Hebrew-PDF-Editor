@@ -206,10 +206,14 @@ export async function embedAnnotationsIntoPdf(
 
 export function downloadBlob(bytes: Uint8Array, filename: string) {
   const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' })
+  triggerDownload(blob, filename)
+}
+
+export function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   a.download = filename
   a.click()
-  URL.revokeObjectURL(url)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

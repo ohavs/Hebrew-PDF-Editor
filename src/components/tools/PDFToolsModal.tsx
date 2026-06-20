@@ -1,0 +1,711 @@
+import React, { useState } from 'react'
+import { PDFDocument, degrees } from 'pdf-lib'
+import { usePDFStore, useAnnotationsStore, useUIStore } from '../../store'
+import { usePDF } from '../../hooks/usePDF'
+import { embedAnnotationsIntoPdf, downloadBlob, triggerDownload } from '../../utils/pdfExport'
+
+const EASE = 'cubic-bezier(0.23,1,0.32,1)'
+
+type CategoryId =
+  | 'organize' | 'merge' | 'split' | 'extract'
+  | 'compress' | 'to-image' | 'from-image'
+
+interface Category {
+  id: CategoryId
+  label: string
+  desc: string
+  icon: React.ReactNode
+  color: string
+}
+
+const CATEGORIES: Category[] = [
+  { id: 'organize', label: 'ארגון דפים', desc: 'סובב, מחק, שכפל והוסף דפים', color: '#000000', icon: <OrganizeIcon /> },
+  { id: 'merge', label: 'מיזוג', desc: 'אחד קבצי PDF לקובץ אחד', color: '#ef4444', icon: <MergeIcon /> },
+  { id: 'split', label: 'פיצול', desc: 'פצל לדפים נפרדים', color: '#8b5cf6', icon: <SplitIcon /> },
+  { id: 'extract', label: 'חילוץ דפים', desc: 'שמור טווח דפים כקובץ חדש', color: '#0ea5e9', icon: <ExtractIcon /> },
+  { id: 'compress', label: 'קימפרוס', desc: 'הקטן את גודל הקובץ', color: '#f59e0b', icon: <CompressIcon /> },
+  { id: 'to-image', label: 'PDF לתמונה', desc: 'ייצא דפים כ-PNG / JPG', color: '#10b981', icon: <ImageIcon /> },
+  { id: 'from-image', label: 'תמונה ל-PDF', desc: 'צור PDF מתמונות', color: '#ec4899', icon: <FromImageIcon /> },
+]
+
+export const PDFToolsModal: React.FC = () => {
+  const { toolboxOpen, setToolboxOpen } = useUIStore()
+  const [active, setActive] = useState<CategoryId>('organize')
+
+  if (!toolboxOpen) return null
+
+  return (
+    <div className="modal-overlay no-print" onClick={() => setToolboxOpen(false)} style={{ zIndex: 1500 }}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'var(--color-surface)',
+          borderRadius: 24,
+          width: 900,
+          maxWidth: '94vw',
+          height: 600,
+          maxHeight: '88vh',
+          display: 'flex',
+          overflow: 'hidden',
+          boxShadow: '0 32px 100px rgba(0,0,0,0.35)',
+          animation: `modalIn 0.3s ${EASE} both`,
+        }}
+      >
+        {/* Sidebar */}
+        <div style={{
+          width: 240, flexShrink: 0, background: 'var(--color-surface-2)',
+          borderInlineEnd: '1px solid var(--color-border)', padding: 14,
+          display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto',
+        }}>
+          <div style={{
+            fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700,
+            color: 'var(--color-ink-black)', padding: '6px 8px 12px',
+          }}>
+            כלי PDF
+          </div>
+          {CATEGORIES.map(cat => {
+            const isActive = active === cat.id
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setActive(cat.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, textAlign: 'start',
+                  padding: '10px 12px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                  background: isActive ? 'var(--color-surface)' : 'transparent',
+                  boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                  fontFamily: 'inherit', width: '100%',
+                  transition: `background 150ms ease-out`,
+                }}
+                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.04)' }}
+                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+              >
+                <span style={{
+                  width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: `${cat.color}15`, color: cat.color,
+                }}>
+                  {cat.icon}
+                </span>
+                <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink-black)' }}>{cat.label}</span>
+                  <span style={{ fontSize: 11, color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.desc}</span>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '16px 20px', borderBottom: '1px solid var(--color-border)', flexShrink: 0,
+          }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--color-ink-black)' }}>
+              {CATEGORIES.find(c => c.id === active)?.label}
+            </h2>
+            <button
+              onClick={() => setToolboxOpen(false)}
+              title="סגור"
+              style={{
+                width: 34, height: 34, borderRadius: 10, border: 'none', cursor: 'pointer',
+                background: 'var(--color-surface-2)', color: 'var(--color-text)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: `transform 150ms ${EASE}, background 150ms ease-out`,
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-border)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-surface-2)' }}
+              onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.9)' }}
+              onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+            <ToolPanel category={active} />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Shared helpers
+// ─────────────────────────────────────────────────────────────
+function useEditedBytes() {
+  const { pdfBytes, pageInfos, pageOrder } = usePDFStore()
+  const { annotations, formFields } = useAnnotationsStore()
+  return async (): Promise<Uint8Array> => {
+    if (!pdfBytes) throw new Error('no pdf')
+    if (annotations.length === 0 && formFields.every(f => !f.value)) return pdfBytes.slice()
+    return embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder)
+  }
+}
+
+async function renderPageCanvas(pdfDoc: any, pageNum: number, scale: number): Promise<HTMLCanvasElement> {
+  const page = await pdfDoc.getPage(pageNum)
+  const viewport = page.getViewport({ scale })
+  const canvas = document.createElement('canvas')
+  canvas.width = viewport.width
+  canvas.height = viewport.height
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  await page.render({ canvasContext: ctx, viewport }).promise
+  page.cleanup()
+  return canvas
+}
+
+function parseRanges(input: string, max: number): number[] {
+  const result = new Set<number>()
+  input.split(',').forEach(part => {
+    const p = part.trim()
+    if (!p) return
+    const m = p.match(/^(\d+)\s*-\s*(\d+)$/)
+    if (m) {
+      const a = parseInt(m[1]), b = parseInt(m[2])
+      for (let i = Math.min(a, b); i <= Math.max(a, b); i++) if (i >= 1 && i <= max) result.add(i)
+    } else {
+      const n = parseInt(p)
+      if (n >= 1 && n <= max) result.add(n)
+    }
+  })
+  return [...result].sort((a, b) => a - b)
+}
+
+const Spinner = () => (
+  <svg className="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+  </svg>
+)
+
+// ─────────────────────────────────────────────────────────────
+// Panel router
+// ─────────────────────────────────────────────────────────────
+const ToolPanel: React.FC<{ category: CategoryId }> = ({ category }) => {
+  switch (category) {
+    case 'organize': return <OrganizePanel />
+    case 'merge': return <MergePanel />
+    case 'split': return <SplitPanel />
+    case 'extract': return <ExtractPanel />
+    case 'compress': return <CompressPanel />
+    case 'to-image': return <ToImagePanel />
+    case 'from-image': return <FromImagePanel />
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Organize
+// ─────────────────────────────────────────────────────────────
+const OrganizePanel: React.FC = () => {
+  const { pdfDoc, currentPage, pageCount, pageOrder, pageInfos, rotatePage, fileName } = usePDFStore()
+  const { addToast, confirm } = useUIStore()
+  const { loadPDF } = usePDF()
+  const [busy, setBusy] = useState(false)
+  const getEdited = useEditedBytes()
+
+  if (!pdfDoc) return <EmptyHint />
+
+  const run = async (fn: () => Promise<void>, label: string) => {
+    setBusy(true)
+    try { await fn() } catch { addToast(`שגיאה ב${label}`, 'error') } finally { setBusy(false) }
+  }
+
+  const deletePage = () => run(async () => {
+    if (pageCount <= 1) { addToast('לא ניתן למחוק את הדף היחיד', 'error'); return }
+    const ok = await confirm({ title: 'מחיקת דף', message: `הדף הנוכחי (${currentPage + 1}) יימחק מהמסמך. להמשיך?`, confirmLabel: 'מחק', danger: true })
+    if (!ok) return
+    const src = await PDFDocument.load(await getEdited())
+    const dest = await PDFDocument.create()
+    const order = pageOrder.filter((_, i) => i !== currentPage)
+    const pages = await dest.copyPages(src, order)
+    pages.forEach(p => dest.addPage(p))
+    await loadPDF((await dest.save()).buffer as ArrayBuffer, { name: fileName })
+    addToast('הדף נמחק', 'success')
+  }, 'מחיקה')
+
+  const duplicate = () => run(async () => {
+    const src = await PDFDocument.load(await getEdited())
+    const dest = await PDFDocument.create()
+    const order = [...pageOrder]
+    order.splice(currentPage + 1, 0, pageOrder[currentPage])
+    const pages = await dest.copyPages(src, order)
+    pages.forEach(p => dest.addPage(p))
+    await loadPDF((await dest.save()).buffer as ArrayBuffer, { name: fileName })
+    addToast('הדף שוכפל', 'success')
+  }, 'שכפול')
+
+  const addBlank = () => run(async () => {
+    const doc = await PDFDocument.load(await getEdited())
+    const info = pageInfos[currentPage]
+    doc.insertPage(currentPage + 1, [info?.width || 595, info?.height || 842])
+    await loadPDF((await doc.save()).buffer as ArrayBuffer, { name: fileName })
+    addToast('דף ריק הוסף', 'success')
+  }, 'הוספה')
+
+  const rotateAll = () => run(async () => {
+    const doc = await PDFDocument.load(await getEdited())
+    doc.getPages().forEach(p => p.setRotation(degrees((p.getRotation().angle + 90) % 360)))
+    await loadPDF((await doc.save()).buffer as ArrayBuffer, { name: fileName })
+    addToast('כל הדפים סובבו', 'success')
+  }, 'סיבוב')
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <InfoBar text={`דף נוכחי: ${currentPage + 1} מתוך ${pageCount}. בחר דף בלוח התצוגה המקדימה.`} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <BigAction icon="↻" title="סובב דף 90°" desc="סובב את הדף הנוכחי" onClick={() => { rotatePage(currentPage, 90); addToast(`דף ${currentPage + 1} סובב`, 'success') }} disabled={busy} />
+        <BigAction icon="⟳" title="סובב את כל הדפים" desc="החל סיבוב על המסמך כולו" onClick={rotateAll} disabled={busy} />
+        <BigAction icon="⧉" title="שכפל דף" desc="צור עותק של הדף הנוכחי" onClick={duplicate} disabled={busy} />
+        <BigAction icon="＋" title="הוסף דף ריק" desc="הוסף דף ריק אחרי הנוכחי" onClick={addBlank} disabled={busy} />
+        <BigAction icon="🗑" title="מחק דף" desc="הסר את הדף הנוכחי" onClick={deletePage} disabled={busy} danger />
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Merge
+// ─────────────────────────────────────────────────────────────
+const MergePanel: React.FC = () => {
+  const { pdfDoc, fileName } = usePDFStore()
+  const { addToast } = useUIStore()
+  const { loadPDF } = usePDF()
+  const [files, setFiles] = useState<File[]>([])
+  const [busy, setBusy] = useState(false)
+  const getEdited = useEditedBytes()
+
+  if (!pdfDoc) return <EmptyHint />
+
+  const merge = async () => {
+    if (!files.length) return
+    setBusy(true)
+    try {
+      const base = await PDFDocument.load(await getEdited())
+      for (const f of files) {
+        const doc = await PDFDocument.load(await f.arrayBuffer())
+        const pages = await base.copyPages(doc, doc.getPageIndices())
+        pages.forEach(p => base.addPage(p))
+      }
+      await loadPDF((await base.save()).buffer as ArrayBuffer, { name: fileName })
+      addToast(`${files.length} קבצים מוזגו למסמך`, 'success')
+      setFiles([])
+    } catch { addToast('שגיאה במיזוג', 'error') } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <InfoBar text="הקבצים שתבחר יתווספו בסוף המסמך הנוכחי." />
+      <FilePicker accept=".pdf" multiple label="בחר קבצי PDF להוספה" onPick={fs => setFiles(prev => [...prev, ...fs])} />
+      {files.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {files.map((f, i) => (
+            <FileRow key={i} name={f.name} size={f.size} onRemove={() => setFiles(prev => prev.filter((_, j) => j !== i))} />
+          ))}
+        </div>
+      )}
+      <PrimaryButton onClick={merge} disabled={busy || !files.length}>
+        {busy ? <><Spinner /> ממזג…</> : `מזג ${files.length || ''} קבצים למסמך`}
+      </PrimaryButton>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Split
+// ─────────────────────────────────────────────────────────────
+const SplitPanel: React.FC = () => {
+  const { pdfDoc, pageCount, fileName } = usePDFStore()
+  const { addToast } = useUIStore()
+  const [busy, setBusy] = useState(false)
+  const getEdited = useEditedBytes()
+
+  if (!pdfDoc) return <EmptyHint />
+
+  const splitEach = async () => {
+    setBusy(true)
+    try {
+      const src = await PDFDocument.load(await getEdited())
+      const baseName = fileName.replace(/\.pdf$/i, '')
+      for (let i = 0; i < pageCount; i++) {
+        const dest = await PDFDocument.create()
+        const [pg] = await dest.copyPages(src, [i])
+        dest.addPage(pg)
+        downloadBlob(await dest.save(), `${baseName}-עמוד-${i + 1}.pdf`)
+        await new Promise(r => setTimeout(r, 250))
+      }
+      addToast(`המסמך פוצל ל-${pageCount} קבצים`, 'success')
+    } catch { addToast('שגיאה בפיצול', 'error') } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <InfoBar text={`המסמך (${pageCount} דפים) יפוצל לקבצי PDF נפרדים — קובץ אחד לכל דף.`} />
+      <PrimaryButton onClick={splitEach} disabled={busy}>
+        {busy ? <><Spinner /> מפצל…</> : `פצל ל-${pageCount} קבצים נפרדים`}
+      </PrimaryButton>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Extract
+// ─────────────────────────────────────────────────────────────
+const ExtractPanel: React.FC = () => {
+  const { pdfDoc, pageCount, fileName } = usePDFStore()
+  const { addToast } = useUIStore()
+  const [range, setRange] = useState('')
+  const [busy, setBusy] = useState(false)
+  const getEdited = useEditedBytes()
+
+  if (!pdfDoc) return <EmptyHint />
+
+  const extract = async () => {
+    const pages = parseRanges(range, pageCount)
+    if (!pages.length) { addToast('הזן טווח דפים תקין', 'warning'); return }
+    setBusy(true)
+    try {
+      const src = await PDFDocument.load(await getEdited())
+      const dest = await PDFDocument.create()
+      const copied = await dest.copyPages(src, pages.map(p => p - 1))
+      copied.forEach(p => dest.addPage(p))
+      downloadBlob(await dest.save(), `${fileName.replace(/\.pdf$/i, '')}-חילוץ.pdf`)
+      addToast(`${pages.length} דפים חולצו`, 'success')
+    } catch { addToast('שגיאה בחילוץ', 'error') } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <InfoBar text={`הזן אילו דפים לחלץ (1 עד ${pageCount}). לדוגמה: 1-3, 5, 8`} />
+      <div>
+        <label className="label">טווח דפים</label>
+        <input
+          className="input" value={range} onChange={e => setRange(e.target.value)}
+          placeholder="לדוגמה: 1-3, 5" dir="ltr"
+          style={{ width: '100%', textAlign: 'center', direction: 'ltr' }}
+        />
+      </div>
+      <PrimaryButton onClick={extract} disabled={busy || !range.trim()}>
+        {busy ? <><Spinner /> מחלץ…</> : 'חלץ דפים לקובץ חדש'}
+      </PrimaryButton>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Compress
+// ─────────────────────────────────────────────────────────────
+const CompressPanel: React.FC = () => {
+  const { pdfDoc, pageCount, fileName } = usePDFStore()
+  const { addToast } = useUIStore()
+  const [quality, setQuality] = useState(0.6)
+  const [busy, setBusy] = useState(false)
+
+  if (!pdfDoc) return <EmptyHint />
+
+  const compress = async () => {
+    setBusy(true)
+    try {
+      const out = await PDFDocument.create()
+      const scale = quality < 0.5 ? 1.0 : 1.3
+      for (let i = 1; i <= pageCount; i++) {
+        const canvas = await renderPageCanvas(pdfDoc, i, scale)
+        const jpeg = canvas.toDataURL('image/jpeg', quality)
+        const bytes = Uint8Array.from(atob(jpeg.split(',')[1]), c => c.charCodeAt(0))
+        const img = await out.embedJpg(bytes)
+        const page = out.addPage([canvas.width, canvas.height])
+        page.drawImage(img, { x: 0, y: 0, width: canvas.width, height: canvas.height })
+      }
+      const saved = await out.save()
+      downloadBlob(saved, `${fileName.replace(/\.pdf$/i, '')}-דחוס.pdf`)
+      addToast(`הקובץ נדחס (${(saved.length / 1024 / 1024).toFixed(1)}MB)`, 'success')
+    } catch { addToast('שגיאה בקימפרוס', 'error') } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <InfoBar text="הקימפרוס ממיר דפים לתמונות באיכות מבוקרת — אידיאלי למסמכים סרוקים. שים לב: טקסט הופך לתמונה." />
+      <div>
+        <label className="label">איכות: {Math.round(quality * 100)}%</label>
+        <input type="range" min={0.3} max={0.9} step={0.1} value={quality}
+          onChange={e => setQuality(parseFloat(e.target.value))} style={{ width: '100%' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-text-muted)' }}>
+          <span>קובץ קטן</span><span>איכות גבוהה</span>
+        </div>
+      </div>
+      <PrimaryButton onClick={compress} disabled={busy}>
+        {busy ? <><Spinner /> דוחס…</> : 'דחוס והורד'}
+      </PrimaryButton>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// To Image
+// ─────────────────────────────────────────────────────────────
+const ToImagePanel: React.FC = () => {
+  const { pdfDoc, pageCount, currentPage, fileName } = usePDFStore()
+  const { addToast } = useUIStore()
+  const [format, setFormat] = useState<'png' | 'jpeg'>('png')
+  const [scope, setScope] = useState<'current' | 'all'>('all')
+  const [busy, setBusy] = useState(false)
+
+  if (!pdfDoc) return <EmptyHint />
+
+  const exportImages = async () => {
+    setBusy(true)
+    try {
+      const base = fileName.replace(/\.pdf$/i, '')
+      const pages = scope === 'current' ? [currentPage + 1] : Array.from({ length: pageCount }, (_, i) => i + 1)
+      for (const num of pages) {
+        const canvas = await renderPageCanvas(pdfDoc, num, 2)
+        const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, `image/${format}`, 0.92))
+        if (blob) triggerDownload(blob, `${base}-עמוד-${num}.${format === 'jpeg' ? 'jpg' : 'png'}`)
+        await new Promise(r => setTimeout(r, 250))
+      }
+      addToast(`${pages.length} תמונות יוצאו`, 'success')
+    } catch { addToast('שגיאה בייצוא תמונות', 'error') } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <InfoBar text="ייצא דפי PDF כקבצי תמונה ברזולוציה גבוהה." />
+      <SegmentedControl
+        label="פורמט"
+        value={format}
+        options={[{ value: 'png', label: 'PNG' }, { value: 'jpeg', label: 'JPG' }]}
+        onChange={v => setFormat(v as 'png' | 'jpeg')}
+      />
+      <SegmentedControl
+        label="טווח"
+        value={scope}
+        options={[{ value: 'all', label: `כל הדפים (${pageCount})` }, { value: 'current', label: `הדף הנוכחי (${currentPage + 1})` }]}
+        onChange={v => setScope(v as 'current' | 'all')}
+      />
+      <PrimaryButton onClick={exportImages} disabled={busy}>
+        {busy ? <><Spinner /> מייצא…</> : 'ייצא תמונות'}
+      </PrimaryButton>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// From Image
+// ─────────────────────────────────────────────────────────────
+const FromImagePanel: React.FC = () => {
+  const { pdfDoc } = usePDFStore()
+  const { addToast } = useUIStore()
+  const { loadPDF } = usePDF()
+  const [files, setFiles] = useState<File[]>([])
+  const [busy, setBusy] = useState(false)
+
+  const build = async (mode: 'new' | 'append') => {
+    if (!files.length) return
+    setBusy(true)
+    try {
+      const doc = mode === 'append' && pdfDoc
+        ? await PDFDocument.load(usePDFStore.getState().pdfBytes!.slice())
+        : await PDFDocument.create()
+      for (const f of files) {
+        const bytes = new Uint8Array(await f.arrayBuffer())
+        const img = f.type.includes('png') ? await doc.embedPng(bytes) : await doc.embedJpg(bytes)
+        const page = doc.addPage([img.width, img.height])
+        page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height })
+      }
+      const saved = await doc.save()
+      if (mode === 'append') { await loadPDF(saved.buffer as ArrayBuffer, { name: usePDFStore.getState().fileName }); addToast('התמונות נוספו למסמך', 'success') }
+      else { downloadBlob(saved, 'תמונות.pdf'); addToast('נוצר PDF מהתמונות', 'success') }
+      setFiles([])
+    } catch { addToast('שגיאה ביצירת PDF', 'error') } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <InfoBar text="בחר תמונות (PNG / JPG) — כל תמונה תהפוך לדף ב-PDF." />
+      <FilePicker accept="image/png,image/jpeg" multiple label="בחר תמונות" onPick={fs => setFiles(prev => [...prev, ...fs])} />
+      {files.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {files.map((f, i) => (
+            <FileRow key={i} name={f.name} size={f.size} onRemove={() => setFiles(prev => prev.filter((_, j) => j !== i))} />
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <PrimaryButton onClick={() => build('new')} disabled={busy || !files.length}>
+          {busy ? <><Spinner /> יוצר…</> : 'צור PDF חדש'}
+        </PrimaryButton>
+        {pdfDoc && (
+          <GhostButton onClick={() => build('append')} disabled={busy || !files.length}>
+            הוסף למסמך הנוכחי
+          </GhostButton>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Reusable UI bits
+// ─────────────────────────────────────────────────────────────
+const EmptyHint: React.FC = () => (
+  <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--color-text-muted)' }}>
+    <div style={{ fontSize: 40, marginBottom: 12 }}>📄</div>
+    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text)' }}>פתח קובץ PDF כדי להשתמש בכלי זה</div>
+  </div>
+)
+
+const InfoBar: React.FC<{ text: string }> = ({ text }) => (
+  <div style={{
+    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
+    background: 'var(--color-surface-2)', borderRadius: 12, fontSize: 13,
+    color: 'var(--color-text-muted)', lineHeight: 1.5,
+  }}>
+    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <span>{text}</span>
+  </div>
+)
+
+const BigAction: React.FC<{ icon: string; title: string; desc: string; onClick: () => void; disabled?: boolean; danger?: boolean }> =
+  ({ icon, title, desc, onClick, disabled, danger }) => (
+    <button
+      onClick={onClick} disabled={disabled}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12, textAlign: 'start',
+        padding: 14, borderRadius: 14, cursor: disabled ? 'not-allowed' : 'pointer',
+        border: '1px solid var(--color-border)', background: 'var(--color-surface)',
+        opacity: disabled ? 0.5 : 1, fontFamily: 'inherit',
+        transition: `transform 150ms ${EASE}, border-color 150ms ease-out, background 150ms ease-out`,
+      }}
+      onMouseEnter={e => { if (!disabled) { (e.currentTarget as HTMLButtonElement).style.borderColor = danger ? '#dc2626' : 'var(--color-ink-black)' } }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)' }}
+      onMouseDown={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)' }}
+      onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
+    >
+      <span style={{
+        width: 42, height: 42, borderRadius: 11, flexShrink: 0, fontSize: 20,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: danger ? 'rgba(220,38,38,0.1)' : 'var(--color-mint)',
+        color: danger ? '#dc2626' : 'var(--color-ink-black)',
+      }}>{icon}</span>
+      <span style={{ display: 'flex', flexDirection: 'column' }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: danger ? '#dc2626' : 'var(--color-ink-black)' }}>{title}</span>
+        <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{desc}</span>
+      </span>
+    </button>
+  )
+
+const FilePicker: React.FC<{ accept: string; multiple?: boolean; label: string; onPick: (files: File[]) => void }> =
+  ({ accept, multiple, label, onPick }) => {
+    const ref = React.useRef<HTMLInputElement>(null)
+    const [drag, setDrag] = useState(false)
+    return (
+      <div
+        onClick={() => ref.current?.click()}
+        onDragOver={e => { e.preventDefault(); setDrag(true) }}
+        onDragLeave={() => setDrag(false)}
+        onDrop={e => {
+          e.preventDefault(); setDrag(false)
+          const fs = Array.from(e.dataTransfer.files).filter(f => accept.split(',').some(a => f.type === a || f.name.endsWith(a.replace('.', ''))))
+          if (fs.length) onPick(fs)
+        }}
+        style={{
+          border: `2px dashed ${drag ? 'var(--color-ink-black)' : 'var(--color-border)'}`,
+          borderRadius: 16, padding: '28px 20px', textAlign: 'center', cursor: 'pointer',
+          background: drag ? 'var(--color-mint)' : 'var(--color-surface)',
+          transition: `border-color 180ms ${EASE}, background 180ms ease-out`,
+        }}
+      >
+        <input ref={ref} type="file" accept={accept} multiple={multiple} style={{ display: 'none' }}
+          onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) onPick(fs); e.target.value = '' }} />
+        <div style={{ fontSize: 28, marginBottom: 6 }}>⬆️</div>
+        <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--color-text)' }}>{label}</div>
+        <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>או גרור לכאן</div>
+      </div>
+    )
+  }
+
+const FileRow: React.FC<{ name: string; size: number; onRemove: () => void }> = ({ name, size, onRemove }) => (
+  <div style={{
+    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+    background: 'var(--color-surface-2)', borderRadius: 10, border: '1px solid var(--color-border)',
+  }}>
+    <span style={{ fontSize: 18 }}>📄</span>
+    <span style={{ flex: 1, fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'start' }}>{name}</span>
+    <span style={{ fontSize: 12, color: 'var(--color-text-muted)', flexShrink: 0 }}>{(size / 1024).toFixed(0)} KB</span>
+    <button onClick={onRemove} style={{
+      width: 22, height: 22, borderRadius: '50%', border: 'none', background: '#fee2e2', color: '#ef4444',
+      cursor: 'pointer', flexShrink: 0, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>×</button>
+  </div>
+)
+
+const SegmentedControl: React.FC<{ label: string; value: string; options: { value: string; label: string }[]; onChange: (v: string) => void }> =
+  ({ label, value, options, onChange }) => (
+    <div>
+      <label className="label">{label}</label>
+      <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface-2)', padding: 4, borderRadius: 12 }}>
+        {options.map(opt => (
+          <button key={opt.value} onClick={() => onChange(opt.value)}
+            style={{
+              flex: 1, padding: '8px 12px', borderRadius: 9, border: 'none', cursor: 'pointer',
+              fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+              background: value === opt.value ? 'var(--color-surface)' : 'transparent',
+              color: value === opt.value ? 'var(--color-ink-black)' : 'var(--color-text-muted)',
+              boxShadow: value === opt.value ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+              transition: `background 150ms ease-out, color 150ms ease-out`,
+            }}>
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
+const PrimaryButton: React.FC<{ onClick: () => void; disabled?: boolean; children: React.ReactNode }> = ({ onClick, disabled, children }) => (
+  <button onClick={onClick} disabled={disabled}
+    style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+      padding: '13px 20px', borderRadius: 13, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
+      background: 'var(--color-ink-black)', color: '#fff', fontSize: 14.5, fontWeight: 600,
+      fontFamily: 'inherit', opacity: disabled ? 0.5 : 1, flex: 1,
+      transition: `transform 150ms ${EASE}, filter 150ms ease-out`,
+    }}
+    onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.filter = 'brightness(1.2)' }}
+    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.filter = '' }}
+    onMouseDown={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.98)' }}
+    onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
+  >
+    {children}
+  </button>
+)
+
+const GhostButton: React.FC<{ onClick: () => void; disabled?: boolean; children: React.ReactNode }> = ({ onClick, disabled, children }) => (
+  <button onClick={onClick} disabled={disabled}
+    style={{
+      padding: '13px 20px', borderRadius: 13, cursor: disabled ? 'not-allowed' : 'pointer',
+      background: 'var(--color-surface-2)', color: 'var(--color-text)', fontSize: 14, fontWeight: 600,
+      fontFamily: 'inherit', border: '1px solid var(--color-border)', opacity: disabled ? 0.5 : 1, flexShrink: 0,
+      transition: `transform 150ms ${EASE}, background 150ms ease-out`,
+    }}
+    onMouseDown={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.98)' }}
+    onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
+  >
+    {children}
+  </button>
+)
+
+// ─────────────────────────────────────────────────────────────
+// Category icons
+// ─────────────────────────────────────────────────────────────
+function OrganizeIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg> }
+function MergeIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 8V5a2 2 0 012-2h6a2 2 0 012 2v3M9 21h6a2 2 0 002-2v-3M12 8v8M8 12h8" /></svg> }
+function SplitIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M4 11h16M6 11v8a2 2 0 002 2h2M18 11v8a2 2 0 01-2 2h-2" /></svg> }
+function ExtractIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-3-3v6M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" /></svg> }
+function CompressIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 9L4 4m0 0v4m0-4h4M15 9l5-5m0 0v4m0-4h-4M9 15l-5 5m0 0v-4m0 4h4M15 15l5 5m0 0v-4m0 4h-4" /></svg> }
+function ImageIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 15l-5-5L5 21" /></svg> }
+function FromImageIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M14 4h6a2 2 0 012 2v6M4 8V6a2 2 0 012-2h2M4 14v4a2 2 0 002 2h4" /></svg> }

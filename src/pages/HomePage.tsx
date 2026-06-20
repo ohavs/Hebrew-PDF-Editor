@@ -1,6 +1,10 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePDF } from '../hooks/usePDF'
+import { useUIStore } from '../store'
+import { listSessions, deleteSession, type SessionMeta } from '../utils/sessions'
+import { ToastContainer } from '../components/ui/Toast'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 
 // ─── Design tokens (Swiss editorial) ─────────────────────────────────────────
 const C = {
@@ -123,6 +127,9 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {/* ── Continue working (saved sessions) ────────────────────────────────── */}
+      <SessionsSection onResume={id => navigate('/editor', { state: { resumeId: id } })} />
 
       {/* ── Features grid ────────────────────────────────────────────────────── */}
       <section style={{ maxWidth: 1280, margin: '96px auto 0', padding: '0 40px' }}>
@@ -317,6 +324,135 @@ export const HomePage: React.FC = () => {
           חינמי · קוד פתוח · עובד בדפדפן
         </span>
       </footer>
+
+      {/* Toasts + confirm dialog (so they work on the homepage too) */}
+      <ToastContainer />
+      <ConfirmDialog />
+    </div>
+  )
+}
+
+// ─── Saved Sessions ─────────────────────────────────────────────────────────────
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return 'הרגע'
+  if (min < 60) return `לפני ${min} דק׳`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `לפני ${hr} שע׳`
+  const days = Math.floor(hr / 24)
+  if (days === 1) return 'אתמול'
+  if (days < 30) return `לפני ${days} ימים`
+  return new Date(ts).toLocaleDateString('he-IL')
+}
+
+const SessionsSection: React.FC<{ onResume: (id: string) => void }> = ({ onResume }) => {
+  const [sessions, setSessions] = useState<SessionMeta[]>([])
+  const [loaded, setLoaded] = useState(false)
+  const { confirm, addToast } = useUIStore()
+
+  const refresh = useCallback(async () => {
+    setSessions(await listSessions())
+    setLoaded(true)
+  }, [])
+
+  useEffect(() => { refresh() }, [refresh])
+
+  const handleDelete = async (s: SessionMeta) => {
+    const ok = await confirm({
+      title: 'מחיקת עבודה שמורה',
+      message: `"${s.name}" יימחק לצמיתות מהמכשיר. לא ניתן לשחזר פעולה זו.`,
+      confirmLabel: 'מחק',
+      danger: true,
+    })
+    if (!ok) return
+    await deleteSession(s.id)
+    addToast('העבודה נמחקה', 'success')
+    refresh()
+  }
+
+  if (!loaded || sessions.length === 0) return null
+
+  return (
+    <section style={{ maxWidth: 1280, margin: '72px auto 0', padding: '0 40px' }}>
+      <MonoTag>המשך מהיכן שהפסקת</MonoTag>
+      <h2 style={{
+        fontFamily: 'var(--font-display)',
+        fontSize: 'clamp(36px, 4vw, 56px)',
+        fontWeight: 700, lineHeight: 0.95, letterSpacing: '-0.03em', margin: '10px 0 28px',
+      }}>
+        העבודות שלך
+      </h2>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+        gap: 16,
+      }}>
+        {sessions.map(s => (
+          <SessionCard key={s.id} session={s} onResume={() => onResume(s.id)} onDelete={() => handleDelete(s)} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+const SessionCard: React.FC<{ session: SessionMeta; onResume: () => void; onDelete: () => void }> = ({ session, onResume, onDelete }) => {
+  const [hover, setHover] = useState(false)
+  return (
+    <div
+      onClick={onResume}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        background: C.white,
+        borderRadius: 18,
+        overflow: 'hidden',
+        cursor: 'pointer',
+        position: 'relative',
+        boxShadow: hover ? '0 12px 32px rgba(0,0,0,0.12)' : '0 2px 10px rgba(0,0,0,0.05)',
+        transform: hover ? 'translateY(-3px)' : 'translateY(0)',
+        transition: `transform 220ms ${ease}, box-shadow 220ms ${ease}`,
+      }}
+    >
+      {/* Thumbnail */}
+      <div style={{
+        height: 150, background: C.mist, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        borderBottom: `1px solid ${C.canvas}`, overflow: 'hidden',
+      }}>
+        {session.thumbnail
+          ? <img src={session.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+          : <span style={{ fontSize: 40 }}>📄</span>}
+      </div>
+
+      {/* Delete button */}
+      <button
+        onClick={e => { e.stopPropagation(); onDelete() }}
+        title="מחק"
+        style={{
+          position: 'absolute', top: 10, left: 10, width: 30, height: 30, borderRadius: '50%',
+          border: 'none', background: 'rgba(255,255,255,0.92)', color: '#dc2626', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+          opacity: hover ? 1 : 0, transform: hover ? 'scale(1)' : 'scale(0.85)',
+          transition: `opacity 180ms ${ease}, transform 180ms ${ease}`,
+        }}
+      >
+        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      </button>
+
+      {/* Info */}
+      <div style={{ padding: '14px 16px' }}>
+        <div style={{
+          fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 4,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>{session.name}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: C.steel, fontFamily: 'var(--font-mono)' }}>
+          <span>{session.pageCount} עמ׳</span>
+          <span>{timeAgo(session.updatedAt)}</span>
+        </div>
+      </div>
     </div>
   )
 }

@@ -234,14 +234,14 @@ export const TopToolbar: React.FC = () => {
       {/* View mode (desktop) */}
       {pdfDoc && (
         <div style={{ display: 'flex', gap: 2 }} className="desktop-only">
-          {(['single', 'continuous', 'two-page'] as const).map(mode => (
+          {(['continuous', 'two-page'] as const).map(mode => (
             <TopBtn
               key={mode}
-              title={t(`viewer.${mode === 'single' ? 'singlePage' : mode === 'continuous' ? 'continuous' : 'twoPage'}`)}
+              title={mode === 'continuous' ? 'גלילה רציפה' : 'שני דפים'}
               onClick={() => setViewMode(mode)}
               active={viewMode === mode}
             >
-              {mode === 'single' ? <PageSingleIcon /> : mode === 'continuous' ? <PageScrollIcon /> : <PageTwoIcon />}
+              {mode === 'continuous' ? <PageScrollIcon /> : <PageTwoIcon />}
             </TopBtn>
           ))}
           <div className="toolbar-sep" style={{ background: 'var(--color-border)' }} />

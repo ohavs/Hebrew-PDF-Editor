@@ -3,6 +3,8 @@ import { usePDFStore, useUIStore } from '../../store'
 import { PDFPage } from './PDFPage'
 import { useDropzone } from 'react-dropzone'
 import { usePDF } from '../../hooks/usePDF'
+import { useSessions } from '../../hooks/useSessions'
+import { listSessions, type SessionMeta } from '../../utils/sessions'
 import { useTranslation } from 'react-i18next'
 
 export const PDFViewer: React.FC = () => {
@@ -61,13 +63,11 @@ export const PDFViewer: React.FC = () => {
     return () => { observer.disconnect(); clearTimeout(timer) }
   }, [pdfDoc, pageCount])
 
-  // Scroll to current page (single page mode)
+  // Scroll to current page when navigated via toolbar / thumbnails
   useEffect(() => {
-    if (viewMode !== 'continuous') {
-      const el = document.getElementById(`page-${currentPage}`)
-      el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  }, [currentPage, viewMode])
+    const el = document.getElementById(`page-${currentPage}`)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [currentPage])
 
   // Pinch-to-zoom
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -126,7 +126,7 @@ export const PDFViewer: React.FC = () => {
           display: 'flex',
           justifyContent: 'center',
           gap: 16,
-          padding: viewMode === 'single' ? '0 24px' : '0 24px'
+          padding: '0 24px'
         }}
       >
         {group.map(pageIdx => (
@@ -210,10 +210,14 @@ export const PDFViewer: React.FC = () => {
 
 const EmptyState: React.FC = () => {
   const { loadPDF } = usePDF()
+  const { resumeSession } = useSessions()
   const { t } = useTranslation()
   const [urlInput, setUrlInput] = useState('')
   const [dragging, setDragging] = useState(false)
+  const [sessions, setSessions] = useState<SessionMeta[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { listSessions().then(s => setSessions(s.slice(0, 4))) }, [])
 
   const handleUrlLoad = async () => {
     if (!urlInput.trim()) return
@@ -295,6 +299,49 @@ const EmptyState: React.FC = () => {
           {t('viewer.loadUrl')}
         </button>
       </div>
+
+      {/* Recent sessions — continue where you left off */}
+      {sessions.length > 0 && (
+        <div style={{ marginTop: 28, textAlign: 'start' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 10 }}>
+            המשך מהיכן שהפסקת
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {sessions.map(s => (
+              <button
+                key={s.id}
+                onClick={() => resumeSession(s.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '8px 10px',
+                  borderRadius: 12, border: '1px solid var(--color-border)', cursor: 'pointer',
+                  background: 'var(--color-surface)', fontFamily: 'inherit', textAlign: 'start',
+                  transition: 'border-color 150ms ease-out, transform 150ms cubic-bezier(0.23,1,0.32,1)',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-ink-black)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)' }}
+                onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.98)' }}
+                onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
+              >
+                <span style={{
+                  width: 38, height: 48, borderRadius: 6, flexShrink: 0, overflow: 'hidden',
+                  background: 'var(--color-surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {s.thumbnail
+                    ? <img src={s.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+                    : <span style={{ fontSize: 18 }}>📄</span>}
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                  <span style={{ display: 'block', fontSize: 11, color: 'var(--color-text-muted)' }}>{s.pageCount} עמ׳</span>
+                </span>
+                <svg width="16" height="16" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

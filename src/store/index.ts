@@ -23,6 +23,16 @@ interface UIState {
   isMobileMenuOpen: boolean
   showDropOverlay: boolean
   toasts: Array<{ id: string; message: string; type: 'info'|'success'|'error'|'warning' }>
+  toolboxOpen: boolean
+  confirmDialog: {
+    open: boolean
+    title: string
+    message: string
+    confirmLabel: string
+    cancelLabel: string
+    danger: boolean
+    resolve: ((v: boolean) => void) | null
+  }
 
   // Tool properties
   drawColor: string
@@ -71,6 +81,9 @@ interface UIState {
   setShowDropOverlay: (v: boolean) => void
   addToast: (message: string, type?: 'info'|'success'|'error'|'warning') => void
   removeToast: (id: string) => void
+  setToolboxOpen: (v: boolean) => void
+  confirm: (opts: { title: string; message?: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean }) => Promise<boolean>
+  resolveConfirm: (v: boolean) => void
   setDrawColor: (c: string) => void
   setDrawWidth: (w: number) => void
   setDrawOpacity: (o: number) => void
@@ -107,6 +120,11 @@ export const useUIStore = create<UIState>()((set) => ({
   isMobileMenuOpen: false,
   showDropOverlay: false,
   toasts: [],
+  toolboxOpen: false,
+  confirmDialog: {
+    open: false, title: '', message: '', confirmLabel: 'אישור', cancelLabel: 'ביטול',
+    danger: false, resolve: null,
+  },
 
   drawColor: '#ef4444',
   drawWidth: 3,
@@ -163,6 +181,24 @@ export const useUIStore = create<UIState>()((set) => ({
     }, 3500)
   },
   removeToast: (id) => set((s) => ({ toasts: s.toasts.filter(t => t.id !== id) })),
+  setToolboxOpen: (v) => set({ toolboxOpen: v }),
+  confirm: (opts) => new Promise<boolean>((resolve) => {
+    set({
+      confirmDialog: {
+        open: true,
+        title: opts.title,
+        message: opts.message || '',
+        confirmLabel: opts.confirmLabel || 'אישור',
+        cancelLabel: opts.cancelLabel || 'ביטול',
+        danger: opts.danger || false,
+        resolve,
+      }
+    })
+  }),
+  resolveConfirm: (v) => set((s) => {
+    s.confirmDialog.resolve?.(v)
+    return { confirmDialog: { ...s.confirmDialog, open: false, resolve: null } }
+  }),
   setDrawColor: (c) => set({ drawColor: c }),
   setDrawWidth: (w) => set({ drawWidth: w }),
   setDrawOpacity: (o) => set({ drawOpacity: o }),
@@ -239,7 +275,7 @@ export const usePDFStore = create<PDFState>()((set, get) => ({
   pageCount: 0,
   currentPage: 0,
   zoom: 1.0,
-  viewMode: 'single',
+  viewMode: 'continuous',
   pageOrder: [],
   pageInfos: [],
   isLoading: false,
