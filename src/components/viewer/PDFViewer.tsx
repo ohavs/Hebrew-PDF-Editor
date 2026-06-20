@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react' // useCallback kept for handleWheel
 import { usePDFStore, useUIStore } from '../../store'
 import { PDFPage } from './PDFPage'
 import { useDropzone } from 'react-dropzone'
@@ -14,8 +14,6 @@ export const PDFViewer: React.FC = () => {
   const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const [visiblePages, setVisiblePages] = useState<Set<number>>(new Set([0]))
-  const lastPinchRef = useRef<number>(0)
-
   // Drag-and-drop to open PDF (noClick: true — EmptyState handles clicks itself)
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { 'application/pdf': ['.pdf'] },
@@ -69,31 +67,7 @@ export const PDFViewer: React.FC = () => {
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [currentPage])
 
-  // Pinch-to-zoom
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      )
-      lastPinchRef.current = dist
-    }
-  }, [])
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2 && lastPinchRef.current > 0) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      )
-      const delta = dist / lastPinchRef.current
-      setZoom(zoom * delta)
-      lastPinchRef.current = dist
-      e.preventDefault()
-    }
-  }, [zoom, setZoom])
-
-  // Scroll-to-zoom
+  // Scroll-to-zoom (desktop only, Ctrl+wheel)
   const handleWheel = useCallback((e: WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault()
@@ -152,8 +126,6 @@ export const PDFViewer: React.FC = () => {
         backgroundSize: '24px 24px',
         position: 'relative',
       }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
     >
       {!pdfDoc && <input {...getInputProps()} />}
 

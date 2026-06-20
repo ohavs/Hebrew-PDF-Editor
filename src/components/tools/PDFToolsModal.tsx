@@ -6,9 +6,10 @@ import { embedAnnotationsIntoPdf, downloadBlob, triggerDownload } from '../../ut
 
 const EASE = 'cubic-bezier(0.23,1,0.32,1)'
 
-type CategoryId =
+export type CategoryId =
   | 'organize' | 'merge' | 'split' | 'extract'
   | 'compress' | 'to-image' | 'from-image'
+  | 'watermark' | 'reverse'
 
 interface Category {
   id: CategoryId
@@ -24,12 +25,14 @@ const CATEGORIES: Category[] = [
   { id: 'split', label: 'פיצול', desc: 'פצל לדפים נפרדים', color: '#8b5cf6', icon: <SplitIcon /> },
   { id: 'extract', label: 'חילוץ דפים', desc: 'שמור טווח דפים כקובץ חדש', color: '#0ea5e9', icon: <ExtractIcon /> },
   { id: 'compress', label: 'קימפרוס', desc: 'הקטן את גודל הקובץ', color: '#f59e0b', icon: <CompressIcon /> },
+  { id: 'watermark', label: 'סימן מים', desc: 'הוסף טקסט על כל הדפים', color: '#64748b', icon: <WatermarkIcon /> },
+  { id: 'reverse', label: 'הפוך סדר', desc: 'הפוך את סדר הדפים', color: '#7c3aed', icon: <ReverseIcon /> },
   { id: 'to-image', label: 'PDF לתמונה', desc: 'ייצא דפים כ-PNG / JPG', color: '#10b981', icon: <ImageIcon /> },
   { id: 'from-image', label: 'תמונה ל-PDF', desc: 'צור PDF מתמונות', color: '#ec4899', icon: <FromImageIcon /> },
 ]
 
-export const PDFToolsContent: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const [active, setActive] = useState<CategoryId>('organize')
+export const PDFToolsContent: React.FC<{ onClose: () => void; initialCategory?: CategoryId }> = ({ onClose, initialCategory }) => {
+  const [active, setActive] = useState<CategoryId>(initialCategory || 'organize')
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -150,6 +153,8 @@ const ToolPanel: React.FC<{ category: CategoryId }> = ({ category }) => {
     case 'split': return <SplitPanel />
     case 'extract': return <ExtractPanel />
     case 'compress': return <CompressPanel />
+    case 'watermark': return <WatermarkPanel />
+    case 'reverse': return <ReversePanel />
     case 'to-image': return <ToImagePanel />
     case 'from-image': return <FromImagePanel />
   }
@@ -721,9 +726,121 @@ const GhostButton: React.FC<{ onClick: () => void; disabled?: boolean; children:
 )
 
 // ─────────────────────────────────────────────────────────────
+// Watermark
+// ─────────────────────────────────────────────────────────────
+const WatermarkPanel: React.FC = () => {
+  const { pdfDoc, fileName } = usePDFStore()
+  const { addToast } = useUIStore()
+  const { loadPDF } = usePDF()
+  const [text, setText] = useState('טיוטה')
+  const [opacity, setOpacity] = useState(0.2)
+  const [fontSize, setFontSize] = useState(80)
+  const [busy, setBusy] = useState(false)
+  const getEdited = useEditedBytes()
+
+  if (!pdfDoc) return <EmptyHint />
+
+  const apply = async () => {
+    if (!text.trim()) { addToast('הזן טקסט לסימן המים', 'warning'); return }
+    setBusy(true)
+    try {
+      const bytes = await getEdited()
+      const doc = await PDFDocument.load(bytes)
+
+      // Render watermark text onto a canvas and embed as image
+      const canvas = document.createElement('canvas')
+      canvas.width = 800; canvas.height = 800
+      const ctx = canvas.getContext('2d')!
+      ctx.translate(400, 400)
+      ctx.rotate(-Math.PI / 4)
+      ctx.font = `bold ${fontSize}px Heebo, Arial`
+      ctx.fillStyle = `rgba(0,0,0,${opacity})`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(text, 0, 0)
+      const pngBytes = Uint8Array.from(atob(canvas.toDataURL('image/png').split(',')[1]), c => c.charCodeAt(0))
+      const img = await doc.embedPng(pngBytes)
+
+      doc.getPages().forEach(page => {
+        const { width, height } = page.getSize()
+        const side = Math.min(width, height) * 0.8
+        page.drawImage(img, { x: (width - side) / 2, y: (height - side) / 2, width: side, height: side, opacity })
+      })
+
+      await loadPDF((await doc.save()).buffer as ArrayBuffer, { name: fileName })
+      addToast('סימן המים נוסף לכל הדפים', 'success')
+    } catch { addToast('שגיאה בהוספת סימן מים', 'error') } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <InfoBar text="הטקסט יתווסף באלכסון על כל דפי המסמך. הוא ייטבע בקובץ הסופי." />
+      <div>
+        <label className="label">טקסט סימן המים</label>
+        <input className="input" value={text} onChange={e => setText(e.target.value)}
+          placeholder="לדוגמה: טיוטה, סודי, DRAFT" style={{ width: '100%' }} />
+      </div>
+      <div>
+        <label className="label">גודל: {fontSize}px</label>
+        <input type="range" min={40} max={160} step={10} value={fontSize}
+          onChange={e => setFontSize(parseInt(e.target.value))} style={{ width: '100%' }} />
+      </div>
+      <div>
+        <label className="label">שקיפות: {Math.round(opacity * 100)}%</label>
+        <input type="range" min={0.05} max={0.5} step={0.05} value={opacity}
+          onChange={e => setOpacity(parseFloat(e.target.value))} style={{ width: '100%' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-text-muted)' }}>
+          <span>שקוף יותר</span><span>בולט יותר</span>
+        </div>
+      </div>
+      <PrimaryButton onClick={apply} disabled={busy || !text.trim()}>
+        {busy ? <><Spinner /> מוסיף…</> : 'הוסף סימן מים'}
+      </PrimaryButton>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Reverse pages
+// ─────────────────────────────────────────────────────────────
+const ReversePanel: React.FC = () => {
+  const { pdfDoc, pageCount, fileName } = usePDFStore()
+  const { addToast } = useUIStore()
+  const { loadPDF } = usePDF()
+  const [busy, setBusy] = useState(false)
+  const getEdited = useEditedBytes()
+
+  if (!pdfDoc) return <EmptyHint />
+
+  const reverse = async () => {
+    setBusy(true)
+    try {
+      const src = await PDFDocument.load(await getEdited())
+      const dest = await PDFDocument.create()
+      const order = Array.from({ length: pageCount }, (_, i) => pageCount - 1 - i)
+      const pages = await dest.copyPages(src, order)
+      pages.forEach(p => dest.addPage(p))
+      await loadPDF((await dest.save()).buffer as ArrayBuffer, { name: fileName })
+      addToast('סדר הדפים הופך', 'success')
+    } catch { addToast('שגיאה בהיפוך סדר', 'error') } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <InfoBar text={`המסמך (${pageCount} דפים) יהפוך סדר: הדף האחרון יהיה ראשון וכן הלאה.`} />
+      <PrimaryButton onClick={reverse} disabled={busy}>
+        {busy ? <><Spinner /> הופך…</> : `הפוך סדר ${pageCount} דפים`}
+      </PrimaryButton>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
 // Category icons
 // ─────────────────────────────────────────────────────────────
-function OrganizeIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg> }
+function OrganizeIcon()   { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg> }
+function WatermarkIcon()  { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 7l10 10M7 17L17 7" opacity="0.5"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg> }
+function ReverseIcon()    { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16"/><path strokeLinecap="round" strokeLinejoin="round" d="M9 3l-5 4 5 4M15 13l5 4-5 4"/></svg> }
 function MergeIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 8V5a2 2 0 012-2h6a2 2 0 012 2v3M9 21h6a2 2 0 002-2v-3M12 8v8M8 12h8" /></svg> }
 function SplitIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M4 11h16M6 11v8a2 2 0 002 2h2M18 11v8a2 2 0 01-2 2h-2" /></svg> }
 function ExtractIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-3-3v6M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" /></svg> }

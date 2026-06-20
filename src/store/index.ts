@@ -24,6 +24,7 @@ interface UIState {
   showDropOverlay: boolean
   toasts: Array<{ id: string; message: string; type: 'info'|'success'|'error'|'warning' }>
   toolboxOpen: boolean
+  toolboxCategory: string
   confirmDialog: {
     open: boolean
     title: string
@@ -82,6 +83,7 @@ interface UIState {
   addToast: (message: string, type?: 'info'|'success'|'error'|'warning') => void
   removeToast: (id: string) => void
   setToolboxOpen: (v: boolean) => void
+  setToolboxCategory: (cat: string) => void
   confirm: (opts: { title: string; message?: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean }) => Promise<boolean>
   resolveConfirm: (v: boolean) => void
   setDrawColor: (c: string) => void
@@ -121,6 +123,7 @@ export const useUIStore = create<UIState>()((set) => ({
   showDropOverlay: false,
   toasts: [],
   toolboxOpen: false,
+  toolboxCategory: 'organize',
   confirmDialog: {
     open: false, title: '', message: '', confirmLabel: 'אישור', cancelLabel: 'ביטול',
     danger: false, resolve: null,
@@ -182,6 +185,7 @@ export const useUIStore = create<UIState>()((set) => ({
   },
   removeToast: (id) => set((s) => ({ toasts: s.toasts.filter(t => t.id !== id) })),
   setToolboxOpen: (v) => set({ toolboxOpen: v }),
+  setToolboxCategory: (cat) => set({ toolboxCategory: cat }),
   confirm: (opts) => new Promise<boolean>((resolve) => {
     set({
       confirmDialog: {

@@ -28,6 +28,21 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
 
   const pageAnnotations = annotations.filter(a => a.pageIndex === pageIndex)
 
+  // Non-passive touch listeners: prevent the scroll container from scrolling while a tool is active.
+  // React's synthetic onTouchStart is passive (e.preventDefault() is silently ignored),
+  // so we need a native listener registered with { passive: false }.
+  useEffect(() => {
+    const el = layerRef.current
+    if (!el || activeTool === 'select') return
+    const prevent = (e: TouchEvent) => { if (e.touches.length === 1) e.preventDefault() }
+    el.addEventListener('touchstart', prevent, { passive: false })
+    el.addEventListener('touchmove',  prevent, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', prevent)
+      el.removeEventListener('touchmove',  prevent)
+    }
+  }, [activeTool])
+
   useEffect(() => {
     if (activeTool !== 'text') {
       const state = useAnnotationsStore.getState()
@@ -47,7 +62,8 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
   // ── Shared interaction logic ──────────────────────────────────────────────
 
   const handleInteractStart = (clientX: number, clientY: number, targetEl: EventTarget | null) => {
-    if ((targetEl as HTMLElement) !== layerRef.current) return
+    // For the text tool, only create a textbox on empty space — child annotations handle their own clicks.
+    if (activeTool === 'text' && (targetEl as HTMLElement) !== layerRef.current) return
     selectedAtMouseDown.current = selectedId
     const pos = getRelativePos(clientX, clientY)
 
