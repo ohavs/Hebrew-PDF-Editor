@@ -23,7 +23,7 @@ export const PDFPage: React.FC<Props> = ({ pageIndex, isVisible, isCurrent, onDi
 
   const info = pageInfos[pageIndex]
   const rotation = info?.rotation || 0
-  const isPagesToolActive = activeTool === 'pages'
+  const isPagesToolActive = activeTool === 'toolbox'
 
   useEffect(() => {
     if (!pdfDoc || !canvasRef.current || !isVisible) return

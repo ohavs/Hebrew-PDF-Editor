@@ -1,11 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { useAnnotationsStore, useUIStore } from '../../store'
-import type { Point, Rect, TextBoxAnnotation, StampAnnotation, HighlightAnnotation, ShapeAnnotation } from '../../store/types'
+import type { Point, Rect, TextBoxAnnotation, StampAnnotation, HighlightAnnotation, ShapeAnnotation, StickyAnnotation } from '../../store/types'
 import { DrawingCanvas } from '../tools/DrawingCanvas'
 import { TextBox } from '../tools/TextBox'
 import { StampOverlay } from '../tools/StampOverlay'
 import { SignatureOverlay } from '../tools/SignatureOverlay'
 import { ShapeOverlay } from '../tools/ShapeOverlay'
+import { StickyNote } from '../tools/StickyNote'
 
 interface Props {
   pageIndex: number
@@ -41,7 +42,7 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
     return { x: clientX - rect.left, y: clientY - rect.top }
   }
 
-  const isRectTool = ['highlight', 'shapes'].includes(activeTool)
+  const isRectTool = ['highlight', 'shapes', 'underline', 'strikethrough', 'redact'].includes(activeTool)
 
   // ── Shared interaction logic ──────────────────────────────────────────────
 
@@ -49,6 +50,28 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
     if ((targetEl as HTMLElement) !== layerRef.current) return
     selectedAtMouseDown.current = selectedId
     const pos = getRelativePos(clientX, clientY)
+
+    if (activeTool === 'eraser') {
+      const drawAnns = pageAnnotations.filter(a => a.type === 'draw')
+      const nearby = drawAnns.find(a => {
+        const points = (a as any).points as Point[]
+        return points.some(p => Math.hypot(p.x - pos.x, p.y - pos.y) < 15)
+      })
+      if (nearby) { pushHistory(); deleteAnnotation(nearby.id) }
+      return
+    }
+
+    if (activeTool === 'comment') {
+      pushHistory()
+      const sticky: Omit<StickyAnnotation, 'id' | 'createdAt'> = {
+        type: 'sticky', pageIndex,
+        position: pos,
+        content: '', color: '#fef08a',
+        author: '', isOpen: true
+      }
+      addAnnotation(sticky)
+      return
+    }
 
     if (activeTool === 'text') {
       if (selectedAtMouseDown.current) {
@@ -85,7 +108,7 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
       return
     }
 
-    if (isRectTool || activeTool === 'highlight') {
+    if (isRectTool) {
       setIsDrawing(true)
       setDrawStart(pos)
       setTempRect({ x: pos.x, y: pos.y, width: 0, height: 0 })
@@ -113,9 +136,9 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
     }
     pushHistory()
 
-    if (activeTool === 'highlight') {
+    if (activeTool === 'highlight' || activeTool === 'underline' || activeTool === 'strikethrough') {
       const hl: Omit<HighlightAnnotation, 'id' | 'createdAt'> = {
-        type: 'highlight', pageIndex, rect,
+        type: activeTool, pageIndex, rect,
         color: highlightColor, opacity: highlightOpacity
       }
       addAnnotation(hl)
@@ -125,6 +148,13 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
         type: 'shape', pageIndex, rect,
         shape: shapeType, strokeColor: shapeStroke,
         fillColor: shapeFill, strokeWidth: shapeWidth, opacity: 1
+      }
+      addAnnotation(shape)
+    } else if (activeTool === 'redact') {
+      const shape: Omit<ShapeAnnotation, 'id' | 'createdAt'> = {
+        type: 'shape', pageIndex, rect,
+        shape: 'rect', strokeColor: '#000000',
+        fillColor: '#000000', strokeWidth: 0, opacity: 1
       }
       addAnnotation(shape)
     }
@@ -170,7 +200,9 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
   const cursor =
     activeTool === 'text' ? 'text' :
     activeTool === 'stamp' ? 'copy' :
-    (isRectTool || activeTool === 'highlight') ? 'crosshair' :
+    activeTool === 'comment' ? 'cell' :
+    activeTool === 'eraser' ? 'cell' :
+    isRectTool ? 'crosshair' :
     activeTool === 'draw' ? 'crosshair' : 'default'
 
   return (
@@ -199,6 +231,32 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
               position: 'absolute', left: r.x, top: r.y, width: r.width, height: r.height,
               background: highlightColor, opacity: highlightOpacity,
               mixBlendMode: 'multiply' as const, pointerEvents: 'none', borderRadius: 2,
+            }} />
+          )
+        }
+        if (activeTool === 'underline') {
+          return (
+            <div style={{
+              position: 'absolute', left: r.x, top: r.y, width: r.width, height: r.height,
+              borderBottom: `2px solid ${highlightColor}`, pointerEvents: 'none',
+            }} />
+          )
+        }
+        if (activeTool === 'strikethrough') {
+          return (
+            <div style={{
+              position: 'absolute', left: r.x, top: r.y, width: r.width, height: r.height,
+              pointerEvents: 'none',
+            }}>
+              <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 2, background: highlightColor, transform: 'translateY(-50%)' }} />
+            </div>
+          )
+        }
+        if (activeTool === 'redact') {
+          return (
+            <div style={{
+              position: 'absolute', left: r.x, top: r.y, width: r.width, height: r.height,
+              background: '#000000', opacity: 0.85, pointerEvents: 'none', borderRadius: 2,
             }} />
           )
         }
@@ -241,13 +299,15 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
       {pageAnnotations.map(ann => {
         if (ann.type === 'draw') return null
         if (ann.type === 'textbox') return <TextBox key={ann.id} annotation={ann} />
-        if (ann.type === 'highlight') {
-          return <HighlightMark key={ann.id} id={ann.id} rect={ann.rect}
-            color={ann.color} opacity={ann.opacity} type={ann.type} isSelected={selectedId === ann.id} />
+        if (ann.type === 'highlight' || ann.type === 'underline' || ann.type === 'strikethrough') {
+          return <HighlightMark key={ann.id} id={ann.id} rect={(ann as HighlightAnnotation).rect}
+            color={(ann as HighlightAnnotation).color} opacity={(ann as HighlightAnnotation).opacity}
+            type={ann.type} isSelected={selectedId === ann.id} />
         }
-        if (ann.type === 'stamp') return <StampOverlay key={ann.id} annotation={ann} />
-        if (ann.type === 'signature') return <SignatureOverlay key={ann.id} annotation={ann} />
-        if (ann.type === 'shape') return <ShapeOverlay key={ann.id} annotation={ann} />
+        if (ann.type === 'stamp') return <StampOverlay key={ann.id} annotation={ann as StampAnnotation} />
+        if (ann.type === 'signature') return <SignatureOverlay key={ann.id} annotation={ann as any} />
+        if (ann.type === 'shape') return <ShapeOverlay key={ann.id} annotation={ann as ShapeAnnotation} />
+        if (ann.type === 'sticky') return <StickyNote key={ann.id} annotation={ann as StickyAnnotation} />
         return null
       })}
     </div>
@@ -256,22 +316,34 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
 
 const HighlightMark: React.FC<{
   id: string; rect: Rect; color: string; opacity: number; type: string; isSelected: boolean
-}> = ({ id, rect, color, opacity, isSelected }) => {
+}> = ({ id, rect, color, opacity, type, isSelected }) => {
   const { deleteAnnotation, selectAnnotation } = useAnnotationsStore()
   const { activeTool } = useUIStore()
+
+  const isHighlight = type === 'highlight'
+  const isUnderline = type === 'underline'
+  const isStrike = type === 'strikethrough'
 
   return (
     <div
       style={{
         position: 'absolute', left: rect.x, top: rect.y,
         width: rect.width, height: rect.height,
-        background: color, opacity,
-        mixBlendMode: 'multiply' as const,
+        background: isHighlight ? color : 'transparent',
+        opacity: isHighlight ? opacity : 1,
+        mixBlendMode: isHighlight ? 'multiply' as const : 'normal' as const,
         cursor: 'pointer', pointerEvents: 'all', borderRadius: 2,
-        outline: isSelected ? '2px solid #000' : 'none'
+        outline: isSelected ? '2px solid #000' : 'none',
+        borderBottom: isUnderline ? `2px solid ${color}` : 'none',
       }}
       onClick={e => { e.stopPropagation(); if (activeTool === 'select') selectAnnotation(id) }}
     >
+      {isStrike && (
+        <div style={{
+          position: 'absolute', top: '50%', left: 0, right: 0,
+          height: 2, background: color, transform: 'translateY(-50%)'
+        }} />
+      )}
       {isSelected && (
         <button
           onMouseDown={e => { e.stopPropagation(); deleteAnnotation(id) }}

@@ -232,6 +232,7 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
         borderRadius: 3,
         transition: 'border-color 120ms cubic-bezier(0.23,1,0.32,1), background 120ms ease',
         boxShadow: isSelected ? '0 0 0 3px rgba(0,0,0,0.08)' : 'none',
+        pointerEvents: 'all',
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}

@@ -11,25 +11,30 @@ const GROUPS: ToolDef[][] = [
     { id: 'select', label: 'בחר', icon: <SelectIcon /> },
     { id: 'text', label: 'טקסט', icon: <TextIcon /> },
     { id: 'highlight', label: 'הדגשה', icon: <HighlightIcon /> },
+    { id: 'underline', label: 'קו תחתון', icon: <UnderlineIcon /> },
+    { id: 'strikethrough', label: 'קו חוצה', icon: <StrikethroughIcon /> },
   ],
   [
     { id: 'draw', label: 'ציור', icon: <DrawIcon /> },
+    { id: 'eraser', label: 'מחק', icon: <EraserIcon /> },
     { id: 'shapes', label: 'צורות', icon: <ShapesIcon /> },
+    { id: 'redact', label: 'כיסוי', icon: <RedactIcon /> },
     { id: 'stamp', label: 'חותמת', icon: <StampIcon /> },
   ],
   [
     { id: 'signature', label: 'חתימה', icon: <SigIcon /> },
+    { id: 'comment', label: 'הערה', icon: <CommentIcon /> },
     { id: 'toolbox', label: 'כלי PDF', icon: <ToolboxIcon /> },
   ],
 ]
 
 export const HorizontalToolbar: React.FC = () => {
-  const { activeTool, setTool, setToolboxOpen } = useUIStore()
+  const { activeTool, setTool, setToolboxOpen, toolboxOpen } = useUIStore()
   const { pdfDoc } = usePDFStore()
 
   const handleTool = (id: ToolType) => {
     if (id === 'toolbox') {
-      setToolboxOpen(true)
+      setToolboxOpen(!toolboxOpen)
       return
     }
     setTool(id)
@@ -193,4 +198,19 @@ function SigIcon() {
 }
 function ToolboxIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M20 7h-3V5a2 2 0 00-2-2H9a2 2 0 00-2 2v2H4a1 1 0 00-1 1v11a2 2 0 002 2h14a2 2 0 002-2V8a1 1 0 00-1-1zM9 7V5h6v2M3 12h18M10 12v2h4v-2"/></svg>
+}
+function UnderlineIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M6 4v6a6 6 0 0012 0V4M4 20h16" /></svg>
+}
+function StrikethroughIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M6 12h12M12 4c-2.5 0-5 1-5 3.5S9 11 12 12m0 0c3 .8 5 2 5 4.5S14.5 20 12 20c-2.5 0-5-1-5-3.5" /></svg>
+}
+function EraserIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M20 20H7L3 16l9-9 6 6-3.5 3.5M6.5 17.5l4-4" /></svg>
+}
+function RedactIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="8" width="18" height="8" rx="1" fill="currentColor" opacity="0.3" /><rect x="3" y="8" width="18" height="8" rx="1" strokeLinecap="round" /></svg>
+}
+function CommentIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
 }

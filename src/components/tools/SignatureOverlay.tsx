@@ -14,7 +14,7 @@ export const SignatureOverlay: React.FC<Props> = ({ annotation }) => {
   const resizeStart = useRef({ mx: 0, my: 0, w: 0, h: 0 })
 
   const startDrag = (e: React.MouseEvent) => {
-    // eraser tool removed
+    if (activeTool !== 'select') return
     if ((e.target as HTMLElement).classList.contains('resize-handle')) return
     e.preventDefault(); e.stopPropagation()
     selectAnnotation(annotation.id)
@@ -52,8 +52,9 @@ export const SignatureOverlay: React.FC<Props> = ({ annotation }) => {
     <div
       style={{
         position: 'absolute', left: x, top: y, width, height,
-        cursor: 'move', zIndex: 35, userSelect: 'none',
-        outline: isSelected ? '2px solid var(--color-accent)' : 'none'
+        cursor: activeTool === 'select' ? 'move' : 'default', zIndex: 35, userSelect: 'none',
+        outline: isSelected ? '2px solid var(--color-accent)' : 'none',
+        pointerEvents: 'all',
       }}
       onMouseDown={startDrag}
     >

@@ -86,6 +86,9 @@ export default function App() {
         {/* Left panel (thumbnails + annotations) */}
         <LeftPanel />
 
+        {/* PDF Tools panel (inline, renders when toolboxOpen) */}
+        <PDFToolsModal />
+
         {/* PDF Viewer canvas */}
         <PDFViewer />
 
@@ -98,9 +101,6 @@ export default function App() {
 
       {/* Toasts */}
       <ToastContainer />
-
-      {/* PDF Tools hub */}
-      <PDFToolsModal />
 
       {/* Global confirm dialog */}
       <ConfirmDialog />

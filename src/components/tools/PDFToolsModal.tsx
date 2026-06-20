@@ -35,100 +35,108 @@ export const PDFToolsModal: React.FC = () => {
   if (!toolboxOpen) return null
 
   return (
-    <div className="modal-overlay no-print" onClick={() => setToolboxOpen(false)} style={{ zIndex: 1500 }}>
+    <>
+      <style>{`
+        @keyframes panelIn {
+          from { opacity: 0; transform: translateX(-20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+      `}</style>
       <div
-        onClick={e => e.stopPropagation()}
+        className="no-print"
         style={{
-          background: 'var(--color-surface)',
-          borderRadius: 24,
-          width: 900,
-          maxWidth: '94vw',
-          height: 600,
-          maxHeight: '88vh',
+          width: 360,
+          flexShrink: 0,
+          borderInlineEnd: '1px solid var(--color-border)',
           display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          background: 'var(--color-surface)',
           overflow: 'hidden',
-          boxShadow: '0 32px 100px rgba(0,0,0,0.35)',
-          animation: `modalIn 0.3s ${EASE} both`,
+          animation: `panelIn 0.25s ${EASE} both`,
         }}
       >
         {/* Sidebar */}
         <div style={{
-          width: 240, flexShrink: 0, background: 'var(--color-surface-2)',
-          borderInlineEnd: '1px solid var(--color-border)', padding: 14,
-          display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto',
+          width: '100%', display: 'flex', height: '100%', overflow: 'hidden',
         }}>
           <div style={{
-            fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700,
-            color: 'var(--color-ink-black)', padding: '6px 8px 12px',
+            width: 130, flexShrink: 0, background: 'var(--color-surface-2)',
+            borderInlineEnd: '1px solid var(--color-border)', padding: '10px 8px',
+            display: 'flex', flexDirection: 'column', gap: 3, overflowY: 'auto',
           }}>
-            כלי PDF
+            <div style={{
+              fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700,
+              color: 'var(--color-ink-black)', padding: '4px 6px 10px',
+            }}>
+              כלי PDF
+            </div>
+            {CATEGORIES.map(cat => {
+              const isActive = active === cat.id
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setActive(cat.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 7, textAlign: 'start',
+                    padding: '8px 8px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                    background: isActive ? 'var(--color-surface)' : 'transparent',
+                    boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                    fontFamily: 'inherit', width: '100%',
+                    transition: `background 150ms ease-out`,
+                  }}
+                  onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.04)' }}
+                  onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+                >
+                  <span style={{
+                    width: 26, height: 26, borderRadius: 7, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: `${cat.color}15`, color: cat.color,
+                  }}>
+                    {cat.icon}
+                  </span>
+                  <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink-black)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cat.label}</span>
+                  </span>
+                </button>
+              )
+            })}
           </div>
-          {CATEGORIES.map(cat => {
-            const isActive = active === cat.id
-            return (
+
+          {/* Content area — 230px */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '12px 14px', borderBottom: '1px solid var(--color-border)', flexShrink: 0,
+            }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, margin: 0, color: 'var(--color-ink-black)' }}>
+                {CATEGORIES.find(c => c.id === active)?.label}
+              </h2>
               <button
-                key={cat.id}
-                onClick={() => setActive(cat.id)}
+                onClick={() => setToolboxOpen(false)}
+                title="סגור"
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 10, textAlign: 'start',
-                  padding: '10px 12px', borderRadius: 12, border: 'none', cursor: 'pointer',
-                  background: isActive ? 'var(--color-surface)' : 'transparent',
-                  boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
-                  fontFamily: 'inherit', width: '100%',
-                  transition: `background 150ms ease-out`,
-                }}
-                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.04)' }}
-                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
-              >
-                <span style={{
-                  width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+                  width: 28, height: 28, borderRadius: 8, border: 'none', cursor: 'pointer',
+                  background: 'var(--color-surface-2)', color: 'var(--color-text)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: `${cat.color}15`, color: cat.color,
-                }}>
-                  {cat.icon}
-                </span>
-                <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink-black)' }}>{cat.label}</span>
-                  <span style={{ fontSize: 11, color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.desc}</span>
-                </span>
+                  transition: `transform 150ms ${EASE}, background 150ms ease-out`,
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-border)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-surface-2)' }}
+                onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.9)' }}
+                onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
+              >
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
-            )
-          })}
-        </div>
+            </div>
 
-        {/* Content */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '16px 20px', borderBottom: '1px solid var(--color-border)', flexShrink: 0,
-          }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--color-ink-black)' }}>
-              {CATEGORIES.find(c => c.id === active)?.label}
-            </h2>
-            <button
-              onClick={() => setToolboxOpen(false)}
-              title="סגור"
-              style={{
-                width: 34, height: 34, borderRadius: 10, border: 'none', cursor: 'pointer',
-                background: 'var(--color-surface-2)', color: 'var(--color-text)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: `transform 150ms ${EASE}, background 150ms ease-out`,
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-border)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-surface-2)' }}
-              onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.9)' }}
-              onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
-            >
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-          </div>
-
-          <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
-            <ToolPanel category={active} />
+            <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+              <ToolPanel category={active} />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -321,6 +329,8 @@ const SplitPanel: React.FC = () => {
   const { pdfDoc, pageCount, fileName } = usePDFStore()
   const { addToast } = useUIStore()
   const [busy, setBusy] = useState(false)
+  const [splitMode, setSplitMode] = useState<'each' | 'ranges'>('each')
+  const [splitRanges, setSplitRanges] = useState('')
   const getEdited = useEditedBytes()
 
   if (!pdfDoc) return <EmptyHint />
@@ -341,11 +351,54 @@ const SplitPanel: React.FC = () => {
     } catch { addToast('שגיאה בפיצול', 'error') } finally { setBusy(false) }
   }
 
+  const splitByRanges = async () => {
+    // Parse comma-separated groups like "1-3, 4-6, 7"
+    const groups = splitRanges.split(',').map(g => g.trim()).filter(Boolean)
+    if (!groups.length) { addToast('הזן טווחים תקינים', 'warning'); return }
+    setBusy(true)
+    try {
+      const src = await PDFDocument.load(await getEdited())
+      const baseName = fileName.replace(/\.pdf$/i, '')
+      for (let gi = 0; gi < groups.length; gi++) {
+        const pages = parseRanges(groups[gi], pageCount)
+        if (!pages.length) continue
+        const dest = await PDFDocument.create()
+        const copied = await dest.copyPages(src, pages.map(p => p - 1))
+        copied.forEach(p => dest.addPage(p))
+        downloadBlob(await dest.save(), `${baseName}-חלק-${gi + 1}.pdf`)
+        await new Promise(r => setTimeout(r, 250))
+      }
+      addToast(`המסמך פוצל ל-${groups.length} קבצים`, 'success')
+    } catch { addToast('שגיאה בפיצול', 'error') } finally { setBusy(false) }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <InfoBar text={`המסמך (${pageCount} דפים) יפוצל לקבצי PDF נפרדים — קובץ אחד לכל דף.`} />
-      <PrimaryButton onClick={splitEach} disabled={busy}>
-        {busy ? <><Spinner /> מפצל…</> : `פצל ל-${pageCount} קבצים נפרדים`}
+      <InfoBar text={`המסמך (${pageCount} דפים) יפוצל לקבצי PDF נפרדים.`} />
+      <SegmentedControl
+        label="מצב פיצול"
+        value={splitMode}
+        options={[{ value: 'each', label: 'דף לכל קובץ' }, { value: 'ranges', label: 'טווחים מותאמים' }]}
+        onChange={v => setSplitMode(v as 'each' | 'ranges')}
+      />
+      {splitMode === 'ranges' && (
+        <div>
+          <label className="label">טווחים (מופרדים בפסיק)</label>
+          <input
+            className="input"
+            value={splitRanges}
+            onChange={e => setSplitRanges(e.target.value)}
+            placeholder="לדוגמה: 1-3, 4-6, 7"
+            dir="ltr"
+            style={{ width: '100%', textAlign: 'center' }}
+          />
+          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+            כל קבוצה תהפוך לקובץ נפרד
+          </div>
+        </div>
+      )}
+      <PrimaryButton onClick={splitMode === 'each' ? splitEach : splitByRanges} disabled={busy}>
+        {busy ? <><Spinner /> מפצל…</> : splitMode === 'each' ? `פצל ל-${pageCount} קבצים נפרדים` : 'פצל לפי טווחים'}
       </PrimaryButton>
     </div>
   )
@@ -450,7 +503,8 @@ const ToImagePanel: React.FC = () => {
   const { pdfDoc, pageCount, currentPage, fileName } = usePDFStore()
   const { addToast } = useUIStore()
   const [format, setFormat] = useState<'png' | 'jpeg'>('png')
-  const [scope, setScope] = useState<'current' | 'all'>('all')
+  const [scope, setScope] = useState<'current' | 'all' | 'custom'>('all')
+  const [customRange, setCustomRange] = useState('')
   const [busy, setBusy] = useState(false)
 
   if (!pdfDoc) return <EmptyHint />
@@ -459,7 +513,10 @@ const ToImagePanel: React.FC = () => {
     setBusy(true)
     try {
       const base = fileName.replace(/\.pdf$/i, '')
-      const pages = scope === 'current' ? [currentPage + 1] : Array.from({ length: pageCount }, (_, i) => i + 1)
+      const pages = scope === 'current' ? [currentPage + 1]
+        : scope === 'custom' ? parseRanges(customRange, pageCount)
+        : Array.from({ length: pageCount }, (_, i) => i + 1)
+      if (!pages.length) { addToast('הזן טווח דפים תקין', 'warning'); setBusy(false); return }
       for (const num of pages) {
         const canvas = await renderPageCanvas(pdfDoc, num, 2)
         const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, `image/${format}`, 0.92))
@@ -482,9 +539,23 @@ const ToImagePanel: React.FC = () => {
       <SegmentedControl
         label="טווח"
         value={scope}
-        options={[{ value: 'all', label: `כל הדפים (${pageCount})` }, { value: 'current', label: `הדף הנוכחי (${currentPage + 1})` }]}
-        onChange={v => setScope(v as 'current' | 'all')}
+        options={[
+          { value: 'all', label: `כל (${pageCount})` },
+          { value: 'current', label: `נוכחי (${currentPage + 1})` },
+          { value: 'custom', label: 'בחירה ידנית' },
+        ]}
+        onChange={v => setScope(v as 'current' | 'all' | 'custom')}
       />
+      {scope === 'custom' && (
+        <input
+          className="input"
+          value={customRange}
+          onChange={e => setCustomRange(e.target.value)}
+          placeholder="לדוגמה: 1-3, 5, 8"
+          dir="ltr"
+          style={{ width: '100%', textAlign: 'center' }}
+        />
+      )}
       <PrimaryButton onClick={exportImages} disabled={busy}>
         {busy ? <><Spinner /> מייצא…</> : 'ייצא תמונות'}
       </PrimaryButton>
