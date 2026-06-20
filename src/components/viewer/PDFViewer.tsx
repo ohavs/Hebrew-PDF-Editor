@@ -8,12 +8,25 @@ import { listSessions, type SessionMeta } from '../../utils/sessions'
 import { useTranslation } from 'react-i18next'
 
 export const PDFViewer: React.FC = () => {
-  const { pdfDoc, pageCount, currentPage, setCurrentPage, zoom, setZoom, viewMode, pageOrder, isLoading, loadingProgress } = usePDFStore()
+  const { pdfDoc, pageCount, currentPage, setCurrentPage, zoom, setZoom, viewMode, pageOrder, isLoading, loadingProgress, pageInfos } = usePDFStore()
   const { activeTool, showDropOverlay, setShowDropOverlay } = useUIStore()
   const { loadPDF } = usePDF()
   const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const [visiblePages, setVisiblePages] = useState<Set<number>>(new Set([0]))
+  const autoFitRef = useRef(false)
+
+  // On mobile, auto-fit zoom to screen width when PDF first loads
+  useEffect(() => { autoFitRef.current = false }, [pdfDoc])
+  useEffect(() => {
+    if (autoFitRef.current || !pdfDoc || !pageInfos[0]?.width) return
+    if (window.innerWidth >= 768) return
+    autoFitRef.current = true
+    const containerWidth = containerRef.current?.clientWidth || window.innerWidth
+    // pageInfos width is stored at current zoom (1.0 on first load) = natural page width
+    const fitZoom = (containerWidth - 24) / pageInfos[0].width
+    setZoom(Math.max(0.25, Math.min(fitZoom, 1.5)))
+  }, [pdfDoc, pageInfos])
   // Drag-and-drop to open PDF (noClick: true — EmptyState handles clicks itself)
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { 'application/pdf': ['.pdf'] },
