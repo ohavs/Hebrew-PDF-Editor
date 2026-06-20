@@ -85,14 +85,18 @@ export function usePDF() {
   ) => {
     try {
       const page = await pdfDoc.getPage(pageIndex + 1)
-      const viewport = page.getViewport({ scale: zoom * window.devicePixelRatio, rotation })
+      // Render at 2× device pixel ratio for crisp path-based glyph rendering
+      // (disableFontFace draws text as canvas paths; higher resolution prevents blur)
+      const renderScale = zoom * window.devicePixelRatio * 2
+      const viewport = page.getViewport({ scale: renderScale, rotation })
 
       canvas.width = viewport.width
       canvas.height = viewport.height
-      canvas.style.width = `${viewport.width / window.devicePixelRatio}px`
-      canvas.style.height = `${viewport.height / window.devicePixelRatio}px`
+      canvas.style.width = `${viewport.width / (window.devicePixelRatio * 2)}px`
+      canvas.style.height = `${viewport.height / (window.devicePixelRatio * 2)}px`
 
-      const ctx = canvas.getContext('2d')!
+      const ctx = canvas.getContext('2d', { alpha: false })!
+      ctx.imageSmoothingEnabled = false
       const renderContext = {
         canvasContext: ctx,
         viewport,
@@ -104,8 +108,8 @@ export function usePDF() {
       page.cleanup()
 
       return {
-        width: viewport.width / window.devicePixelRatio,
-        height: viewport.height / window.devicePixelRatio
+        width: viewport.width / (window.devicePixelRatio * 2),
+        height: viewport.height / (window.devicePixelRatio * 2)
       }
     } catch { return null }
   }, [])
