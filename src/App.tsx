@@ -11,6 +11,9 @@ import { ToastContainer } from './components/ui/Toast'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import { SettingsModal } from './components/ui/SettingsModal'
 import { PDFToolsMobileSheet } from './components/tools/PDFToolsMobileSheet'
+import { MobileHeader } from './components/mobile/MobileHeader'
+import { MobileBottomNav } from './components/mobile/MobileBottomNav'
+import { InstallPrompt } from './components/ui/InstallPrompt'
 import { useKeyboard } from './hooks/useKeyboard'
 import { useSessionAutosave, useSessions } from './hooks/useSessions'
 import { usePDF } from './hooks/usePDF'
@@ -75,10 +78,13 @@ export default function App() {
         color: 'var(--color-text)',
       }}
     >
-      {/* Top toolbar */}
+      {/* Desktop top toolbar */}
       <TopToolbar />
 
-      {/* Horizontal tool bar */}
+      {/* Mobile header (replaces TopToolbar on mobile) */}
+      <MobileHeader />
+
+      {/* Desktop horizontal toolbar */}
       <HorizontalToolbar />
 
       {/* Main area */}
@@ -93,6 +99,9 @@ export default function App() {
         <RightPanel />
       </div>
 
+      {/* Mobile bottom navigation (replaces BottomToolbar on mobile) */}
+      <MobileBottomNav />
+
       {/* Mobile properties drawer */}
       <MobilePropertiesDrawer />
 
@@ -104,6 +113,9 @@ export default function App() {
 
       {/* Mobile PDF tools bottom sheet */}
       <PDFToolsMobileSheet />
+
+      {/* PWA Install prompt */}
+      <InstallPrompt />
 
       {/* Settings modal */}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}

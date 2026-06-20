@@ -67,7 +67,7 @@ export const TopToolbar: React.FC = () => {
 
   return (
     <div
-      className="no-print"
+      className="no-print desktop-only"
       style={{
         background: 'var(--color-primary)',
         height: 52,

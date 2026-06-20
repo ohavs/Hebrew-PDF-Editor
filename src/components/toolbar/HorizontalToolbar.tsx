@@ -42,7 +42,7 @@ export const HorizontalToolbar: React.FC = () => {
 
   return (
     <div
-      className="no-print"
+      className="no-print desktop-only"
       style={{
         background: 'var(--color-surface)',
         borderBottom: '1px solid var(--color-border)',
@@ -133,48 +133,8 @@ export const HorizontalToolbar: React.FC = () => {
   )
 }
 
-// Mobile bottom toolbar (kept for mobile)
-export const BottomToolbar: React.FC = () => {
-  const { activeTool, setTool, setToolboxOpen, toolboxOpen } = useUIStore()
-  const { pdfDoc } = usePDFStore()
-  const mobileDefs: ToolDef[] = [
-    { id: 'select', label: 'בחר', icon: <SelectIcon /> },
-    { id: 'text', label: 'טקסט', icon: <TextIcon /> },
-    { id: 'highlight', label: 'הדגשה', icon: <HighlightIcon /> },
-    { id: 'draw', label: 'ציור', icon: <DrawIcon /> },
-    { id: 'signature', label: 'חתימה', icon: <SigIcon /> },
-    { id: 'toolbox', label: 'כלים', icon: <ToolboxIcon /> },
-  ]
-  const handle = (id: ToolType) => { if (id === 'toolbox') setToolboxOpen(!toolboxOpen); else setTool(id) }
-  return (
-    <div className="no-print mobile-only" style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, height: 64,
-      background: 'var(--color-surface)', borderTop: '1px solid var(--color-border)',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-around',
-      padding: '0 4px', paddingBottom: 'env(safe-area-inset-bottom, 0)',
-      zIndex: 300, boxShadow: '0 -4px 20px rgba(0,0,0,0.1)',
-      borderRadius: '16px 16px 0 0',
-    }}>
-      {mobileDefs.map(tool => {
-        const active = tool.id === 'toolbox' ? toolboxOpen : activeTool === tool.id
-        const disabled = !pdfDoc && tool.id !== 'select'
-        return (
-          <button key={tool.id} disabled={disabled} onClick={() => handle(tool.id)}
-            style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-              padding: '4px 8px', border: 'none', borderRadius: 8,
-              background: active ? 'var(--color-mint)' : 'transparent',
-              color: active ? 'var(--color-ink-black)' : 'var(--color-text-muted)',
-              cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-            }}>
-            {tool.icon}
-            <span style={{ fontSize: 9, fontWeight: 500 }}>{tool.label}</span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
+// Mobile bottom toolbar — replaced by MobileBottomNav
+export const BottomToolbar: React.FC = () => null
 
 // Icons
 function SelectIcon() {
