@@ -430,32 +430,61 @@ input[type=checkbox] {
   border-radius: 3px;
 }
 
-/* ── Mobile ─────────────────────────────────────────────────────── */
+/* ── Safe area & PWA ────────────────────────────────────────── */
+:root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --bottom-nav-height: calc(80px + var(--safe-area-bottom));
+}
+
+/* Remove browser tap highlight globally */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Prevent pull-to-refresh */
+html, body {
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
+
+/* ── Mobile ─────────────────────────────────────────────────── */
 @media (max-width: 767px) {
   .desktop-only { display: none !important; }
 
-  /* Editor root fills the whole screen */
+  /* Editor root - use full viewport */
   .editor-root {
-    padding-bottom: 64px; /* space for bottom toolbar */
+    height: 100dvh; /* dynamic viewport height */
+    overflow: hidden;
   }
 
-  /* Wider tap targets */
-  button { min-height: 36px; }
+  /* Main area needs bottom padding for the nav */
+  .flex-1.overflow-auto {
+    padding-bottom: var(--bottom-nav-height) !important;
+  }
 
-  /* PDF page wrapper - no side margins on mobile */
+  /* PDF page - full width with minimal margins */
   .pdf-page-wrapper {
-    margin: 8px auto;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.12);
+    margin: 8px auto !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.1) !important;
   }
 
-  /* Toast - bottom center on mobile */
+  /* Toast - float above bottom nav */
   .toast-container {
-    bottom: 72px !important;
-    right: 50% !important;
+    bottom: calc(var(--bottom-nav-height) + 12px) !important;
+    inset-inline-end: 50% !important;
     transform: translateX(50%) !important;
     align-items: center !important;
-    width: auto !important;
+    right: auto !important;
   }
+
+  /* Input & button tap targets */
+  input, select, button { min-height: 40px; }
+
+  /* PDF pages container - tight padding on mobile */
+  .pdf-pages-container { padding: 8px 0 !important; }
+  .pdf-page-group { padding: 0 8px !important; }
 }
 
 @media (min-width: 768px) {
@@ -466,20 +495,16 @@ input[type=checkbox] {
 .pdf-pages-container {
   padding: 24px 0;
 }
-@media (max-width: 767px) {
-  .pdf-pages-container {
-    padding: 12px 0;
-  }
-}
 
 /* PDF page group */
 .pdf-page-group {
   padding: 0 24px;
 }
-@media (max-width: 767px) {
-  .pdf-page-group {
-    padding: 0 8px;
-  }
+
+/* Sheet animation (used by mobile bottom sheets) */
+@keyframes sheetIn {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
 /* Mobile properties drawer */
