@@ -10,7 +10,7 @@ import { PDFViewer } from './components/viewer/PDFViewer'
 import { ToastContainer } from './components/ui/Toast'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import { SettingsModal } from './components/ui/SettingsModal'
-import { PDFToolsModal } from './components/tools/PDFToolsModal'
+import { PDFToolsMobileSheet } from './components/tools/PDFToolsMobileSheet'
 import { useKeyboard } from './hooks/useKeyboard'
 import { useSessionAutosave, useSessions } from './hooks/useSessions'
 import { usePDF } from './hooks/usePDF'
@@ -83,11 +83,8 @@ export default function App() {
 
       {/* Main area */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Left panel (thumbnails + annotations) */}
+        {/* Left panel (thumbnails + annotations, or PDF tools when toolboxOpen) */}
         <LeftPanel />
-
-        {/* PDF Tools panel (inline, renders when toolboxOpen) */}
-        <PDFToolsModal />
 
         {/* PDF Viewer canvas */}
         <PDFViewer />
@@ -104,6 +101,9 @@ export default function App() {
 
       {/* Global confirm dialog */}
       <ConfirmDialog />
+
+      {/* Mobile PDF tools bottom sheet */}
+      <PDFToolsMobileSheet />
 
       {/* Settings modal */}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}

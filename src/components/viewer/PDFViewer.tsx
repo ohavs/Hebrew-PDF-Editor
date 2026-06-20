@@ -122,11 +122,11 @@ export const PDFViewer: React.FC = () => {
     return pages.map((group, gi) => (
       <div
         key={gi}
+        className="pdf-page-group"
         style={{
           display: 'flex',
           justifyContent: 'center',
           gap: 16,
-          padding: '0 24px'
         }}
       >
         {group.map(pageIdx => (
@@ -194,8 +194,8 @@ export const PDFViewer: React.FC = () => {
 
       {/* Pages */}
       <div
+        className="pdf-pages-container"
         style={{
-          padding: '24px 0',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',

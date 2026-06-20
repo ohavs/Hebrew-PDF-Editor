@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { useUIStore } from '../../store'
 import { ThumbnailPanel } from './ThumbnailPanel'
 import { AnnotationsPanel } from './AnnotationsPanel'
+import { PDFToolsContent } from '../tools/PDFToolsModal'
 import type { SidePanel } from '../../store/types'
+
+const EASE = 'cubic-bezier(0.23,1,0.32,1)'
 
 const TABS: Array<{ id: SidePanel; label: string }> = [
   { id: 'thumbnails', label: 'viewer.thumbnails' },
@@ -12,7 +15,7 @@ const TABS: Array<{ id: SidePanel; label: string }> = [
 
 export const LeftPanel: React.FC = () => {
   const { t } = useTranslation()
-  const { sidePanel, setSidePanel } = useUIStore()
+  const { sidePanel, setSidePanel, toolboxOpen, setToolboxOpen } = useUIStore()
 
   const activeIdx = TABS.findIndex(tab => tab.id === sidePanel)
   const indicatorLeft = activeIdx >= 0 ? `${(activeIdx / TABS.length) * 100}%` : '0%'
@@ -21,58 +24,50 @@ export const LeftPanel: React.FC = () => {
     <div
       className="no-print desktop-only"
       style={{
-        width: 200,
+        width: toolboxOpen ? 300 : 200,
         background: 'var(--color-surface)',
         borderInlineEnd: '1px solid var(--color-border)',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
-        overflow: 'hidden'
+        overflow: 'hidden',
+        transition: `width 240ms ${EASE}`,
       }}
     >
-      {/* Tab bar with sliding indicator */}
-      <div style={{ position: 'relative', display: 'flex', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
-        {/* Sliding indicator */}
-        <div style={{
-          position: 'absolute',
-          bottom: 0,
-          left: indicatorLeft,
-          width: `${100 / TABS.length}%`,
-          height: 2,
-          background: 'var(--color-accent)',
-          borderRadius: '2px 2px 0 0',
-          transition: 'left 220ms cubic-bezier(0.23,1,0.32,1)',
-          pointerEvents: 'none',
-        }} />
-        {TABS.map((tab, i) => (
-          <button
-            key={tab.id}
-            onClick={() => setSidePanel(tab.id)}
-            style={{
-              flex: 1,
-              padding: '9px 4px',
-              fontSize: 11,
-              fontWeight: 600,
-              background: 'transparent',
-              border: 'none',
-              borderBottom: '2px solid transparent',
-              color: sidePanel === tab.id ? 'var(--color-accent)' : 'var(--color-text-muted)',
-              cursor: 'pointer',
-              transition: 'color 180ms ease-out',
-              fontFamily: 'inherit',
-              letterSpacing: '0.01em',
-            }}
-          >
-            {t(tab.label)}
-          </button>
-        ))}
-      </div>
-
-      {/* Panel content */}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {sidePanel === 'thumbnails' && <ThumbnailPanel />}
-        {sidePanel === 'annotations' && <AnnotationsPanel />}
-      </div>
+      {toolboxOpen ? (
+        /* PDF Tools mode */
+        <PDFToolsContent onClose={() => setToolboxOpen(false)} />
+      ) : (
+        /* Normal mode: tabs */
+        <>
+          <div style={{ position: 'relative', display: 'flex', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
+            <div style={{
+              position: 'absolute', bottom: 0, left: indicatorLeft,
+              width: `${100 / TABS.length}%`, height: 2,
+              background: 'var(--color-accent)', borderRadius: '2px 2px 0 0',
+              transition: `left 220ms ${EASE}`, pointerEvents: 'none',
+            }} />
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setSidePanel(tab.id)}
+                style={{
+                  flex: 1, padding: '9px 4px', fontSize: 11, fontWeight: 600,
+                  background: 'transparent', border: 'none',
+                  borderBottom: '2px solid transparent',
+                  color: sidePanel === tab.id ? 'var(--color-accent)' : 'var(--color-text-muted)',
+                  cursor: 'pointer', transition: 'color 180ms ease-out',
+                  fontFamily: 'inherit', letterSpacing: '0.01em',
+                }}
+              >{t(tab.label)}</button>
+            ))}
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            {sidePanel === 'thumbnails' && <ThumbnailPanel />}
+            {sidePanel === 'annotations' && <AnnotationsPanel />}
+          </div>
+        </>
+      )}
     </div>
   )
 }

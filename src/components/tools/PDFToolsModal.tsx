@@ -28,117 +28,67 @@ const CATEGORIES: Category[] = [
   { id: 'from-image', label: 'תמונה ל-PDF', desc: 'צור PDF מתמונות', color: '#ec4899', icon: <FromImageIcon /> },
 ]
 
-export const PDFToolsModal: React.FC = () => {
-  const { toolboxOpen, setToolboxOpen } = useUIStore()
+export const PDFToolsContent: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [active, setActive] = useState<CategoryId>('organize')
 
-  if (!toolboxOpen) return null
-
   return (
-    <>
-      <style>{`
-        @keyframes panelIn {
-          from { opacity: 0; transform: translateX(-20px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-      `}</style>
-      <div
-        className="no-print"
-        style={{
-          width: 360,
-          flexShrink: 0,
-          borderInlineEnd: '1px solid var(--color-border)',
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
-          background: 'var(--color-surface)',
-          overflow: 'hidden',
-          animation: `panelIn 0.25s ${EASE} both`,
-        }}
-      >
-        {/* Sidebar */}
-        <div style={{
-          width: '100%', display: 'flex', height: '100%', overflow: 'hidden',
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '10px 12px', borderBottom: '1px solid var(--color-border)', flexShrink: 0,
+      }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-ink-black)' }}>כלי PDF</span>
+        <button onClick={onClose} style={{
+          width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer',
+          background: 'var(--color-surface-2)', color: 'var(--color-text)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <div style={{
-            width: 130, flexShrink: 0, background: 'var(--color-surface-2)',
-            borderInlineEnd: '1px solid var(--color-border)', padding: '10px 8px',
-            display: 'flex', flexDirection: 'column', gap: 3, overflowY: 'auto',
-          }}>
-            <div style={{
-              fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700,
-              color: 'var(--color-ink-black)', padding: '4px 6px 10px',
-            }}>
-              כלי PDF
-            </div>
-            {CATEGORIES.map(cat => {
-              const isActive = active === cat.id
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => setActive(cat.id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 7, textAlign: 'start',
-                    padding: '8px 8px', borderRadius: 10, border: 'none', cursor: 'pointer',
-                    background: isActive ? 'var(--color-surface)' : 'transparent',
-                    boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
-                    fontFamily: 'inherit', width: '100%',
-                    transition: `background 150ms ease-out`,
-                  }}
-                  onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.04)' }}
-                  onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
-                >
-                  <span style={{
-                    width: 26, height: 26, borderRadius: 7, flexShrink: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: `${cat.color}15`, color: cat.color,
-                  }}>
-                    {cat.icon}
-                  </span>
-                  <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink-black)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cat.label}</span>
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Content area — 230px */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '12px 14px', borderBottom: '1px solid var(--color-border)', flexShrink: 0,
-            }}>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, margin: 0, color: 'var(--color-ink-black)' }}>
-                {CATEGORIES.find(c => c.id === active)?.label}
-              </h2>
-              <button
-                onClick={() => setToolboxOpen(false)}
-                title="סגור"
-                style={{
-                  width: 28, height: 28, borderRadius: 8, border: 'none', cursor: 'pointer',
-                  background: 'var(--color-surface-2)', color: 'var(--color-text)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: `transform 150ms ${EASE}, background 150ms ease-out`,
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-border)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-surface-2)' }}
-                onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.9)' }}
-                onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
-              >
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-
-            <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
-              <ToolPanel category={active} />
-            </div>
-          </div>
-        </div>
+          <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
-    </>
+
+      {/* Category pills - horizontal scroll */}
+      <div style={{
+        display: 'flex', gap: 6, padding: '8px 10px', overflowX: 'auto',
+        borderBottom: '1px solid var(--color-border)', flexShrink: 0,
+        scrollbarWidth: 'none',
+      }}>
+        {CATEGORIES.map(cat => {
+          const isActive = active === cat.id
+          return (
+            <button
+              key={cat.id}
+              onClick={() => setActive(cat.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '5px 10px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                background: isActive ? 'var(--color-ink-black)' : 'var(--color-surface-2)',
+                color: isActive ? 'white' : 'var(--color-text-muted)',
+                fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
+                flexShrink: 0, transition: 'background 150ms ease-out, color 150ms ease-out',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span style={{ opacity: isActive ? 1 : 0.6 }}>{cat.icon}</span>
+              {cat.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Content area */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
+        <ToolPanel category={active} />
+      </div>
+    </div>
   )
 }
+
+// Keep the outer PDFToolsModal as a no-op since LeftPanel handles it now
+export const PDFToolsModal: React.FC = () => null
 
 // ─────────────────────────────────────────────────────────────
 // Shared helpers
@@ -264,7 +214,7 @@ const OrganizePanel: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <InfoBar text={`דף נוכחי: ${currentPage + 1} מתוך ${pageCount}. בחר דף בלוח התצוגה המקדימה.`} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
         <BigAction icon="↻" title="סובב דף 90°" desc="סובב את הדף הנוכחי" onClick={() => { rotatePage(currentPage, 90); addToast(`דף ${currentPage + 1} סובב`, 'success') }} disabled={busy} />
         <BigAction icon="⟳" title="סובב את כל הדפים" desc="החל סיבוב על המסמך כולו" onClick={rotateAll} disabled={busy} />
         <BigAction icon="⧉" title="שכפל דף" desc="צור עותק של הדף הנוכחי" onClick={duplicate} disabled={busy} />

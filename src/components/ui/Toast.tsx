@@ -3,23 +3,18 @@ import { useUIStore } from '../../store'
 
 type ToastType = 'info' | 'success' | 'error' | 'warning'
 
-const CONFIG: Record<ToastType, { accent: string; bg: string; icon: React.ReactNode }> = {
-  success: {
-    accent: '#16a34a', bg: '#f0fdf4',
-    icon: <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />,
-  },
-  error: {
-    accent: '#dc2626', bg: '#fef2f2',
-    icon: <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />,
-  },
-  warning: {
-    accent: '#d97706', bg: '#fffbeb',
-    icon: <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />,
-  },
-  info: {
-    accent: '#000000', bg: '#ffffff',
-    icon: <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />,
-  },
+const DOT: Record<ToastType, string> = {
+  success: '#22c55e',
+  error:   '#ef4444',
+  warning: '#f59e0b',
+  info:    '#60a5fa',
+}
+
+const ICON: Record<ToastType, React.ReactNode> = {
+  success: <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />,
+  error:   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />,
+  warning: <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01" />,
+  info:    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01" />,
 }
 
 const EASE = 'cubic-bezier(0.23,1,0.32,1)'
@@ -37,48 +32,48 @@ export const ToastContainer: React.FC = () => {
 
 const ToastItem: React.FC<{ id: string; message: string; type: ToastType; onClose: () => void }> = ({ message, type, onClose }) => {
   const [leaving, setLeaving] = useState(false)
-  const cfg = CONFIG[type] || CONFIG.info
+  const color = DOT[type] || DOT.info
 
-  // Auto-dismiss handled by store; this only animates the exit on manual close
-  const handleClose = () => {
-    setLeaving(true)
-    setTimeout(onClose, 180)
-  }
+  const dismiss = () => { setLeaving(true); setTimeout(onClose, 200) }
 
   useEffect(() => {
-    const timer = setTimeout(() => setLeaving(true), 3300)
-    return () => clearTimeout(timer)
+    const t = setTimeout(() => { setLeaving(true); setTimeout(onClose, 200) }, 3000)
+    return () => clearTimeout(t)
   }, [])
 
   return (
     <div
-      onClick={handleClose}
+      onClick={dismiss}
       style={{
-        display: 'flex', alignItems: 'center', gap: 12,
-        background: cfg.bg,
-        border: `1px solid ${cfg.accent}22`,
-        borderInlineStart: `3px solid ${cfg.accent}`,
-        color: 'var(--color-ink-black)',
-        padding: '12px 16px 12px 14px',
-        borderRadius: 14,
-        fontSize: 13.5,
+        display: 'flex', alignItems: 'center', gap: 10,
+        background: 'rgba(15, 15, 15, 0.88)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        color: 'rgba(255,255,255,0.92)',
+        padding: '10px 14px 10px 12px',
+        borderRadius: 12,
+        fontSize: 13,
         fontWeight: 500,
-        minWidth: 260,
-        maxWidth: 420,
+        minWidth: 200,
+        maxWidth: 360,
         cursor: 'pointer',
-        boxShadow: '0 8px 30px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
-        transform: leaving ? 'translateY(8px) scale(0.96)' : 'translateY(0) scale(1)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        transform: leaving ? 'translateY(6px) scale(0.94)' : 'translateY(0) scale(1)',
         opacity: leaving ? 0 : 1,
-        transition: `transform 220ms ${EASE}, opacity 200ms ease-out`,
-        animation: leaving ? undefined : `toastEnter 0.28s ${EASE} both`,
+        transition: `transform 200ms ${EASE}, opacity 180ms ease-out`,
+        animation: leaving ? undefined : `toastEnter 0.26s ${EASE} both`,
       }}
     >
+      {/* Colored icon circle */}
       <span style={{
-        flexShrink: 0, width: 28, height: 28, borderRadius: '50%',
-        background: `${cfg.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+        background: `${color}22`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        border: `1.5px solid ${color}55`,
       }}>
-        <svg width="16" height="16" fill="none" stroke={cfg.accent} strokeWidth="2.2" viewBox="0 0 24 24">
-          {cfg.icon}
+        <svg width="12" height="12" fill="none" stroke={color} strokeWidth="2.5" viewBox="0 0 24 24">
+          {ICON[type]}
         </svg>
       </span>
       <span style={{ flex: 1, lineHeight: 1.4 }}>{message}</span>
