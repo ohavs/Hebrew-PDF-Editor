@@ -77,7 +77,8 @@ export const TopToolbar: React.FC = () => {
         gap: 4,
         flexShrink: 0,
         zIndex: 200,
-        color: 'white'
+        color: 'var(--color-text)',
+        borderBottom: '1px solid var(--color-border)',
       }}
     >
       {/* Home button */}
@@ -85,14 +86,14 @@ export const TopToolbar: React.FC = () => {
         <HomeIcon />
       </TopBtn>
 
-      <div className="toolbar-sep" style={{ background: 'rgba(255,255,255,0.15)' }} />
+      <div className="toolbar-sep" style={{ background: 'var(--color-border)' }} />
 
       {/* Sidebar toggle */}
       <TopBtn title={sideToolbarOpen ? 'הסתר סרגל כלים' : 'הצג סרגל כלים'} onClick={toggleSideToolbar} active={sideToolbarOpen}>
         <SidebarIcon />
       </TopBtn>
 
-      <div className="toolbar-sep" style={{ background: 'rgba(255,255,255,0.15)' }} />
+      <div className="toolbar-sep" style={{ background: 'var(--color-border)' }} />
 
       {/* File actions */}
       {pdfDoc && (
@@ -130,7 +131,7 @@ export const TopToolbar: React.FC = () => {
         </>
       )}
 
-      <div className="toolbar-sep" style={{ background: 'rgba(255,255,255,0.15)' }} />
+      <div className="toolbar-sep" style={{ background: 'var(--color-border)' }} />
 
       {/* Undo/Redo */}
       {pdfDoc && (
@@ -141,7 +142,7 @@ export const TopToolbar: React.FC = () => {
           <TopBtn title={`${t('toolbar.redo')} (Ctrl+Y)`} onClick={() => useAnnotationsStore.getState().redo()} disabled={!future.length}>
             <RedoIcon />
           </TopBtn>
-          <div className="toolbar-sep" style={{ background: 'rgba(255,255,255,0.15)' }} />
+          <div className="toolbar-sep" style={{ background: 'var(--color-border)' }} />
         </>
       )}
 
@@ -174,9 +175,9 @@ export const TopToolbar: React.FC = () => {
               }
             }}
             style={{
-              background: 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              color: 'white',
+              background: 'var(--color-surface-2)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text)',
               borderRadius: 6,
               padding: '4px 6px',
               fontSize: 12,
@@ -188,17 +189,17 @@ export const TopToolbar: React.FC = () => {
               textAlign: 'center',
             }}
           >
-            <option value="" disabled style={{ background: '#1e293b' }}>{Math.round(zoom * 100)}%</option>
-            <option value="fit-width" style={{ background: '#1e293b' }}>התאם רוחב</option>
-            <option value="fit-page" style={{ background: '#1e293b' }}>התאם דף</option>
+            <option value="" disabled style={{ background: '#ffffff' }}>{Math.round(zoom * 100)}%</option>
+            <option value="fit-width" style={{ background: '#ffffff' }}>התאם רוחב</option>
+            <option value="fit-page" style={{ background: '#ffffff' }}>התאם דף</option>
             {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2].map(v => (
-              <option key={v} value={v} style={{ background: '#1e293b' }}>{Math.round(v * 100)}%</option>
+              <option key={v} value={v} style={{ background: '#ffffff' }}>{Math.round(v * 100)}%</option>
             ))}
           </select>
           <TopBtn title={t('toolbar.zoomIn')} onClick={() => setZoom(Math.min(4, zoom + 0.1))}>
             <ZoomInIcon />
           </TopBtn>
-          <div className="toolbar-sep" style={{ background: 'rgba(255,255,255,0.15)' }} />
+          <div className="toolbar-sep" style={{ background: 'var(--color-border)' }} />
         </>
       )}
 
@@ -208,12 +209,12 @@ export const TopToolbar: React.FC = () => {
           <TopBtn title="הקודם" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage === 0}>
             <ChevronRight />
           </TopBtn>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'rgba(255,255,255,0.8)', fontSize: 13 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-text-muted)', fontSize: 13 }}>
             <input
               className="input"
               style={{ width: 44, textAlign: 'center', fontSize: 12, padding: '4px 6px', direction: 'ltr',
-                       background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-                       color: 'white', borderRadius: 6 }}
+                       background: 'var(--color-surface-2)', border: '1px solid var(--color-border)',
+                       color: 'var(--color-text)', borderRadius: 6 }}
               value={pageInput || String(currentPage + 1)}
               onChange={e => setPageInput(e.target.value)}
               onFocus={() => setPageInput(String(currentPage + 1))}
@@ -243,7 +244,7 @@ export const TopToolbar: React.FC = () => {
               {mode === 'single' ? <PageSingleIcon /> : mode === 'continuous' ? <PageScrollIcon /> : <PageTwoIcon />}
             </TopBtn>
           ))}
-          <div className="toolbar-sep" style={{ background: 'rgba(255,255,255,0.15)' }} />
+          <div className="toolbar-sep" style={{ background: 'var(--color-border)' }} />
         </div>
       )}
 
@@ -287,18 +288,18 @@ const TopBtn: React.FC<{ title?: string; onClick?: () => void; disabled?: boolea
         outline: 'none',
         fontFamily: 'inherit',
         fontSize: 13,
-        color: active ? '#93c5fd' : 'rgba(255,255,255,0.7)',
-        background: active ? 'rgba(147,197,253,0.15)' : 'transparent',
+        color: active ? 'var(--color-ink-black)' : 'var(--color-graphite)',
+        background: active ? 'var(--color-mint)' : 'transparent',
         opacity: disabled ? 0.4 : 1,
         transition: 'background 140ms ease-out, color 140ms ease-out, transform 150ms cubic-bezier(0.23,1,0.32,1)',
       }}
       onMouseEnter={e => {
-        if (!disabled && !active) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.1)'
-        if (!disabled && !active) (e.currentTarget as HTMLButtonElement).style.color = 'white'
+        if (!disabled && !active) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-surface-mist)'
+        if (!disabled && !active) (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-black)'
       }}
       onMouseLeave={e => {
         if (!active) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
-        if (!active) (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.7)'
+        if (!active) (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-graphite)'
       }}
       onMouseDown={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.9)' }}
       onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}

@@ -207,9 +207,9 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
   const showSolidBorder = isSelected
   const showHoverBorder = !isSelected && isHovered && isInteractive
   const border = showSolidBorder
-    ? '2px solid var(--color-accent)'
+    ? '2px solid var(--color-ink-black)'
     : showHoverBorder
-    ? '1.5px dashed rgba(37,99,235,0.35)'
+    ? '1.5px dashed rgba(0,0,0,0.3)'
     : '1.5px dashed transparent'
 
   const dir = annotation.direction === 'auto'
@@ -225,13 +225,13 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
         width: annotation.rect.width,
         minHeight: annotation.rect.height,
         border,
-        background: isSelected ? 'rgba(37,99,235,0.02)' : 'transparent',
+        background: isSelected ? 'rgba(0,0,0,0.015)' : 'transparent',
         cursor: isInteractive ? (isEditing ? 'text' : 'move') : 'default',
         zIndex: isSelected ? 35 : 30,
         userSelect: 'none',
         borderRadius: 3,
         transition: 'border-color 120ms cubic-bezier(0.23,1,0.32,1), background 120ms ease',
-        boxShadow: isSelected ? '0 0 0 3px rgba(37,99,235,0.12)' : 'none',
+        boxShadow: isSelected ? '0 0 0 3px rgba(0,0,0,0.08)' : 'none',
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -281,12 +281,12 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
             style={{
               position: 'absolute', bottom: -5, right: -5,
               width: 10, height: 10,
-              background: 'var(--color-accent)',
+              background: 'var(--color-ink-black)',
               border: '2px solid white',
               borderRadius: 2,
               cursor: 'nwse-resize',
               zIndex: 36,
-              boxShadow: '0 1px 4px rgba(37,99,235,0.4)',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
             }}
           />
           <button
@@ -309,9 +309,9 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
           {!isEditing && annotation.content && (
             <div style={{
               position: 'absolute', top: -22, left: 0,
-              fontSize: 10, color: 'rgba(37,99,235,0.7)',
+              fontSize: 10, color: 'var(--color-graphite)',
               background: 'white', padding: '1px 5px', borderRadius: 3,
-              border: '1px solid rgba(37,99,235,0.2)',
+              border: '1px solid var(--color-border)',
               pointerEvents: 'none', whiteSpace: 'nowrap',
             }}>
               לחץ פעמיים לעריכה

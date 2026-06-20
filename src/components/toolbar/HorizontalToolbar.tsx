@@ -73,8 +73,8 @@ export const HorizontalToolbar: React.FC = () => {
                   border: 'none',
                   borderRadius: 8,
                   cursor: disabled ? 'not-allowed' : 'pointer',
-                  background: active ? 'rgba(37,99,235,0.1)' : 'transparent',
-                  color: active ? 'var(--color-accent)' : disabled ? 'var(--color-border)' : 'var(--color-text-muted)',
+                  background: active ? 'var(--color-mint)' : 'transparent',
+                  color: active ? 'var(--color-ink-black)' : disabled ? 'var(--color-border)' : 'var(--color-graphite)',
                   minWidth: 54,
                   height: 40,
                   flexShrink: 0,
@@ -84,7 +84,7 @@ export const HorizontalToolbar: React.FC = () => {
                   position: 'relative',
                 }}
                 onMouseEnter={e => {
-                  if (!active && !disabled) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.04)'
+                  if (!active && !disabled) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-surface-mist)'
                 }}
                 onMouseLeave={e => {
                   if (!active) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
@@ -102,7 +102,7 @@ export const HorizontalToolbar: React.FC = () => {
                     width: 4,
                     height: 4,
                     borderRadius: '50%',
-                    background: 'var(--color-accent)',
+                    background: 'var(--color-ink-black)',
                   }} />
                 )}
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -152,8 +152,8 @@ export const BottomToolbar: React.FC = () => {
             style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
               padding: '4px 8px', border: 'none', borderRadius: 8,
-              background: active ? 'rgba(37,99,235,0.1)' : 'transparent',
-              color: active ? 'var(--color-accent)' : 'var(--color-text-muted)',
+              background: active ? 'var(--color-mint)' : 'transparent',
+              color: active ? 'var(--color-ink-black)' : 'var(--color-text-muted)',
               cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
             }}>
             {tool.icon}

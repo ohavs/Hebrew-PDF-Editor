@@ -268,7 +268,7 @@ const HighlightMark: React.FC<{
         background: color, opacity,
         mixBlendMode: 'multiply' as const,
         cursor: 'pointer', pointerEvents: 'all', borderRadius: 2,
-        outline: isSelected ? '2px solid #2563eb' : 'none'
+        outline: isSelected ? '2px solid #000' : 'none'
       }}
       onClick={e => { e.stopPropagation(); if (activeTool === 'select') selectAnnotation(id) }}
     >

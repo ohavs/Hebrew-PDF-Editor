@@ -47,9 +47,12 @@ export function usePDF() {
         cMapUrl: `${base}cmaps/`,
         cMapPacked: true,
         standardFontDataUrl: `${base}standard_fonts/`,
-        useSystemFonts: true,
-        fontExtraProperties: true,
-        isEvalSupported: false,
+        // Path-based glyph rendering: draws embedded font outlines directly by
+        // glyph index (like Adobe), instead of routing through browser @font-face.
+        // This is the reliable fix for Hebrew PDFs with custom font encodings
+        // that render garbled when the browser tries to match glyphs.
+        disableFontFace: true,
+        useSystemFonts: false,
       })
       loadingTask.onProgress = (p: { loaded: number; total: number }) => {
         if (p.total > 0) setIsLoading(true, 30 + Math.round((p.loaded / p.total) * 60))

@@ -2,19 +2,21 @@
 
 @layer base {
   :root {
-    --color-primary: #0f1623;
-    --color-accent: #2563eb;
-    --color-accent-hover: #1d4ed8;
+    --color-primary: #ffffff;
+    --color-accent: #000000;
+    --color-accent-hover: #222222;
     --color-surface: #ffffff;
-    --color-surface-2: #f8fafc;
-    --color-border: #e2e8f0;
-    --color-text: #0f172a;
-    --color-text-muted: #64748b;
+    --color-surface-2: #e5e7eb;
+    --color-border: #d8dbe0;
+    --color-text: #000000;
+    --color-text-muted: #444444;
     --color-danger: #ef4444;
     --color-success: #22c55e;
     --color-warning: #f59e0b;
-    --shadow-page: 0 4px 32px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);
-    --shadow-elevated: 0 8px 40px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08);
+    --color-mint: #d1ffca;
+    --color-yellow: #fff100;
+    --shadow-page: 0 4px 32px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.05);
+    --shadow-elevated: 0 8px 40px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.07);
     /* Emil-style custom easings */
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
@@ -46,7 +48,7 @@
 
   html, body {
     direction: rtl;
-    font-family: 'Heebo', 'Noto Sans Hebrew', system-ui, sans-serif;
+    font-family: 'Inter', 'Heebo', 'Noto Sans Hebrew', system-ui, sans-serif;
     font-size: 14px;
     height: 100%;
     margin: 0;
@@ -135,7 +137,7 @@
 .btn-icon:hover { background: rgba(0,0,0,0.06); color: var(--color-text); }
 .btn-icon:active { transform: scale(0.93); }
 .dark .btn-icon:hover { background: rgba(255,255,255,0.08); }
-.btn-icon.active { background: rgba(37,99,235,0.12); color: var(--color-accent); }
+.btn-icon.active { background: var(--color-mint); color: var(--color-ink-black); }
 
 .input {
   background: var(--color-surface-2);
@@ -149,7 +151,7 @@
   width: 100%;
   direction: inherit;
 }
-.input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(0,0,0,0.08); }
 
 .select {
   background: var(--color-surface-2);
@@ -272,7 +274,7 @@
   transition: border-color 0.15s;
   position: relative;
 }
-.thumb-item:hover { border-color: #93c5fd; }
+.thumb-item:hover { border-color: var(--color-steel-gray); }
 .thumb-item.active { border-color: var(--color-accent); }
 
 /* Sticky note */
