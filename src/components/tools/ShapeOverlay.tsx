@@ -1,31 +1,29 @@
-import React, { useRef } from 'react'
+import React from 'react'
 import { useAnnotationsStore, useUIStore } from '../../store'
 import type { ShapeAnnotation } from '../../store/types'
+import { startPointerDrag } from '../../utils/pointerDrag'
 
-interface Props { annotation: ShapeAnnotation }
+interface Props { annotation: ShapeAnnotation; zoom: number }
 
-export const ShapeOverlay: React.FC<Props> = ({ annotation }) => {
+export const ShapeOverlay: React.FC<Props> = ({ annotation, zoom }) => {
   const { updateAnnotation, deleteAnnotation, selectAnnotation, selectedId } = useAnnotationsStore()
   const { activeTool } = useUIStore()
   const isSelected = selectedId === annotation.id
-  const isDragging = useRef(false)
-  const dragStart = useRef({ mx: 0, my: 0, ax: 0, ay: 0 })
 
-  const startDrag = (e: React.MouseEvent) => {
+  const handlePointerDown = (e: React.PointerEvent) => {
     if (activeTool !== 'select') return
+    if ((e.target as HTMLElement).closest('button')) return
     e.preventDefault(); e.stopPropagation()
     selectAnnotation(annotation.id)
-    isDragging.current = true
-    dragStart.current = { mx: e.clientX, my: e.clientY, ax: annotation.rect.x, ay: annotation.rect.y }
-    const onMove = (ev: MouseEvent) => {
-      if (!isDragging.current) return
-      updateAnnotation(annotation.id, { rect: { ...annotation.rect,
-        x: dragStart.current.ax + ev.clientX - dragStart.current.mx,
-        y: dragStart.current.ay + ev.clientY - dragStart.current.my
-      }})
-    }
-    const onUp = () => { isDragging.current = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
-    window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp)
+    const start = { x: annotation.rect.x, y: annotation.rect.y }
+    startPointerDrag(e, {
+      onMove: (dx, dy) => {
+        updateAnnotation(annotation.id, { rect: { ...annotation.rect,
+          x: start.x + dx / zoom,
+          y: start.y + dy / zoom,
+        }})
+      },
+    })
   }
 
   const { x, y, width, height } = annotation.rect
@@ -95,8 +93,9 @@ export const ShapeOverlay: React.FC<Props> = ({ annotation }) => {
         zIndex: 25,
         userSelect: 'none',
         pointerEvents: 'all',
+        touchAction: activeTool === 'select' ? 'none' : 'auto',
       }}
-      onMouseDown={startDrag}
+      onPointerDown={handlePointerDown}
       onClick={e => { e.stopPropagation(); if (activeTool === 'select') selectAnnotation(annotation.id) }}
     >
       <svg width={svgW} height={svgH} style={{ overflow: 'visible' }}>
@@ -104,8 +103,14 @@ export const ShapeOverlay: React.FC<Props> = ({ annotation }) => {
       </svg>
       {isSelected && (
         <button
-          onMouseDown={e => { e.stopPropagation(); deleteAnnotation(annotation.id) }}
-          style={{ position: 'absolute', top: -10, right: -10, width: 18, height: 18, background: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '50%', fontSize: 11, cursor: 'pointer' }}
+          onPointerDown={e => { e.stopPropagation(); deleteAnnotation(annotation.id) }}
+          style={{
+            position: 'absolute', top: -14, right: -14, width: 28, height: 28,
+            background: 'var(--color-danger)', color: 'white', border: '2px solid var(--color-surface)',
+            borderRadius: '50%', fontSize: 14, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 1px 4px rgba(239,68,68,0.4)', padding: 0, minHeight: 0,
+          }}
         >×</button>
       )}
     </div>

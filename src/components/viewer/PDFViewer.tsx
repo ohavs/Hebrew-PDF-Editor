@@ -8,25 +8,39 @@ import { listSessions, type SessionMeta } from '../../utils/sessions'
 import { useTranslation } from 'react-i18next'
 
 export const PDFViewer: React.FC = () => {
-  const { pdfDoc, pageCount, currentPage, setCurrentPage, zoom, setZoom, viewMode, pageOrder, isLoading, loadingProgress, pageInfos } = usePDFStore()
+  const { pdfDoc, pageCount, currentPage, setCurrentPage, zoom, setZoom, viewMode, pageOrder, isLoading, loadingProgress } = usePDFStore()
   const { activeTool, showDropOverlay, setShowDropOverlay } = useUIStore()
   const { loadPDF } = usePDF()
   const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const [visiblePages, setVisiblePages] = useState<Set<number>>(new Set([0]))
-  const autoFitRef = useRef(false)
 
-  // On mobile, auto-fit zoom to screen width when PDF first loads
-  useEffect(() => { autoFitRef.current = false }, [pdfDoc])
+  // On mobile, fit zoom to screen width from the document's TRUE natural page
+  // width (pdf.js viewport at scale 1 — not the placeholder in pageInfos).
+  const fitToWidth = async () => {
+    if (!pdfDoc || window.innerWidth >= 768) return
+    try {
+      const firstDisplayed = (usePDFStore.getState().pageOrder[0] ?? 0) + 1
+      const page = await pdfDoc.getPage(firstDisplayed)
+      const rotation = ((page.rotate || 0) % 360 + 360) % 360
+      const naturalW = page.getViewport({ scale: 1, rotation }).width
+      const cw = containerRef.current?.clientWidth || window.innerWidth
+      setZoom(Math.max(0.25, Math.min((cw - 16) / naturalW, 1.5)))
+    } catch { /* keep current zoom */ }
+  }
+
+  useEffect(() => { fitToWidth() }, [pdfDoc]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-fit when the device rotates (large width change, not keyboard show/hide)
   useEffect(() => {
-    if (autoFitRef.current || !pdfDoc || !pageInfos[0]?.width) return
-    if (window.innerWidth >= 768) return
-    autoFitRef.current = true
-    const containerWidth = containerRef.current?.clientWidth || window.innerWidth
-    // pageInfos width is stored at current zoom (1.0 on first load) = natural page width
-    const fitZoom = (containerWidth - 24) / pageInfos[0].width
-    setZoom(Math.max(0.25, Math.min(fitZoom, 1.5)))
-  }, [pdfDoc, pageInfos])
+    let lastW = window.innerWidth
+    const onResize = () => {
+      const w = window.innerWidth
+      if (Math.abs(w - lastW) > 150) { lastW = w; fitToWidth() }
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [pdfDoc]) // eslint-disable-line react-hooks/exhaustive-deps
   // Drag-and-drop to open PDF (noClick: true — EmptyState handles clicks itself)
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { 'application/pdf': ['.pdf'] },

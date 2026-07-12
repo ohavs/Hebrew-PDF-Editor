@@ -16,16 +16,15 @@ export const TopToolbar: React.FC = () => {
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [zoomInput, setZoomInput] = useState('')
 
-  const handleExport = async (format: 'pdf' | 'flattened' | 'pdfa') => {
+  const handleExport = async () => {
     if (!pdfBytes) return
     setShowExportMenu(false)
     setIsSaving(true)
     try {
-      const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder, format === 'flattened')
-      const suffix = format === 'flattened' ? '-flat' : format === 'pdfa' ? '-pdfa' : '-edited'
-      downloadBlob(result, fileName.replace('.pdf', '') + suffix + '.pdf')
+      const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder)
+      downloadBlob(result, fileName.replace('.pdf', '') + '-edited.pdf')
       addToast(t('file.saved'), 'success')
-    } catch { addToast('שגיאה בייצוא', 'error') }
+    } catch (e) { console.error(e); addToast('שגיאה בייצוא', 'error') }
     finally { setIsSaving(false) }
   }
 
@@ -98,33 +97,9 @@ export const TopToolbar: React.FC = () => {
       {/* File actions */}
       {pdfDoc && (
         <>
-          <div style={{ position: 'relative' }}>
-            <TopBtn title={t('file.exportAs')} onClick={() => setShowExportMenu(!showExportMenu)}>
-              <ExportIcon />
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                <path d="M5 7L1 3h8z" />
-              </svg>
-            </TopBtn>
-            {showExportMenu && (
-              <div style={{
-                position: 'absolute', top: '100%', right: 0, zIndex: 999,
-                background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-                borderRadius: 8, padding: 4, minWidth: 220, boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-                marginTop: 4
-              }}>
-                {[
-                  { key: 'pdf', label: t('file.exportPDF') },
-                  { key: 'flattened', label: t('file.exportFlattened') },
-                  { key: 'pdfa', label: t('file.exportPDFA') }
-                ].map(opt => (
-                  <button key={opt.key} className="btn btn-ghost"
-                    style={{ width: '100%', justifyContent: 'flex-start', color: 'var(--color-text)', borderRadius: 6 }}
-                    onClick={() => handleExport(opt.key as any)}
-                  >{opt.label}</button>
-                ))}
-              </div>
-            )}
-          </div>
+          <TopBtn title={t('file.exportAs')} onClick={handleExport}>
+            <ExportIcon />
+          </TopBtn>
           <TopBtn title={t('toolbar.print')} onClick={handlePrint}>
             <PrintIcon />
           </TopBtn>

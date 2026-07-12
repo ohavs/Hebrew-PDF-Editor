@@ -323,12 +323,50 @@ export const usePDFStore = create<PDFState>()((set, get) => ({
   }),
   rotatePage: (pageIndex, degrees) => set((s) => {
     const infos = [...s.pageInfos]
-    if (infos[pageIndex]) {
-      infos[pageIndex] = { ...infos[pageIndex], rotation: ((infos[pageIndex].rotation || 0) + degrees) % 360 }
+    const info = infos[pageIndex]
+    if (!info) return s
+    const steps = (((degrees / 90) % 4) + 4) % 4
+    infos[pageIndex] = {
+      ...info,
+      rotation: ((info.rotation || 0) + degrees) % 360,
+      // Natural display dims swap on quarter turns
+      width: steps % 2 === 1 ? info.height : info.width,
+      height: steps % 2 === 1 ? info.width : info.height,
     }
+    // Rotate this page's annotations so they stay glued to the content.
+    // For each 90° CW step in old view dims (w,h): (x,y) → (h - y, x)
+    rotatePageAnnotations(pageIndex, steps, info.width, info.height)
     return { pageInfos: infos, hasUnsavedChanges: true }
   }),
 }))
+
+/**
+ * Rotate all annotations on a page by `steps` quarter-turns clockwise,
+ * starting from a view of size (w, h), so they track the rotated content.
+ * One CW step maps a display point (x, y) → (h − y, x).
+ */
+function rotatePageAnnotations(pageIndex: number, steps: number, w: number, h: number) {
+  if (steps === 0) return
+  const state = useAnnotationsStore.getState()
+  const rotPoint = (p: { x: number; y: number }, vh: number) => ({ x: vh - p.y, y: p.x })
+  const rotRect = (r: { x: number; y: number; width: number; height: number }, vh: number) => ({
+    x: vh - r.y - r.height, y: r.x, width: r.height, height: r.width,
+  })
+
+  const updated = state.annotations.map(a => {
+    if (a.pageIndex !== pageIndex) return a
+    let vw = w, vh = h
+    let ann: any = { ...a }
+    for (let s = 0; s < steps; s++) {
+      if ('rect' in ann && ann.rect) ann = { ...ann, rect: rotRect(ann.rect, vh) }
+      if ('points' in ann && ann.points) ann = { ...ann, points: ann.points.map((p: any) => rotPoint(p, vh)) }
+      if ('position' in ann && ann.position) ann = { ...ann, position: rotPoint(ann.position, vh) }
+      ;[vw, vh] = [vh, vw]
+    }
+    return ann
+  })
+  useAnnotationsStore.setState({ annotations: updated })
+}
 
 // ────────────────────────────────────────────────
 // Annotations Store

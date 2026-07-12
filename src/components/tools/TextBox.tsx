@@ -2,18 +2,17 @@ import React, { useRef, useEffect, useState, useCallback } from 'react'
 import { useAnnotationsStore, useUIStore } from '../../store'
 import type { TextBoxAnnotation } from '../../store/types'
 import { getFirstCharDirection } from '../../utils/textUtils'
+import { startPointerDrag } from '../../utils/pointerDrag'
 
-interface Props { annotation: TextBoxAnnotation }
+interface Props { annotation: TextBoxAnnotation; zoom: number }
 
-export const TextBox: React.FC<Props> = ({ annotation }) => {
+const IS_COARSE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
+
+export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
   const { updateAnnotation, deleteAnnotation, selectAnnotation, selectedId } = useAnnotationsStore()
   const { activeTool } = useUIStore()
   const isSelected = selectedId === annotation.id
   const contentRef = useRef<HTMLDivElement>(null)
-  const isDragging = useRef(false)
-  const dragStart = useRef({ mx: 0, my: 0, ax: 0, ay: 0 })
-  const isResizing = useRef(false)
-  const resizeStart = useRef({ mx: 0, my: 0, w: 0, h: 0 })
   const hasMoved = useRef(false)
   const lastTapRef = useRef(0)
   const [isHovered, setIsHovered] = useState(false)
@@ -56,146 +55,81 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
     contentRef.current.style.direction = dir
   }, [annotation.direction, annotation.content, isEditing])
 
-  const startDrag = useCallback((e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).dataset.handle) return
-    if (!isInteractive) return
-    if (isEditing) return  // Don't drag while editing
-    e.stopPropagation()
-    e.preventDefault()
-
-    selectAnnotation(annotation.id)
-    hasMoved.current = false
-    isDragging.current = true
-    dragStart.current = { mx: e.clientX, my: e.clientY, ax: annotation.rect.x, ay: annotation.rect.y }
-
-    const onMove = (ev: MouseEvent) => {
-      if (!isDragging.current) return
-      const dx = ev.clientX - dragStart.current.mx
-      const dy = ev.clientY - dragStart.current.my
-      if (Math.abs(dx) + Math.abs(dy) > 3) hasMoved.current = true
-      updateAnnotation(annotation.id, {
-        rect: { ...annotation.rect, x: dragStart.current.ax + dx, y: dragStart.current.ay + dy }
-      })
-    }
-    const onUp = () => {
-      isDragging.current = false
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-  }, [annotation.id, annotation.rect, isInteractive, isEditing, selectAnnotation, updateAnnotation])
-
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (hasMoved.current) return
-    selectAnnotation(annotation.id)
-  }, [annotation.id, selectAnnotation])
-
-  const handleDblClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
+  const enterEditMode = useCallback((selectAll: boolean) => {
     selectAnnotation(annotation.id)
     setIsEditing(true)
     setTimeout(() => {
       const el = contentRef.current
       if (!el) return
       el.focus()
-      // Select all text on double-click (like a regular input field)
-      const range = document.createRange()
-      range.selectNodeContents(el)
-      const sel = window.getSelection()
-      sel?.removeAllRanges()
-      sel?.addRange(range)
-    }, 20)
-  }, [annotation.id, selectAnnotation])
-
-  const startResize = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation(); e.preventDefault()
-    isResizing.current = true
-    resizeStart.current = { mx: e.clientX, my: e.clientY, w: annotation.rect.width, h: annotation.rect.height }
-    const onMove = (ev: MouseEvent) => {
-      if (!isResizing.current) return
-      updateAnnotation(annotation.id, {
-        rect: { ...annotation.rect,
-          width: Math.max(80, resizeStart.current.w + ev.clientX - resizeStart.current.mx),
-          height: Math.max(24, resizeStart.current.h + ev.clientY - resizeStart.current.my)
-        }
-      })
-    }
-    const onUp = () => {
-      isResizing.current = false
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-  }, [annotation.id, annotation.rect, updateAnnotation])
-
-  // ── Touch: drag to move ───────────────────────────────────────────────────
-  const startTouchDrag = useCallback((e: React.TouchEvent) => {
-    if ((e.target as HTMLElement).dataset.handle) return
-    if (!isInteractive) return
-    if (isEditing) return
-    if (e.touches.length !== 1) return
-    e.stopPropagation()
-    e.preventDefault()
-
-    const touch = e.touches[0]
-    selectAnnotation(annotation.id)
-    hasMoved.current = false
-    isDragging.current = true
-    dragStart.current = { mx: touch.clientX, my: touch.clientY, ax: annotation.rect.x, ay: annotation.rect.y }
-
-    const onMove = (ev: TouchEvent) => {
-      if (!isDragging.current || ev.touches.length !== 1) return
-      const t = ev.touches[0]
-      const dx = t.clientX - dragStart.current.mx
-      const dy = t.clientY - dragStart.current.my
-      if (Math.abs(dx) + Math.abs(dy) > 3) hasMoved.current = true
-      updateAnnotation(annotation.id, {
-        rect: { ...annotation.rect, x: dragStart.current.ax + dx, y: dragStart.current.ay + dy }
-      })
-      ev.preventDefault()
-    }
-    const onEnd = () => {
-      isDragging.current = false
-      window.removeEventListener('touchmove', onMove)
-      window.removeEventListener('touchend', onEnd)
-    }
-    window.addEventListener('touchmove', onMove, { passive: false })
-    window.addEventListener('touchend', onEnd)
-  }, [annotation.id, annotation.rect, isInteractive, isEditing, selectAnnotation, updateAnnotation])
-
-  // Touch tap / double-tap
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    e.stopPropagation()
-    if (hasMoved.current) return
-    const now = Date.now()
-    if (now - lastTapRef.current < 300) {
-      // Double-tap → enter edit mode, select all
-      selectAnnotation(annotation.id)
-      setIsEditing(true)
-      setTimeout(() => {
-        const el = contentRef.current
-        if (!el) return
-        el.focus()
+      if (selectAll) {
         const range = document.createRange()
         range.selectNodeContents(el)
         const sel = window.getSelection()
         sel?.removeAllRanges()
         sel?.addRange(range)
-      }, 20)
-    } else {
-      selectAnnotation(annotation.id)
-    }
-    lastTapRef.current = now
+      }
+      // Keep the caret visible above the virtual keyboard
+      if (IS_COARSE) setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
+    }, 20)
   }, [annotation.id, selectAnnotation])
+
+  // ── Pointer drag: move ────────────────────────────────────────────────────
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    const target = e.target as HTMLElement
+    if (target.dataset.handle || target.closest('button')) return
+    if (!isInteractive || isEditing) return
+    e.stopPropagation()
+    e.preventDefault()
+
+    selectAnnotation(annotation.id)
+    hasMoved.current = false
+    const start = { x: annotation.rect.x, y: annotation.rect.y }
+
+    startPointerDrag(e, {
+      onMove: (dx, dy) => {
+        hasMoved.current = true
+        updateAnnotation(annotation.id, {
+          rect: { ...annotation.rect, x: start.x + dx / zoom, y: start.y + dy / zoom }
+        })
+      },
+      onEnd: (moved) => {
+        if (moved) return
+        // Tap / double-tap detection
+        const now = Date.now()
+        if (now - lastTapRef.current < 300) {
+          enterEditMode(true)
+        }
+        lastTapRef.current = now
+      },
+    })
+  }, [annotation.id, annotation.rect, isInteractive, isEditing, zoom, selectAnnotation, updateAnnotation, enterEditMode])
+
+  const handleDblClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    enterEditMode(true)
+  }, [enterEditMode])
+
+  // ── Pointer drag: resize ──────────────────────────────────────────────────
+  const handleResizeDown = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation(); e.preventDefault()
+    const start = { w: annotation.rect.width, h: annotation.rect.height }
+    startPointerDrag(e, {
+      onMove: (dx, dy) => {
+        updateAnnotation(annotation.id, {
+          rect: { ...annotation.rect,
+            width: Math.max(80, start.w + dx / zoom),
+            height: Math.max(24, start.h + dy / zoom)
+          }
+        })
+      },
+    })
+  }, [annotation.id, annotation.rect, zoom, updateAnnotation])
 
   // Auto-focus when newly created (empty box + selected)
   useEffect(() => {
     if (annotation.content === '' && isSelected && !isEditing) {
-      setIsEditing(true)
-      setTimeout(() => contentRef.current?.focus(), 30)
+      enterEditMode(false)
     }
   }, [isSelected]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -207,14 +141,16 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
   const showSolidBorder = isSelected
   const showHoverBorder = !isSelected && isHovered && isInteractive
   const border = showSolidBorder
-    ? '2px solid var(--color-ink-black)'
+    ? '2px solid var(--color-accent)'
     : showHoverBorder
-    ? '1.5px dashed rgba(0,0,0,0.3)'
+    ? '1.5px dashed rgba(128,128,128,0.5)'
     : '1.5px dashed transparent'
 
   const dir = annotation.direction === 'auto'
     ? getFirstCharDirection(annotation.content)
     : annotation.direction
+
+  const handleSize = IS_COARSE ? 28 : 14
 
   return (
     <div
@@ -225,22 +161,20 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
         width: annotation.rect.width,
         minHeight: annotation.rect.height,
         border,
-        background: isSelected ? 'rgba(0,0,0,0.015)' : 'transparent',
+        background: isSelected ? 'rgba(128,128,128,0.03)' : 'transparent',
         cursor: isInteractive ? (isEditing ? 'text' : 'move') : 'default',
         zIndex: isSelected ? 35 : 30,
         userSelect: 'none',
         borderRadius: 3,
         transition: 'border-color 120ms cubic-bezier(0.23,1,0.32,1), background 120ms ease',
-        boxShadow: isSelected ? '0 0 0 3px rgba(0,0,0,0.08)' : 'none',
+        boxShadow: isSelected ? '0 0 0 3px rgba(128,128,128,0.12)' : 'none',
         pointerEvents: 'all',
+        touchAction: isEditing ? 'auto' : 'none',
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onMouseDown={startDrag}
-      onClick={handleClick}
+      onPointerDown={handlePointerDown}
       onDoubleClick={handleDblClick}
-      onTouchStart={startTouchDrag}
-      onTouchEnd={handleTouchEnd}
     >
       <div
         ref={contentRef}
@@ -252,7 +186,7 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
         onBlur={() => {
           setTimeout(() => setIsEditing(false), 100)
         }}
-        onMouseDown={e => { if (isEditing) e.stopPropagation() }}
+        onPointerDown={e => { if (isEditing) e.stopPropagation() }}
         onClick={e => e.stopPropagation()}
         style={{
           outline: 'none',
@@ -276,46 +210,59 @@ export const TextBox: React.FC<Props> = ({ annotation }) => {
 
       {isSelected && (
         <>
+          {/* Resize handle — large invisible hit area, small visible dot */}
           <div
             data-handle="resize"
-            onMouseDown={startResize}
+            onPointerDown={handleResizeDown}
             style={{
-              position: 'absolute', bottom: -5, right: -5,
-              width: 10, height: 10,
-              background: 'var(--color-ink-black)',
-              border: '2px solid white',
-              borderRadius: 2,
+              position: 'absolute',
+              bottom: -handleSize / 2, right: -handleSize / 2,
+              width: handleSize, height: handleSize,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'nwse-resize',
               zIndex: 36,
-              boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+              touchAction: 'none',
             }}
-          />
+          >
+            <div data-handle="resize" style={{
+              width: 12, height: 12,
+              background: 'var(--color-accent)',
+              border: '2px solid var(--color-surface)',
+              borderRadius: 3,
+              boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+              pointerEvents: 'none',
+            }} />
+          </div>
           <button
-            onMouseDown={e => { e.stopPropagation(); deleteAnnotation(annotation.id) }}
+            onPointerDown={e => { e.stopPropagation(); deleteAnnotation(annotation.id) }}
             style={{
-              position: 'absolute', top: -11, right: -11,
-              width: 20, height: 20,
+              position: 'absolute', top: -14, right: -14,
+              width: 28, height: 28,
               background: 'var(--color-danger)',
               color: 'white',
-              border: '2px solid white',
+              border: '2px solid var(--color-surface)',
               borderRadius: '50%',
-              fontSize: 13,
+              fontSize: 15,
               cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               zIndex: 36,
               lineHeight: 1,
               boxShadow: '0 1px 4px rgba(239,68,68,0.4)',
+              padding: 0, minHeight: 0,
             }}
           >×</button>
           {!isEditing && annotation.content && (
             <div style={{
-              position: 'absolute', top: -22, left: 0,
-              fontSize: 10, color: 'var(--color-graphite)',
-              background: 'white', padding: '1px 5px', borderRadius: 3,
+              position: 'absolute',
+              top: annotation.rect.y < 30 ? '100%' : -24,
+              marginTop: annotation.rect.y < 30 ? 4 : 0,
+              left: 0,
+              fontSize: 10, color: 'var(--color-text-muted)',
+              background: 'var(--color-surface)', padding: '1px 5px', borderRadius: 3,
               border: '1px solid var(--color-border)',
               pointerEvents: 'none', whiteSpace: 'nowrap',
             }}>
-              לחץ פעמיים לעריכה
+              {IS_COARSE ? 'הקש פעמיים לעריכה' : 'לחץ פעמיים לעריכה'}
             </div>
           )}
         </>

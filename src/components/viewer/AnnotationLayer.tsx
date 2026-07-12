@@ -10,11 +10,13 @@ import { StickyNote } from '../tools/StickyNote'
 
 interface Props {
   pageIndex: number
-  pageWidth: number
-  pageHeight: number
+  /** Natural (zoom-1) page display size — annotation coordinate space */
+  naturalWidth: number
+  naturalHeight: number
+  zoom: number
 }
 
-export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHeight }) => {
+export const AnnotationLayer: React.FC<Props> = ({ pageIndex, naturalWidth, naturalHeight, zoom }) => {
   const layerRef = useRef<HTMLDivElement>(null)
   const { annotations, addAnnotation, deleteAnnotation, selectedId, selectAnnotation, pushHistory } = useAnnotationsStore()
   const { activeTool, highlightColor, highlightOpacity, stampText, stampColor, stampIsHebrew,
@@ -25,12 +27,13 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
   const [drawStart, setDrawStart] = useState<Point | null>(null)
   const [tempRect, setTempRect] = useState<Rect | null>(null)
   const selectedAtMouseDown = useRef<string | null>(null)
+  const multiTouchRef = useRef(false)
 
   const pageAnnotations = annotations.filter(a => a.pageIndex === pageIndex)
 
-  // Non-passive touch listeners: prevent the scroll container from scrolling while a tool is active.
-  // React's synthetic onTouchStart is passive (e.preventDefault() is silently ignored),
-  // so we need a native listener registered with { passive: false }.
+  // Non-passive touch listeners: prevent the scroll container from scrolling
+  // while a tool draws with a single finger. Two-finger gestures pass through
+  // to the browser/pinch handler (touchAction: 'pinch-zoom' below).
   useEffect(() => {
     const el = layerRef.current
     if (!el || activeTool === 'select') return
@@ -52,9 +55,10 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
     }
   }, [activeTool])
 
+  /** Pointer position in natural page coordinates (zoom-independent). */
   const getRelativePos = (clientX: number, clientY: number): Point => {
     const rect = layerRef.current!.getBoundingClientRect()
-    return { x: clientX - rect.left, y: clientY - rect.top }
+    return { x: (clientX - rect.left) / zoom, y: (clientY - rect.top) / zoom }
   }
 
   const isRectTool = ['highlight', 'shapes', 'underline', 'strikethrough', 'redact'].includes(activeTool)
@@ -62,8 +66,9 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
   // ── Shared interaction logic ──────────────────────────────────────────────
 
   const handleInteractStart = (clientX: number, clientY: number, targetEl: EventTarget | null) => {
-    // For the text tool, only create a textbox on empty space — child annotations handle their own clicks.
-    if (activeTool === 'text' && (targetEl as HTMLElement) !== layerRef.current) return
+    // Point-creation tools only fire on empty layer space — child annotations
+    // handle their own pointer events.
+    if ((activeTool === 'text' || activeTool === 'comment') && (targetEl as HTMLElement) !== layerRef.current) return
     selectedAtMouseDown.current = selectedId
     const pos = getRelativePos(clientX, clientY)
 
@@ -71,7 +76,7 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
       const drawAnns = pageAnnotations.filter(a => a.type === 'draw')
       const nearby = drawAnns.find(a => {
         const points = (a as any).points as Point[]
-        return points.some(p => Math.hypot(p.x - pos.x, p.y - pos.y) < 15)
+        return points.some(p => Math.hypot(p.x - pos.x, p.y - pos.y) < 15 / zoom)
       })
       if (nearby) { pushHistory(); deleteAnnotation(nearby.id) }
       return
@@ -140,12 +145,14 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
     })
   }
 
+  const cancelDrawing = () => { setIsDrawing(false); setDrawStart(null); setTempRect(null) }
+
   const handleInteractEnd = (clientX: number, clientY: number) => {
     if (!isDrawing || !drawStart || !tempRect) { setIsDrawing(false); return }
     const pos = getRelativePos(clientX, clientY)
     const w = Math.abs(pos.x - drawStart.x)
     const h = Math.abs(pos.y - drawStart.y)
-    if (w < 5 && h < 5) { setIsDrawing(false); setTempRect(null); return }
+    if (w < 5 && h < 5) { cancelDrawing(); return }
 
     const rect: Rect = {
       x: Math.min(pos.x, drawStart.x), y: Math.min(pos.y, drawStart.y), width: w, height: h
@@ -175,7 +182,7 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
       addAnnotation(shape)
     }
 
-    setIsDrawing(false); setDrawStart(null); setTempRect(null)
+    cancelDrawing()
   }
 
   // ── Mouse handlers ────────────────────────────────────────────────────────
@@ -194,23 +201,25 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
   // ── Touch handlers ────────────────────────────────────────────────────────
   const handleTouchStart = (e: React.TouchEvent) => {
     if (activeTool === 'select') return
-    if (e.touches.length !== 1) return
-    e.preventDefault()
+    if (e.touches.length !== 1) { multiTouchRef.current = true; cancelDrawing(); return }
+    multiTouchRef.current = false
     const t = e.touches[0]
     handleInteractStart(t.clientX, t.clientY, e.target)
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length !== 1) return
-    e.preventDefault()
+    if (e.touches.length !== 1) { multiTouchRef.current = true; cancelDrawing(); return }
     const t = e.touches[0]
     handleInteractMove(t.clientX, t.clientY)
   }
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    if (multiTouchRef.current) { if (e.touches.length === 0) multiTouchRef.current = false; return }
     const t = e.changedTouches[0]
     handleInteractEnd(t.clientX, t.clientY)
   }
+
+  const handleTouchCancel = () => { multiTouchRef.current = false; cancelDrawing() }
 
   // ── Cursor ────────────────────────────────────────────────────────────────
   const cursor =
@@ -226,10 +235,13 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
       ref={layerRef}
       style={{
         position: 'absolute', top: 0, left: 0,
-        width: pageWidth, height: pageHeight,
+        width: naturalWidth, height: naturalHeight,
+        transform: `scale(${zoom})`,
+        transformOrigin: 'top left',
         pointerEvents: activeTool === 'select' ? 'none' : 'all',
         cursor, zIndex: 10,
-        touchAction: activeTool === 'select' ? 'auto' : 'none',
+        // Two fingers always reach the browser: scroll/pinch while annotating
+        touchAction: activeTool === 'select' ? 'auto' : 'pinch-zoom',
       }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -238,6 +250,7 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
     >
       {isDrawing && tempRect && tempRect.width > 2 && (() => {
         const r = tempRect
@@ -310,20 +323,20 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, pageWidth, pageHei
         return null
       })()}
 
-      <DrawingCanvas pageIndex={pageIndex} width={pageWidth} height={pageHeight} />
+      <DrawingCanvas pageIndex={pageIndex} width={naturalWidth} height={naturalHeight} zoom={zoom} />
 
       {pageAnnotations.map(ann => {
         if (ann.type === 'draw') return null
-        if (ann.type === 'textbox') return <TextBox key={ann.id} annotation={ann} />
+        if (ann.type === 'textbox') return <TextBox key={ann.id} annotation={ann} zoom={zoom} />
         if (ann.type === 'highlight' || ann.type === 'underline' || ann.type === 'strikethrough') {
           return <HighlightMark key={ann.id} id={ann.id} rect={(ann as HighlightAnnotation).rect}
             color={(ann as HighlightAnnotation).color} opacity={(ann as HighlightAnnotation).opacity}
             type={ann.type} isSelected={selectedId === ann.id} />
         }
-        if (ann.type === 'stamp') return <StampOverlay key={ann.id} annotation={ann as StampAnnotation} />
-        if (ann.type === 'signature') return <SignatureOverlay key={ann.id} annotation={ann as any} />
-        if (ann.type === 'shape') return <ShapeOverlay key={ann.id} annotation={ann as ShapeAnnotation} />
-        if (ann.type === 'sticky') return <StickyNote key={ann.id} annotation={ann as StickyAnnotation} />
+        if (ann.type === 'stamp') return <StampOverlay key={ann.id} annotation={ann as StampAnnotation} zoom={zoom} />
+        if (ann.type === 'signature') return <SignatureOverlay key={ann.id} annotation={ann as any} zoom={zoom} />
+        if (ann.type === 'shape') return <ShapeOverlay key={ann.id} annotation={ann as ShapeAnnotation} zoom={zoom} />
+        if (ann.type === 'sticky') return <StickyNote key={ann.id} annotation={ann as StickyAnnotation} zoom={zoom} />
         return null
       })}
     </div>
@@ -349,7 +362,7 @@ const HighlightMark: React.FC<{
         opacity: isHighlight ? opacity : 1,
         mixBlendMode: isHighlight ? 'multiply' as const : 'normal' as const,
         cursor: 'pointer', pointerEvents: 'all', borderRadius: 2,
-        outline: isSelected ? '2px solid #000' : 'none',
+        outline: isSelected ? '2px solid var(--color-accent)' : 'none',
         borderBottom: isUnderline ? `2px solid ${color}` : 'none',
       }}
       onClick={e => { e.stopPropagation(); if (activeTool === 'select') selectAnnotation(id) }}
@@ -362,12 +375,13 @@ const HighlightMark: React.FC<{
       )}
       {isSelected && (
         <button
-          onMouseDown={e => { e.stopPropagation(); deleteAnnotation(id) }}
+          onPointerDown={e => { e.stopPropagation(); deleteAnnotation(id) }}
           style={{
-            position: 'absolute', top: -9, right: -9, width: 18, height: 18,
-            background: 'var(--color-danger)', color: 'white', border: 'none',
-            borderRadius: '50%', fontSize: 12, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 32
+            position: 'absolute', top: -14, right: -14, width: 28, height: 28,
+            background: 'var(--color-danger)', color: 'white', border: '2px solid white',
+            borderRadius: '50%', fontSize: 14, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 32,
+            boxShadow: '0 1px 4px rgba(239,68,68,0.4)', padding: 0, minHeight: 0,
           }}
         >×</button>
       )}

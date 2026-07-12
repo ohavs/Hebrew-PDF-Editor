@@ -1,38 +1,35 @@
-import React, { useRef, useState } from 'react'
-import { useAnnotationsStore, useUIStore } from '../../store'
+import React from 'react'
+import { useAnnotationsStore } from '../../store'
 import type { StickyAnnotation } from '../../store/types'
 import { format } from 'date-fns'
+import { startPointerDrag } from '../../utils/pointerDrag'
 
-interface Props { annotation: StickyAnnotation }
+interface Props { annotation: StickyAnnotation; zoom: number }
 
-export const StickyNote: React.FC<Props> = ({ annotation }) => {
+export const StickyNote: React.FC<Props> = ({ annotation, zoom }) => {
   const { updateAnnotation, deleteAnnotation } = useAnnotationsStore()
-  const { activeTool } = useUIStore()
-  const isDragging = useRef(false)
-  const dragStart = useRef({ mx: 0, my: 0, ax: 0, ay: 0 })
 
-  const startDrag = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).tagName === 'TEXTAREA' || (e.target as HTMLElement).tagName === 'BUTTON') return
+  const handlePointerDown = (e: React.PointerEvent) => {
+    const tag = (e.target as HTMLElement).tagName
+    if (tag === 'TEXTAREA' || tag === 'BUTTON') return
     e.preventDefault()
-    isDragging.current = true
-    dragStart.current = { mx: e.clientX, my: e.clientY, ax: annotation.position.x, ay: annotation.position.y }
-
-    const onMove = (ev: MouseEvent) => {
-      if (!isDragging.current) return
-      updateAnnotation(annotation.id, { position: {
-        x: dragStart.current.ax + ev.clientX - dragStart.current.mx,
-        y: dragStart.current.ay + ev.clientY - dragStart.current.my
-      }})
-    }
-    const onUp = () => { isDragging.current = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-  }
-
-  const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    updateAnnotation(annotation.id, { isOpen: !annotation.isOpen })
+    const start = { x: annotation.position.x, y: annotation.position.y }
+    startPointerDrag(e, {
+      onMove: (dx, dy) => {
+        updateAnnotation(annotation.id, { position: {
+          x: start.x + dx / zoom,
+          y: start.y + dy / zoom,
+        }})
+      },
+      onEnd: (moved) => {
+        if (!moved) updateAnnotation(annotation.id, { isOpen: !annotation.isOpen })
+      },
+    })
   }
+
+  // Flip the popup to the other side when the pin is near the page edge (RTL: popup opens leftward)
+  const popupSide = annotation.position.x < 200 ? { left: 0 } : { right: 0 }
 
   return (
     <div
@@ -41,20 +38,21 @@ export const StickyNote: React.FC<Props> = ({ annotation }) => {
         left: annotation.position.x,
         top: annotation.position.y,
         zIndex: 50,
-        cursor: 'move'
+        cursor: 'move',
+        pointerEvents: 'all',
+        touchAction: 'none',
       }}
-      onMouseDown={startDrag}
+      onPointerDown={handlePointerDown}
     >
       {/* Pin icon */}
       <div
-        onClick={handleClick}
         style={{
-          width: 24, height: 24,
+          width: 32, height: 32,
           background: '#fde047',
           border: '1px solid #ca8a04',
           borderRadius: '50%',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 14, cursor: 'pointer',
+          fontSize: 16, cursor: 'pointer',
           boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
         }}
         title={annotation.content || '...'}
@@ -66,14 +64,19 @@ export const StickyNote: React.FC<Props> = ({ annotation }) => {
       {annotation.isOpen && (
         <div
           className="sticky-note"
-          style={{ position: 'absolute', top: 28, right: 0, minWidth: 180 }}
+          style={{ position: 'absolute', top: 36, minWidth: 180, ...popupSide }}
           onClick={e => e.stopPropagation()}
+          onPointerDown={e => e.stopPropagation()}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <span style={{ fontWeight: 600, fontSize: 11 }}>{annotation.author}</span>
             <button
               onClick={() => deleteAnnotation(annotation.id)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#ca8a04', padding: 0 }}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
+                color: '#ca8a04', padding: 0, width: 28, height: 28, minHeight: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
             >×</button>
           </div>
           <textarea
@@ -82,10 +85,9 @@ export const StickyNote: React.FC<Props> = ({ annotation }) => {
             placeholder="הוסף הערה..."
             style={{
               width: '100%', minHeight: 80, border: 'none', background: 'transparent',
-              resize: 'vertical', outline: 'none', fontFamily: 'inherit', fontSize: 12,
+              resize: 'vertical', outline: 'none', fontFamily: 'inherit', fontSize: 16,
               direction: 'rtl', color: 'inherit'
             }}
-            onMouseDown={e => e.stopPropagation()}
           />
           <div style={{ fontSize: 10, color: '#92400e', marginTop: 4 }}>
             {format(new Date(annotation.createdAt), 'dd/MM/yyyy HH:mm')}

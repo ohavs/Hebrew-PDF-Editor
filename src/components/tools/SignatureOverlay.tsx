@@ -1,53 +1,49 @@
-import React, { useRef } from 'react'
+import React from 'react'
 import { useAnnotationsStore, useUIStore } from '../../store'
 import type { SignatureAnnotation } from '../../store/types'
+import { startPointerDrag } from '../../utils/pointerDrag'
 
-interface Props { annotation: SignatureAnnotation }
+interface Props { annotation: SignatureAnnotation; zoom: number }
 
-export const SignatureOverlay: React.FC<Props> = ({ annotation }) => {
+const IS_COARSE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
+
+export const SignatureOverlay: React.FC<Props> = ({ annotation, zoom }) => {
   const { updateAnnotation, deleteAnnotation, selectAnnotation, selectedId } = useAnnotationsStore()
   const { activeTool } = useUIStore()
   const isSelected = selectedId === annotation.id
-  const isDragging = useRef(false)
-  const dragStart = useRef({ mx: 0, my: 0, ax: 0, ay: 0 })
-  const isResizing = useRef(false)
-  const resizeStart = useRef({ mx: 0, my: 0, w: 0, h: 0 })
 
-  const startDrag = (e: React.MouseEvent) => {
+  const handlePointerDown = (e: React.PointerEvent) => {
     if (activeTool !== 'select') return
-    if ((e.target as HTMLElement).classList.contains('resize-handle')) return
+    const target = e.target as HTMLElement
+    if (target.dataset.handle || target.closest('button')) return
     e.preventDefault(); e.stopPropagation()
     selectAnnotation(annotation.id)
-    isDragging.current = true
-    dragStart.current = { mx: e.clientX, my: e.clientY, ax: annotation.rect.x, ay: annotation.rect.y }
-    const onMove = (ev: MouseEvent) => {
-      if (!isDragging.current) return
-      updateAnnotation(annotation.id, { rect: { ...annotation.rect,
-        x: dragStart.current.ax + ev.clientX - dragStart.current.mx,
-        y: dragStart.current.ay + ev.clientY - dragStart.current.my
-      }})
-    }
-    const onUp = () => { isDragging.current = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
-    window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp)
+    const start = { x: annotation.rect.x, y: annotation.rect.y }
+    startPointerDrag(e, {
+      onMove: (dx, dy) => {
+        updateAnnotation(annotation.id, { rect: { ...annotation.rect,
+          x: start.x + dx / zoom,
+          y: start.y + dy / zoom,
+        }})
+      },
+    })
   }
 
-  const startResize = (e: React.MouseEvent) => {
+  const handleResizeDown = (e: React.PointerEvent) => {
     e.stopPropagation(); e.preventDefault()
-    isResizing.current = true
-    resizeStart.current = { mx: e.clientX, my: e.clientY, w: annotation.rect.width, h: annotation.rect.height }
-    const onMove = (ev: MouseEvent) => {
-      if (!isResizing.current) return
-      const dw = ev.clientX - resizeStart.current.mx
-      const dh = ev.clientY - resizeStart.current.my
-      const newW = Math.max(40, resizeStart.current.w + dw)
-      const ratio = annotation.rect.height / annotation.rect.width
-      updateAnnotation(annotation.id, { rect: { ...annotation.rect, width: newW, height: newW * ratio } })
-    }
-    const onUp = () => { isResizing.current = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
-    window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp)
+    const start = { w: annotation.rect.width }
+    const ratio = annotation.rect.height / annotation.rect.width
+    startPointerDrag(e, {
+      onMove: (dx) => {
+        const newW = Math.max(40, start.w + dx / zoom)
+        updateAnnotation(annotation.id, { rect: { ...annotation.rect, width: newW, height: newW * ratio } })
+      },
+    })
   }
 
   const { x, y, width, height } = annotation.rect
+  const handleSize = IS_COARSE ? 28 : 14
+
   return (
     <div
       style={{
@@ -55,8 +51,9 @@ export const SignatureOverlay: React.FC<Props> = ({ annotation }) => {
         cursor: activeTool === 'select' ? 'move' : 'default', zIndex: 35, userSelect: 'none',
         outline: isSelected ? '2px solid var(--color-accent)' : 'none',
         pointerEvents: 'all',
+        touchAction: activeTool === 'select' ? 'none' : 'auto',
       }}
-      onMouseDown={startDrag}
+      onPointerDown={handlePointerDown}
     >
       <img
         src={annotation.imageData}
@@ -66,10 +63,36 @@ export const SignatureOverlay: React.FC<Props> = ({ annotation }) => {
       />
       {isSelected && (
         <>
-          <div className="resize-handle" onMouseDown={startResize}
-            style={{ position: 'absolute', bottom: -5, right: -5, width: 10, height: 10, background: 'var(--color-accent)', border: '1px solid white', borderRadius: 2, cursor: 'nwse-resize' }} />
-          <button onMouseDown={e => { e.stopPropagation(); deleteAnnotation(annotation.id) }}
-            style={{ position: 'absolute', top: -10, right: -10, width: 18, height: 18, background: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '50%', fontSize: 11, cursor: 'pointer' }}>×</button>
+          <div
+            data-handle="resize"
+            onPointerDown={handleResizeDown}
+            style={{
+              position: 'absolute',
+              bottom: -handleSize / 2, right: -handleSize / 2,
+              width: handleSize, height: handleSize,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'nwse-resize', touchAction: 'none',
+            }}
+          >
+            <div data-handle="resize" style={{
+              width: 12, height: 12,
+              background: 'var(--color-accent)',
+              border: '2px solid var(--color-surface)',
+              borderRadius: 3,
+              pointerEvents: 'none',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+            }} />
+          </div>
+          <button
+            onPointerDown={e => { e.stopPropagation(); deleteAnnotation(annotation.id) }}
+            style={{
+              position: 'absolute', top: -14, right: -14, width: 28, height: 28,
+              background: 'var(--color-danger)', color: 'white', border: '2px solid var(--color-surface)',
+              borderRadius: '50%', fontSize: 14, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 1px 4px rgba(239,68,68,0.4)', padding: 0, minHeight: 0,
+            }}
+          >×</button>
         </>
       )}
     </div>

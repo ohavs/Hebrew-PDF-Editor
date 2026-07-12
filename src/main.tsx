@@ -8,18 +8,26 @@ import { PDFToImage } from './pages/converters/PDFToImage'
 import { CompressPDF } from './pages/converters/CompressPDF'
 import { SplitPDF } from './pages/converters/SplitPDF'
 import { MergePDF } from './pages/converters/MergePDF'
+import { ErrorBoundary } from './components/ui/ErrorBoundary'
+
+// Apply the saved theme before first paint — on every route, with no flash
+if (localStorage.getItem('darkMode') === 'true') {
+  document.documentElement.classList.add('dark')
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <HashRouter>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/editor" element={<App />} />
-        <Route path="/convert/to-image" element={<PDFToImage />} />
-        <Route path="/convert/compress" element={<CompressPDF />} />
-        <Route path="/convert/split" element={<SplitPDF />} />
-        <Route path="/convert/merge" element={<MergePDF />} />
-      </Routes>
-    </HashRouter>
+    <ErrorBoundary>
+      <HashRouter>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/editor" element={<App />} />
+          <Route path="/convert/to-image" element={<PDFToImage />} />
+          <Route path="/convert/compress" element={<CompressPDF />} />
+          <Route path="/convert/split" element={<SplitPDF />} />
+          <Route path="/convert/merge" element={<MergePDF />} />
+        </Routes>
+      </HashRouter>
+    </ErrorBoundary>
   </StrictMode>,
 )

@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
 import { usePDFStore } from '../store'
 import { useAnnotationsStore } from '../store'
@@ -10,12 +10,23 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url
 ).toString()
 
+// Track the in-flight pdf.js render per canvas so a newer render can cancel
+// the older one instead of throwing "same canvas during multiple render()".
+const renderTasks = new WeakMap<HTMLCanvasElement, any>()
+
+const IS_COARSE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
+// iOS Safari fails silently above ~16.7M canvas pixels
+const MAX_CANVAS_AREA = 16_000_000
+
 export function usePDF() {
   const { setPdfDoc, setIsLoading, addRecentFile } = usePDFStore()
   const { loadFromStorage } = useAnnotationsStore()
   const { addToast } = useUIStore()
 
-  const loadPDF = useCallback(async (source: File | string | ArrayBuffer, opts?: { name?: string }) => {
+  const loadPDF = useCallback(async (
+    source: File | string | ArrayBuffer,
+    opts?: { name?: string; preserveAnnotations?: boolean }
+  ) => {
     setIsLoading(true, 0)
     try {
       let data: ArrayBuffer
@@ -65,12 +76,13 @@ export function usePDF() {
 
       const fileSize = source instanceof File ? source.size : data.byteLength
       setPdfDoc(pdfDoc, bytes, name, pdfDoc.numPages)
-      loadFromStorage(name)
+      if (!opts?.preserveAnnotations) loadFromStorage(name)
       addRecentFile(name, fileSize)
       setIsLoading(false)
       addToast(`נטען: ${name}`, 'success')
       return pdfDoc
     } catch (err: any) {
+      console.error('loadPDF failed', err)
       setIsLoading(false)
       const msg = err?.message?.includes('Invalid PDF') ? 'הקובץ אינו PDF תקין' : 'שגיאה בטעינת הקובץ'
       addToast(msg, 'error')
@@ -86,51 +98,78 @@ export function usePDF() {
     rotation: number = 0
   ) => {
     try {
+      // Cancel any in-flight render on this canvas first
+      const prev = renderTasks.get(canvas)
+      if (prev) {
+        prev.cancel()
+        try { await prev.promise } catch { /* RenderingCancelledException */ }
+      }
+
       const page = await pdfDoc.getPage(pageIndex + 1)
+      // Compose with the page's intrinsic /Rotate instead of overriding it
+      const totalRotation = (((page.rotate || 0) + rotation) % 360 + 360) % 360
       const dpr = window.devicePixelRatio || 1
-      // Render at 2x physical pixel density for crisp path-based glyphs
-      const renderScale = zoom * dpr * 2
-      const viewport = page.getViewport({ scale: renderScale, rotation })
+
+      // Supersampling factor for crisp path-based glyphs, capped so phone
+      // canvases stay within safe memory limits (iOS silently fails above
+      // ~16.7M pixels and blanks the page).
+      let outputScale = Math.min(dpr * 2, IS_COARSE ? 2.5 : 4)
+      const naturalViewport = page.getViewport({ scale: 1, rotation: totalRotation })
+      const naturalW = naturalViewport.width
+      const naturalH = naturalViewport.height
+      const areaAtScale = (s: number) => naturalW * zoom * s * naturalH * zoom * s
+      while (outputScale > 1 && areaAtScale(outputScale) > MAX_CANVAS_AREA) {
+        outputScale = Math.max(1, outputScale - 0.5)
+      }
+
+      const viewport = page.getViewport({ scale: zoom * outputScale, rotation: totalRotation })
 
       // Round to integer CSS pixels to prevent subpixel blurring
-      const cssW = Math.round(viewport.width / (dpr * 2))
-      const cssH = Math.round(viewport.height / (dpr * 2))
+      const cssW = Math.round(viewport.width / outputScale)
+      const cssH = Math.round(viewport.height / outputScale)
 
-      canvas.width = cssW * dpr * 2
-      canvas.height = cssH * dpr * 2
-      canvas.style.width = `${cssW}px`
-      canvas.style.height = `${cssH}px`
+      // Backing store only — display size is owned by the component's CSS
+      canvas.width = Math.round(cssW * outputScale)
+      canvas.height = Math.round(cssH * outputScale)
 
       const ctx = canvas.getContext('2d', { alpha: false })!
       ctx.imageSmoothingEnabled = false
-      const renderContext = {
+
+      const task = page.render({
         canvasContext: ctx,
         viewport,
-        background: 'white'
-      }
-
-      const task = page.render(renderContext)
+        background: 'white',
+      })
+      renderTasks.set(canvas, task)
       await task.promise
+      renderTasks.delete(canvas)
       page.cleanup()
 
       return {
         width: cssW,
-        height: cssH
+        height: cssH,
+        naturalWidth: naturalW,
+        naturalHeight: naturalH,
       }
-    } catch { return null }
+    } catch (e: any) {
+      if (e?.name !== 'RenderingCancelledException') console.error('renderPage failed', e)
+      return null
+    }
   }, [])
 
   const renderThumbnail = useCallback(async (
     pdfDoc: any,
     pageIndex: number,
     canvas: HTMLCanvasElement,
-    thumbWidth: number = 150
+    thumbWidth: number = 150,
+    rotation: number = 0
   ) => {
     try {
       const page = await pdfDoc.getPage(pageIndex + 1)
-      const viewport = page.getViewport({ scale: 1 })
+      const totalRotation = (((page.rotate || 0) + rotation) % 360 + 360) % 360
+      const viewport = page.getViewport({ scale: 1, rotation: totalRotation })
       const scale = thumbWidth / viewport.width
-      const scaledViewport = page.getViewport({ scale })
+      const scaledViewport = page.getViewport({ scale, rotation: totalRotation })
 
       canvas.width = scaledViewport.width
       canvas.height = scaledViewport.height

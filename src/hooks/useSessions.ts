@@ -114,4 +114,25 @@ export function useSessionAutosave() {
     const t = setTimeout(() => persistCurrentSession(), 1500)
     return () => clearTimeout(t)
   }, [fileName])
+
+  // Flush on app switch / tab close. Mobile browsers freeze or kill
+  // backgrounded tabs immediately, so the interval alone loses up to
+  // `autoSaveInterval` seconds of work on every app switch.
+  useEffect(() => {
+    const flush = () => {
+      if (document.visibilityState === 'hidden' && usePDFStore.getState().hasUnsavedChanges) {
+        persistCurrentSession()
+        usePDFStore.getState().setHasUnsavedChanges(false)
+      }
+    }
+    const flushAlways = () => {
+      if (usePDFStore.getState().hasUnsavedChanges) persistCurrentSession()
+    }
+    document.addEventListener('visibilitychange', flush)
+    window.addEventListener('pagehide', flushAlways)
+    return () => {
+      document.removeEventListener('visibilitychange', flush)
+      window.removeEventListener('pagehide', flushAlways)
+    }
+  }, [])
 }

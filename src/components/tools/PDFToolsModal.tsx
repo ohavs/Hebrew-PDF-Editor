@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { PDFDocument, degrees } from 'pdf-lib'
+import * as pdfjsLib from 'pdfjs-dist'
 import { usePDFStore, useAnnotationsStore, useUIStore } from '../../store'
 import { usePDF } from '../../hooks/usePDF'
 import { embedAnnotationsIntoPdf, downloadBlob, triggerDownload } from '../../utils/pdfExport'
@@ -120,6 +121,21 @@ async function renderPageCanvas(pdfDoc: any, pageNum: number, scale: number): Pr
   return canvas
 }
 
+/** Load the EDITED document (annotations + order + rotation baked) into pdf.js
+ *  so raster exports (compress, to-image) include everything the user sees. */
+async function loadEditedForRender(getEdited: () => Promise<Uint8Array>): Promise<any> {
+  const bytes = await getEdited()
+  const base = import.meta.env.BASE_URL || '/'
+  return pdfjsLib.getDocument({
+    data: bytes,
+    cMapUrl: `${base}cmaps/`,
+    cMapPacked: true,
+    standardFontDataUrl: `${base}standard_fonts/`,
+    disableFontFace: true,
+    useSystemFonts: false,
+  }).promise
+}
+
 function parseRanges(input: string, max: number): number[] {
   const result = new Set<number>()
   input.split(',').forEach(part => {
@@ -174,16 +190,22 @@ const OrganizePanel: React.FC = () => {
 
   const run = async (fn: () => Promise<void>, label: string) => {
     setBusy(true)
-    try { await fn() } catch { addToast(`שגיאה ב${label}`, 'error') } finally { setBusy(false) }
+    try { await fn() } catch (e) { console.error(e); addToast(`שגיאה ב${label}`, 'error') } finally { setBusy(false) }
   }
+
+  // getEdited() bakes pageOrder into the bytes, so the loaded document is
+  // already in DISPLAY order. The position of the current page in that
+  // document is its position in pageOrder — not its natural index.
+  const displayPos = () => Math.max(0, pageOrder.indexOf(currentPage))
 
   const deletePage = () => run(async () => {
     if (pageCount <= 1) { addToast('לא ניתן למחוק את הדף היחיד', 'error'); return }
-    const ok = await confirm({ title: 'מחיקת דף', message: `הדף הנוכחי (${currentPage + 1}) יימחק מהמסמך. להמשיך?`, confirmLabel: 'מחק', danger: true })
+    const pos = displayPos()
+    const ok = await confirm({ title: 'מחיקת דף', message: `הדף הנוכחי (${pos + 1}) יימחק מהמסמך. להמשיך?`, confirmLabel: 'מחק', danger: true })
     if (!ok) return
     const src = await PDFDocument.load(await getEdited())
     const dest = await PDFDocument.create()
-    const order = pageOrder.filter((_, i) => i !== currentPage)
+    const order = src.getPageIndices().filter(i => i !== pos)
     const pages = await dest.copyPages(src, order)
     pages.forEach(p => dest.addPage(p))
     await loadPDF((await dest.save()).buffer as ArrayBuffer, { name: fileName })
@@ -191,10 +213,11 @@ const OrganizePanel: React.FC = () => {
   }, 'מחיקה')
 
   const duplicate = () => run(async () => {
+    const pos = displayPos()
     const src = await PDFDocument.load(await getEdited())
     const dest = await PDFDocument.create()
-    const order = [...pageOrder]
-    order.splice(currentPage + 1, 0, pageOrder[currentPage])
+    const order = src.getPageIndices()
+    order.splice(pos + 1, 0, pos)
     const pages = await dest.copyPages(src, order)
     pages.forEach(p => dest.addPage(p))
     await loadPDF((await dest.save()).buffer as ArrayBuffer, { name: fileName })
@@ -202,9 +225,10 @@ const OrganizePanel: React.FC = () => {
   }, 'שכפול')
 
   const addBlank = () => run(async () => {
+    const pos = displayPos()
     const doc = await PDFDocument.load(await getEdited())
     const info = pageInfos[currentPage]
-    doc.insertPage(currentPage + 1, [info?.width || 595, info?.height || 842])
+    doc.insertPage(pos + 1, [info?.width || 595, info?.height || 842])
     await loadPDF((await doc.save()).buffer as ArrayBuffer, { name: fileName })
     addToast('דף ריק הוסף', 'success')
   }, 'הוספה')
@@ -218,9 +242,9 @@ const OrganizePanel: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <InfoBar text={`דף נוכחי: ${currentPage + 1} מתוך ${pageCount}. בחר דף בלוח התצוגה המקדימה.`} />
+      <InfoBar text={`דף נוכחי: ${Math.max(0, pageOrder.indexOf(currentPage)) + 1} מתוך ${pageCount}.`} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
-        <BigAction icon="↻" title="סובב דף 90°" desc="סובב את הדף הנוכחי" onClick={() => { rotatePage(currentPage, 90); addToast(`דף ${currentPage + 1} סובב`, 'success') }} disabled={busy} />
+        <BigAction icon="↻" title="סובב דף 90°" desc="סובב את הדף הנוכחי" onClick={() => { rotatePage(currentPage, 90); addToast(`דף ${Math.max(0, pageOrder.indexOf(currentPage)) + 1} סובב`, 'success') }} disabled={busy} />
         <BigAction icon="⟳" title="סובב את כל הדפים" desc="החל סיבוב על המסמך כולו" onClick={rotateAll} disabled={busy} />
         <BigAction icon="⧉" title="שכפל דף" desc="צור עותק של הדף הנוכחי" onClick={duplicate} disabled={busy} />
         <BigAction icon="＋" title="הוסף דף ריק" desc="הוסף דף ריק אחרי הנוכחי" onClick={addBlank} disabled={busy} />
@@ -411,26 +435,30 @@ const CompressPanel: React.FC = () => {
   const { addToast } = useUIStore()
   const [quality, setQuality] = useState(0.6)
   const [busy, setBusy] = useState(false)
+  const getEdited = useEditedBytes()
 
   if (!pdfDoc) return <EmptyHint />
 
   const compress = async () => {
     setBusy(true)
     try {
+      // Render the EDITED document so annotations/signatures are included
+      const edited = await loadEditedForRender(getEdited)
       const out = await PDFDocument.create()
       const scale = quality < 0.5 ? 1.0 : 1.3
-      for (let i = 1; i <= pageCount; i++) {
-        const canvas = await renderPageCanvas(pdfDoc, i, scale)
+      for (let i = 1; i <= edited.numPages; i++) {
+        const canvas = await renderPageCanvas(edited, i, scale)
         const jpeg = canvas.toDataURL('image/jpeg', quality)
         const bytes = Uint8Array.from(atob(jpeg.split(',')[1]), c => c.charCodeAt(0))
         const img = await out.embedJpg(bytes)
         const page = out.addPage([canvas.width, canvas.height])
         page.drawImage(img, { x: 0, y: 0, width: canvas.width, height: canvas.height })
       }
+      edited.destroy()
       const saved = await out.save()
       downloadBlob(saved, `${fileName.replace(/\.pdf$/i, '')}-דחוס.pdf`)
       addToast(`הקובץ נדחס (${(saved.length / 1024 / 1024).toFixed(1)}MB)`, 'success')
-    } catch { addToast('שגיאה בקימפרוס', 'error') } finally { setBusy(false) }
+    } catch (e) { console.error(e); addToast('שגיאה בקימפרוס', 'error') } finally { setBusy(false) }
   }
 
   return (
@@ -455,31 +483,37 @@ const CompressPanel: React.FC = () => {
 // To Image
 // ─────────────────────────────────────────────────────────────
 const ToImagePanel: React.FC = () => {
-  const { pdfDoc, pageCount, currentPage, fileName } = usePDFStore()
+  const { pdfDoc, pageCount, currentPage, pageOrder, fileName } = usePDFStore()
   const { addToast } = useUIStore()
   const [format, setFormat] = useState<'png' | 'jpeg'>('png')
   const [scope, setScope] = useState<'current' | 'all' | 'custom'>('all')
   const [customRange, setCustomRange] = useState('')
   const [busy, setBusy] = useState(false)
+  const getEdited = useEditedBytes()
 
   if (!pdfDoc) return <EmptyHint />
+
+  const currentDisplayNum = Math.max(0, pageOrder.indexOf(currentPage)) + 1
 
   const exportImages = async () => {
     setBusy(true)
     try {
       const base = fileName.replace(/\.pdf$/i, '')
-      const pages = scope === 'current' ? [currentPage + 1]
+      const pages = scope === 'current' ? [currentDisplayNum]
         : scope === 'custom' ? parseRanges(customRange, pageCount)
         : Array.from({ length: pageCount }, (_, i) => i + 1)
       if (!pages.length) { addToast('הזן טווח דפים תקין', 'warning'); setBusy(false); return }
+      // Render the EDITED document so annotations/signatures are included
+      const edited = await loadEditedForRender(getEdited)
       for (const num of pages) {
-        const canvas = await renderPageCanvas(pdfDoc, num, 2)
+        const canvas = await renderPageCanvas(edited, num, 2)
         const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, `image/${format}`, 0.92))
         if (blob) triggerDownload(blob, `${base}-עמוד-${num}.${format === 'jpeg' ? 'jpg' : 'png'}`)
         await new Promise(r => setTimeout(r, 250))
       }
+      edited.destroy()
       addToast(`${pages.length} תמונות יוצאו`, 'success')
-    } catch { addToast('שגיאה בייצוא תמונות', 'error') } finally { setBusy(false) }
+    } catch (e) { console.error(e); addToast('שגיאה בייצוא תמונות', 'error') } finally { setBusy(false) }
   }
 
   return (
@@ -496,7 +530,7 @@ const ToImagePanel: React.FC = () => {
         value={scope}
         options={[
           { value: 'all', label: `כל (${pageCount})` },
-          { value: 'current', label: `נוכחי (${currentPage + 1})` },
+          { value: 'current', label: `נוכחי (${currentDisplayNum})` },
           { value: 'custom', label: 'בחירה ידנית' },
         ]}
         onChange={v => setScope(v as 'current' | 'all' | 'custom')}
@@ -747,14 +781,22 @@ const WatermarkPanel: React.FC = () => {
       const bytes = await getEdited()
       const doc = await PDFDocument.load(bytes)
 
-      // Render watermark text onto a canvas and embed as image
+      // Render watermark text onto a canvas and embed as image.
+      // Full alpha here — drawImage's opacity is the single control
+      // (double-applying made 20% render as 4%).
       const canvas = document.createElement('canvas')
       canvas.width = 800; canvas.height = 800
       const ctx = canvas.getContext('2d')!
       ctx.translate(400, 400)
       ctx.rotate(-Math.PI / 4)
-      ctx.font = `bold ${fontSize}px Heebo, Arial`
-      ctx.fillStyle = `rgba(0,0,0,${opacity})`
+      // Shrink font if the text overflows the diagonal
+      let fs = fontSize
+      ctx.font = `bold ${fs}px Heebo, Arial`
+      while (fs > 20 && ctx.measureText(text).width > 1050) {
+        fs -= 5
+        ctx.font = `bold ${fs}px Heebo, Arial`
+      }
+      ctx.fillStyle = 'rgba(0,0,0,1)'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillText(text, 0, 0)
