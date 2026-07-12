@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react' // useCallback kept for handleWheel
+import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
 import { usePDFStore, useUIStore } from '../../store'
 import { PDFPage } from './PDFPage'
 import { useDropzone } from 'react-dropzone'
@@ -25,7 +25,9 @@ export const PDFViewer: React.FC = () => {
       const rotation = ((page.rotate || 0) % 360 + 360) % 360
       const naturalW = page.getViewport({ scale: 1, rotation }).width
       const cw = containerRef.current?.clientWidth || window.innerWidth
-      setZoom(Math.max(0.25, Math.min((cw - 16) / naturalW, 1.5)))
+      const fit = Math.max(0.25, Math.min((cw - 16) / naturalW, 1.5))
+      fitZoomRef.current = fit
+      setZoom(fit)
     } catch { /* keep current zoom */ }
   }
 
@@ -55,53 +57,168 @@ export const PDFViewer: React.FC = () => {
     onDropRejected: () => setShowDropOverlay(false),
   })
 
-  // Intersection observer for lazy rendering
+  // ── Anchored zoom: keep the point under the fingers/cursor stationary ────
+  const pendingAnchor = useRef<{ ax: number; ay: number; ratio: number; scrollTop: number; scrollLeft: number } | null>(null)
+
+  const applyZoom = useCallback((newZoom: number, anchorClientX?: number, anchorClientY?: number) => {
+    const el = containerRef.current
+    const old = usePDFStore.getState().zoom
+    const clamped = Math.max(0.25, Math.min(3, Math.round(newZoom * 100) / 100))
+    if (!el || clamped === old) return
+    const rect = el.getBoundingClientRect()
+    const ax = (anchorClientX ?? rect.left + rect.width / 2) - rect.left
+    const ay = (anchorClientY ?? rect.top + rect.height / 2) - rect.top
+    pendingAnchor.current = { ax, ay, ratio: clamped / old, scrollTop: el.scrollTop, scrollLeft: el.scrollLeft }
+    setZoom(clamped)
+  }, [setZoom])
+
+  useLayoutEffect(() => {
+    const p = pendingAnchor.current
+    const el = containerRef.current
+    if (!p || !el) return
+    pendingAnchor.current = null
+    el.scrollTop = (p.scrollTop + p.ay) * p.ratio - p.ay
+    el.scrollLeft = (p.scrollLeft + p.ax) * p.ratio - p.ax
+  }, [zoom])
+
+  // ── Stepped pinch-to-zoom + double-tap ────────────────────────────────────
+  // Pinch snaps to 10% increments (same steps as the +/- buttons) so the
+  // gesture feels controlled instead of jittery. Double-tap toggles between
+  // fit-width and 2× around the tap point (select mode only).
+  const fitZoomRef = useRef(1)
+  const lastTapRef = useRef<{ t: number; x: number; y: number } | null>(null)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !pdfDoc) return
+
+    let pinch: { startDist: number; startZoom: number; lastStepped: number } | null = null
+
+    const midpoint = (e: TouchEvent) => ({
+      x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+      y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+    })
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault()
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        )
+        const z = usePDFStore.getState().zoom
+        pinch = { startDist: dist, startZoom: z, lastStepped: z }
+      }
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!pinch || e.touches.length !== 2) return
+      e.preventDefault()
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      )
+      const raw = pinch.startZoom * (dist / pinch.startDist)
+      // Snap to 10% steps — controlled, never "goes crazy"
+      const stepped = Math.max(0.25, Math.min(3, Math.round(raw * 10) / 10))
+      if (stepped !== pinch.lastStepped) {
+        pinch.lastStepped = stepped
+        const m = midpoint(e)
+        applyZoom(stepped, m.x, m.y)
+      }
+    }
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (pinch) { if (e.touches.length < 2) pinch = null; return }
+      // Double-tap to zoom (select mode only — tools use taps for editing)
+      if (useUIStore.getState().activeTool !== 'select') return
+      if (e.changedTouches.length !== 1 || e.touches.length !== 0) return
+      const t = e.changedTouches[0]
+      const now = Date.now()
+      const last = lastTapRef.current
+      if (last && now - last.t < 300 && Math.hypot(t.clientX - last.x, t.clientY - last.y) < 30) {
+        lastTapRef.current = null
+        const z = usePDFStore.getState().zoom
+        const target = Math.abs(z - fitZoomRef.current) < 0.05 ? Math.min(3, fitZoomRef.current * 2) : fitZoomRef.current
+        applyZoom(target, t.clientX, t.clientY)
+      } else {
+        lastTapRef.current = { t: now, x: t.clientX, y: t.clientY }
+      }
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd)
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [pdfDoc, applyZoom])
+
+  // ── Lazy rendering + current-page sync from scroll ────────────────────────
+  const scrollSetPage = useRef<number | null>(null)
+  const ratiosRef = useRef<Map<number, number>>(new Map())
+
   useEffect(() => {
     if (!containerRef.current || !pdfDoc) return
     const container = containerRef.current
 
     const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const match = entry.target.id.match(/^page-(\d+)$/)
+        if (match) ratiosRef.current.set(parseInt(match[1]), entry.isIntersecting ? entry.intersectionRatio : 0)
+      })
+
       setVisiblePages(prev => {
         const next = new Set(prev)
         entries.forEach(entry => {
-          const id = entry.target.id
-          const match = id.match(/^page-(\d+)$/)
-          if (match) {
+          const match = entry.target.id.match(/^page-(\d+)$/)
+          if (match && entry.isIntersecting) {
             const idx = parseInt(match[1])
-            if (entry.isIntersecting) {
-              next.add(idx)
-              // Buffer pages ±1
-              if (idx > 0) next.add(idx - 1)
-              if (idx < pageCount - 1) next.add(idx + 1)
-            }
+            next.add(idx)
+            if (idx > 0) next.add(idx - 1)
+            if (idx < pageCount - 1) next.add(idx + 1)
           }
         })
         return next
       })
-    }, { root: container, threshold: 0.01 })
 
-    // Observe all page divs after a tick
+      // The most-visible page becomes the current page (keeps the header
+      // indicator and pages sheet in sync while scrolling)
+      let best = -1, bestRatio = 0
+      ratiosRef.current.forEach((ratio, idx) => {
+        if (ratio > bestRatio) { bestRatio = ratio; best = idx }
+      })
+      if (best >= 0 && bestRatio > 0 && best !== usePDFStore.getState().currentPage) {
+        scrollSetPage.current = best
+        setCurrentPage(best)
+      }
+    }, { root: container, threshold: [0.01, 0.25, 0.5, 0.75, 1] })
+
     const timer = setTimeout(() => {
       document.querySelectorAll('[id^="page-"]').forEach(el => observer.observe(el))
     }, 100)
 
     return () => { observer.disconnect(); clearTimeout(timer) }
-  }, [pdfDoc, pageCount])
+  }, [pdfDoc, pageCount, viewMode, pageOrder])
 
-  // Scroll to current page when navigated via toolbar / thumbnails
+  // Scroll to current page on explicit navigation (not scroll-derived sync)
   useEffect(() => {
+    if (scrollSetPage.current === currentPage) { scrollSetPage.current = null; return }
     const el = document.getElementById(`page-${currentPage}`)
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [currentPage])
 
-  // Scroll-to-zoom (desktop only, Ctrl+wheel)
+  // Ctrl+wheel zoom, anchored at cursor
   const handleWheel = useCallback((e: WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault()
       const delta = e.deltaY < 0 ? 0.1 : -0.1
-      setZoom(usePDFStore.getState().zoom + delta)
+      const z = usePDFStore.getState().zoom
+      applyZoom(Math.round((z + delta) * 10) / 10, e.clientX, e.clientY)
     }
-  }, [setZoom])
+  }, [applyZoom])
 
   useEffect(() => {
     const el = containerRef.current
@@ -146,12 +263,14 @@ export const PDFViewer: React.FC = () => {
     <div
       {...(pdfDoc ? {} : getRootProps())}
       ref={containerRef}
-      className="flex-1 overflow-auto relative"
+      className="flex-1 overflow-auto relative pdf-scroll-container"
       style={{
         background: 'var(--color-surface-2)',
         backgroundImage: 'radial-gradient(var(--color-border) 1px, transparent 1px)',
         backgroundSize: '24px 24px',
         position: 'relative',
+        // Browser handles panning; two-finger pinch reaches our JS handler
+        touchAction: 'pan-x pan-y',
       }}
     >
       {!pdfDoc && <input {...getInputProps()} />}

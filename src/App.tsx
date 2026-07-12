@@ -41,6 +41,20 @@ export default function App() {
     document.documentElement.classList.toggle('dark', darkMode)
   }, [darkMode])
 
+  // iOS keyboard avoidance: expose the keyboard height as a CSS var so
+  // bottom sheets can lift above it (iOS never resizes the layout viewport).
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const onResize = () => {
+      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+      document.documentElement.style.setProperty('--kb-height', `${Math.round(kb)}px`)
+    }
+    vv.addEventListener('resize', onResize)
+    onResize()
+    return () => vv.removeEventListener('resize', onResize)
+  }, [])
+
   // Global drag-and-drop
   useEffect(() => {
     const onDragOver = (e: DragEvent) => {

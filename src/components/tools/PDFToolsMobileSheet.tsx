@@ -24,8 +24,8 @@ export const PDFToolsMobileSheet: React.FC = () => {
       <div
         className="mobile-only"
         style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0,
-          height: '80vh', zIndex: 490,
+          position: 'fixed', bottom: 'var(--kb-height, 0px)', left: 0, right: 0,
+          maxHeight: '82vh', minHeight: '55vh', zIndex: 490,
           background: 'var(--color-surface)',
           borderRadius: '20px 20px 0 0',
           boxShadow: '0 -8px 40px rgba(0,0,0,0.2)',

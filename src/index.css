@@ -539,7 +539,7 @@ html, body {
 /* Mobile properties drawer */
 .mobile-props-drawer {
   position: fixed;
-  bottom: 0;
+  bottom: var(--kb-height, 0px);
   left: 0;
   right: 0;
   background: var(--color-surface);

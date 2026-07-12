@@ -22,6 +22,24 @@ export const SignatureModal: React.FC<Props> = ({ onClose }) => {
   const [uploadedImg, setUploadedImg] = useState<string | null>(null)
   const [saveName, setSaveName] = useState('')
   const [showSaveInput, setShowSaveInput] = useState(false)
+  const drawWrapRef = useRef<HTMLDivElement>(null)
+  const [canvasW, setCanvasW] = useState(476)
+
+  // Fit the signing canvas to the modal width (was fixed 476px — a third
+  // of the surface was clipped and unreachable on phones)
+  useEffect(() => {
+    if (mode !== 'draw') return
+    const el = drawWrapRef.current
+    if (!el) return
+    const measure = () => {
+      const w = el.clientWidth - 4 // border
+      if (w > 40) setCanvasW(w)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [mode])
 
   useEffect(() => {
     const link = document.createElement('link')
@@ -158,19 +176,17 @@ export const SignatureModal: React.FC<Props> = ({ onClose }) => {
                       borderTop: '1px solid var(--color-border)',
                     }}>{sig.name}</div>
                     <button
-                      onMouseDown={e => e.stopPropagation()}
+                      aria-label="מחק חתימה"
+                      onPointerDown={e => e.stopPropagation()}
                       onClick={e => { e.stopPropagation(); removeSavedSignature(sig.id) }}
                       style={{
                         position: 'absolute', top: 3, right: 3,
-                        width: 18, height: 18, borderRadius: '50%',
-                        background: 'rgba(239,68,68,0.85)', color: 'white',
-                        border: 'none', cursor: 'pointer', fontSize: 11,
+                        width: 26, height: 26, borderRadius: '50%',
+                        background: 'rgba(239,68,68,0.9)', color: 'white',
+                        border: '2px solid white', cursor: 'pointer', fontSize: 13,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        opacity: 0,
-                        transition: 'opacity 150ms ease',
+                        minHeight: 0, padding: 0,
                       }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1' }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0' }}
                     >×</button>
                   </div>
                 ))}
@@ -189,7 +205,7 @@ export const SignatureModal: React.FC<Props> = ({ onClose }) => {
           {/* Draw mode */}
           {mode === 'draw' && (
             <div>
-              <div style={{
+              <div ref={drawWrapRef} style={{
                 border: '2px dashed var(--color-border)', borderRadius: 10,
                 overflow: 'hidden', touchAction: 'none', background: 'white',
                 transition: 'border-color 150ms ease',
@@ -198,9 +214,10 @@ export const SignatureModal: React.FC<Props> = ({ onClose }) => {
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--color-border)' }}
               >
                 <SignatureCanvas
+                  key={canvasW}
                   ref={sigPadRef}
                   penColor="#1a2332"
-                  canvasProps={{ width: 476, height: 150, className: 'sig-canvas' }}
+                  canvasProps={{ width: canvasW, height: 170, className: 'sig-canvas' }}
                 />
               </div>
               <button className="btn btn-ghost" style={{ marginTop: 6, fontSize: 12 }}

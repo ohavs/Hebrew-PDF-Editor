@@ -3,9 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
+    <!-- No maximum-scale: WCAG 1.4.4 (iOS ignores it anyway); the editor
+         suppresses page pinch via touch-action + its own pinch handler.
+         interactive-widget makes Android resize the layout for the keyboard. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="theme-color" content="#ffffff" />
+    <script>
+      // Apply saved theme before first paint (no flash)
+      if (localStorage.getItem('darkMode') === 'true') {
+        document.documentElement.classList.add('dark');
+        var tc = document.querySelector('meta[name="theme-color"]');
+        if (tc) tc.setAttribute('content', '#0f172a');
+      }
+    </script>
     <meta name="description" content="עורך PDF מתקדם עם תמיכה מלאה בעברית - Hebrew PDF Editor" />
     <!-- PWA / iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes" />

@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
-import { PDFDocument, degrees } from 'pdf-lib'
+import { PDFDocument } from 'pdf-lib'
 import * as pdfjsLib from 'pdfjs-dist'
-import { usePDFStore, useAnnotationsStore, useUIStore } from '../../store'
+import { usePDFStore, useUIStore } from '../../store'
 import { usePDF } from '../../hooks/usePDF'
-import { embedAnnotationsIntoPdf, downloadBlob, triggerDownload } from '../../utils/pdfExport'
+import { downloadBlob, triggerDownload } from '../../utils/pdfExport'
+import { useEditedBytes, usePageOps } from '../../hooks/usePageOps'
+import { PageListPanel } from '../panels/PageListPanel'
 
 const EASE = 'cubic-bezier(0.23,1,0.32,1)'
 
@@ -97,16 +99,6 @@ export const PDFToolsModal: React.FC = () => null
 // ─────────────────────────────────────────────────────────────
 // Shared helpers
 // ─────────────────────────────────────────────────────────────
-function useEditedBytes() {
-  const { pdfBytes, pageInfos, pageOrder } = usePDFStore()
-  const { annotations, formFields } = useAnnotationsStore()
-  return async (): Promise<Uint8Array> => {
-    if (!pdfBytes) throw new Error('no pdf')
-    if (annotations.length === 0 && formFields.every(f => !f.value)) return pdfBytes.slice()
-    return embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder)
-  }
-}
-
 async function renderPageCanvas(pdfDoc: any, pageNum: number, scale: number): Promise<HTMLCanvasElement> {
   const page = await pdfDoc.getPage(pageNum)
   const viewport = page.getViewport({ scale })
@@ -180,76 +172,32 @@ const ToolPanel: React.FC<{ category: CategoryId }> = ({ category }) => {
 // Organize
 // ─────────────────────────────────────────────────────────────
 const OrganizePanel: React.FC = () => {
-  const { pdfDoc, currentPage, pageCount, pageOrder, pageInfos, rotatePage, fileName } = usePDFStore()
-  const { addToast, confirm } = useUIStore()
-  const { loadPDF } = usePDF()
+  const { pdfDoc, currentPage, pageCount, pageOrder, pageInfos } = usePDFStore()
+  const { addBlankAfter, rotateAllPages } = usePageOps()
   const [busy, setBusy] = useState(false)
-  const getEdited = useEditedBytes()
 
   if (!pdfDoc) return <EmptyHint />
 
-  const run = async (fn: () => Promise<void>, label: string) => {
+  const run = (fn: () => Promise<unknown>) => async () => {
+    if (busy) return
     setBusy(true)
-    try { await fn() } catch (e) { console.error(e); addToast(`שגיאה ב${label}`, 'error') } finally { setBusy(false) }
+    try { await fn() } finally { setBusy(false) }
   }
 
-  // getEdited() bakes pageOrder into the bytes, so the loaded document is
-  // already in DISPLAY order. The position of the current page in that
-  // document is its position in pageOrder — not its natural index.
-  const displayPos = () => Math.max(0, pageOrder.indexOf(currentPage))
-
-  const deletePage = () => run(async () => {
-    if (pageCount <= 1) { addToast('לא ניתן למחוק את הדף היחיד', 'error'); return }
-    const pos = displayPos()
-    const ok = await confirm({ title: 'מחיקת דף', message: `הדף הנוכחי (${pos + 1}) יימחק מהמסמך. להמשיך?`, confirmLabel: 'מחק', danger: true })
-    if (!ok) return
-    const src = await PDFDocument.load(await getEdited())
-    const dest = await PDFDocument.create()
-    const order = src.getPageIndices().filter(i => i !== pos)
-    const pages = await dest.copyPages(src, order)
-    pages.forEach(p => dest.addPage(p))
-    await loadPDF((await dest.save()).buffer as ArrayBuffer, { name: fileName })
-    addToast('הדף נמחק', 'success')
-  }, 'מחיקה')
-
-  const duplicate = () => run(async () => {
-    const pos = displayPos()
-    const src = await PDFDocument.load(await getEdited())
-    const dest = await PDFDocument.create()
-    const order = src.getPageIndices()
-    order.splice(pos + 1, 0, pos)
-    const pages = await dest.copyPages(src, order)
-    pages.forEach(p => dest.addPage(p))
-    await loadPDF((await dest.save()).buffer as ArrayBuffer, { name: fileName })
-    addToast('הדף שוכפל', 'success')
-  }, 'שכפול')
-
-  const addBlank = () => run(async () => {
-    const pos = displayPos()
-    const doc = await PDFDocument.load(await getEdited())
-    const info = pageInfos[currentPage]
-    doc.insertPage(pos + 1, [info?.width || 595, info?.height || 842])
-    await loadPDF((await doc.save()).buffer as ArrayBuffer, { name: fileName })
-    addToast('דף ריק הוסף', 'success')
-  }, 'הוספה')
-
-  const rotateAll = () => run(async () => {
-    const doc = await PDFDocument.load(await getEdited())
-    doc.getPages().forEach(p => p.setRotation(degrees((p.getRotation().angle + 90) % 360)))
-    await loadPDF((await doc.save()).buffer as ArrayBuffer, { name: fileName })
-    addToast('כל הדפים סובבו', 'success')
-  }, 'סיבוב')
+  const displayPos = Math.max(0, pageOrder.indexOf(currentPage))
+  const info = pageInfos[currentPage]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <InfoBar text={`דף נוכחי: ${Math.max(0, pageOrder.indexOf(currentPage)) + 1} מתוך ${pageCount}.`} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
-        <BigAction icon="↻" title="סובב דף 90°" desc="סובב את הדף הנוכחי" onClick={() => { rotatePage(currentPage, 90); addToast(`דף ${Math.max(0, pageOrder.indexOf(currentPage)) + 1} סובב`, 'success') }} disabled={busy} />
-        <BigAction icon="⟳" title="סובב את כל הדפים" desc="החל סיבוב על המסמך כולו" onClick={rotateAll} disabled={busy} />
-        <BigAction icon="⧉" title="שכפל דף" desc="צור עותק של הדף הנוכחי" onClick={duplicate} disabled={busy} />
-        <BigAction icon="＋" title="הוסף דף ריק" desc="הוסף דף ריק אחרי הנוכחי" onClick={addBlank} disabled={busy} />
-        <BigAction icon="🗑" title="מחק דף" desc="הסר את הדף הנוכחי" onClick={deletePage} disabled={busy} danger />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <InfoBar text={`${pageCount} דפים. גרור מהידית לשינוי סדר, או השתמש בכפתורי השורה.`} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} disabled={busy}
+          onClick={run(rotateAllPages)}>⟳ סובב הכל</button>
+        <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} disabled={busy}
+          onClick={run(() => addBlankAfter(displayPos, info ? [info.width, info.height] : undefined))}>＋ דף ריק</button>
       </div>
+      <PageListPanel />
+      {busy && <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--color-text-muted)' }}><Spinner /> מעבד…</div>}
     </div>
   )
 }
@@ -369,6 +317,8 @@ const SplitPanel: React.FC = () => {
             onChange={e => setSplitRanges(e.target.value)}
             placeholder="לדוגמה: 1-3, 4-6, 7"
             dir="ltr"
+            inputMode="numeric"
+            onFocus={e => setTimeout(() => e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)}
             style={{ width: '100%', textAlign: 'center' }}
           />
           <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
@@ -416,7 +366,8 @@ const ExtractPanel: React.FC = () => {
         <label className="label">טווח דפים</label>
         <input
           className="input" value={range} onChange={e => setRange(e.target.value)}
-          placeholder="לדוגמה: 1-3, 5" dir="ltr"
+          placeholder="לדוגמה: 1-3, 5" dir="ltr" inputMode="numeric"
+          onFocus={e => setTimeout(() => e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)}
           style={{ width: '100%', textAlign: 'center', direction: 'ltr' }}
         />
       </div>
@@ -542,6 +493,8 @@ const ToImagePanel: React.FC = () => {
           onChange={e => setCustomRange(e.target.value)}
           placeholder="לדוגמה: 1-3, 5, 8"
           dir="ltr"
+          inputMode="numeric"
+          onFocus={e => setTimeout(() => e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)}
           style={{ width: '100%', textAlign: 'center' }}
         />
       )}
