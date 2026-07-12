@@ -5,13 +5,11 @@ import { useDropzone } from 'react-dropzone'
 import { usePDF } from '../../hooks/usePDF'
 import { useSessions } from '../../hooks/useSessions'
 import { listSessions, type SessionMeta } from '../../utils/sessions'
-import { useTranslation } from 'react-i18next'
 
 export const PDFViewer: React.FC = () => {
   const { pdfDoc, pageCount, currentPage, setCurrentPage, zoom, setZoom, viewMode, pageOrder, isLoading, loadingProgress } = usePDFStore()
   const { activeTool, showDropOverlay, setShowDropOverlay } = useUIStore()
   const { loadPDF } = usePDF()
-  const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const [visiblePages, setVisiblePages] = useState<Set<number>>(new Set([0]))
 
@@ -282,7 +280,7 @@ export const PDFViewer: React.FC = () => {
             <svg width="64" height="64" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ margin: '0 auto 16px' }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <div style={{ fontSize: 20, fontWeight: 600 }}>{t('viewer.dropHere')}</div>
+            <div style={{ fontSize: 20, fontWeight: 600 }}>גרור קובץ PDF לכאן</div>
           </div>
         </div>
       )}
@@ -297,7 +295,7 @@ export const PDFViewer: React.FC = () => {
           <div style={{ width: 200, height: 4, background: 'var(--color-border)', borderRadius: 2, overflow: 'hidden', marginBottom: 16 }}>
             <div style={{ width: `${loadingProgress}%`, height: '100%', background: 'var(--color-accent)', borderRadius: 2, transition: 'width 0.3s' }} />
           </div>
-          <div style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>{t('viewer.loading')} {loadingProgress}%</div>
+          <div style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>טוען... {loadingProgress}%</div>
         </div>
       )}
 
@@ -329,7 +327,6 @@ export const PDFViewer: React.FC = () => {
 const EmptyState: React.FC = () => {
   const { loadPDF } = usePDF()
   const { resumeSession } = useSessions()
-  const { t } = useTranslation()
   const [urlInput, setUrlInput] = useState('')
   const [dragging, setDragging] = useState(false)
   const [sessions, setSessions] = useState<SessionMeta[]>([])
@@ -406,7 +403,7 @@ const EmptyState: React.FC = () => {
       <div style={{ display: 'flex', gap: 8, direction: 'ltr' }}>
         <input
           className="input"
-          placeholder={t('viewer.pasteUrl')}
+          placeholder="הדבק כתובת URL של PDF"
           value={urlInput}
           onChange={e => setUrlInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleUrlLoad()}
@@ -414,7 +411,7 @@ const EmptyState: React.FC = () => {
           style={{ flex: 1, fontSize: 12 }}
         />
         <button className="btn btn-secondary" onClick={handleUrlLoad} style={{ flexShrink: 0, fontSize: 12 }}>
-          {t('viewer.loadUrl')}
+          טען מ-URL
         </button>
       </div>
 

@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { useUIStore, usePDFStore, useAnnotationsStore } from '../../store'
 import { HEBREW_FONTS, FONT_SIZES } from '../../utils/textUtils'
 import { SignatureModal } from '../tools/SignatureModal'
@@ -21,8 +20,14 @@ export const PropertiesPanel: React.FC = () => {
 }
 
 // Text tool properties — syncs with selected textbox when one is selected
+const ALIGN_LABELS: Record<string, string> = {
+  right: 'יישור לימין',
+  center: 'מרכוז',
+  left: 'יישור לשמאל',
+  justify: 'יישור שורה',
+}
+
 const TextProperties: React.FC = () => {
-  const { t } = useTranslation()
   const { textFont, textSize, textBold, textItalic, textUnderline, textColor, textAlign, textDirection,
           setTextFont, setTextSize, setTextBold, setTextItalic, setTextUnderline, setTextColor, setTextAlign, setTextDirection } = useUIStore()
   const { annotations, updateAnnotation, selectedId } = useAnnotationsStore()
@@ -57,11 +62,11 @@ const TextProperties: React.FC = () => {
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div className="panel-title">
-        {selectedBox ? 'עריכת תיבת טקסט' : t('tools.text')}
+        {selectedBox ? 'עריכת תיבת טקסט' : 'טקסט'}
       </div>
 
       <div>
-        <label className="label">{t('text.fontFamily')}</label>
+        <label className="label">גופן</label>
         <select className="select" value={curFont} onChange={e => handleFont(e.target.value)} style={{ width: '100%' }}>
           {HEBREW_FONTS.map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
         </select>
@@ -69,30 +74,30 @@ const TextProperties: React.FC = () => {
 
       <div style={{ display: 'flex', gap: 8 }}>
         <div style={{ flex: 1 }}>
-          <label className="label">{t('text.fontSize')}</label>
+          <label className="label">גודל גופן</label>
           <select className="select" value={curSize} onChange={e => handleSize(+e.target.value)} style={{ width: '100%' }}>
             {FONT_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <div>
-          <label className="label">{t('text.color')}</label>
+          <label className="label">צבע</label>
           <input type="color" value={curColor} onChange={e => handleColor(e.target.value)}
             style={{ width: 44, height: 32, padding: 2, border: '1px solid var(--color-border)', borderRadius: 6, cursor: 'pointer' }} />
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: 4 }}>
-        <StyleBtn active={curBold} onClick={handleBold} title={t('text.bold')}><strong>B</strong></StyleBtn>
-        <StyleBtn active={curItalic} onClick={handleItalic} title={t('text.italic')}><em>I</em></StyleBtn>
-        <StyleBtn active={curUnder} onClick={handleUnder} title={t('text.underline')}><u>U</u></StyleBtn>
+        <StyleBtn active={curBold} onClick={handleBold} title="מודגש"><strong>B</strong></StyleBtn>
+        <StyleBtn active={curItalic} onClick={handleItalic} title="נטוי"><em>I</em></StyleBtn>
+        <StyleBtn active={curUnder} onClick={handleUnder} title="קו תחתון"><u>U</u></StyleBtn>
       </div>
 
       <div>
-        <label className="label">{t('text.direction')}</label>
+        <label className="label">כיוון</label>
         <div style={{ display: 'flex', gap: 4 }}>
           {(['auto','rtl','ltr'] as const).map(d => (
             <StyleBtn key={d} active={curDir === d} onClick={() => handleDir(d)}
-              title={d === 'auto' ? 'אוטומטי' : d === 'rtl' ? t('text.rtl') : t('text.ltr')}>
+              title={d === 'auto' ? 'אוטומטי' : d === 'rtl' ? 'ימין לשמאל' : 'שמאל לימין'}>
               {d === 'auto' ? 'A' : d}
             </StyleBtn>
           ))}
@@ -100,11 +105,11 @@ const TextProperties: React.FC = () => {
       </div>
 
       <div>
-        <label className="label">{t('text.alignRight')}</label>
+        <label className="label">יישור</label>
         <div style={{ display: 'flex', gap: 4 }}>
           {(['right','center','left','justify'] as const).map(a => (
             <StyleBtn key={a} active={curAlign === a} onClick={() => handleAlign(a)}
-              title={t(`text.align${a.charAt(0).toUpperCase()+a.slice(1)}`)}>
+              title={ALIGN_LABELS[a]}>
               {a === 'right' ? '⇒' : a === 'left' ? '⇐' : a === 'center' ? '⇔' : '≡'}
             </StyleBtn>
           ))}
@@ -115,8 +120,13 @@ const TextProperties: React.FC = () => {
 }
 
 // Markup (highlight/underline/strikethrough) properties
+const MARKUP_LABELS: Record<string, string> = {
+  highlight: 'סימון',
+  underline: 'קו תחתון',
+  strikethrough: 'קו חוצה',
+}
+
 const MarkupProperties: React.FC = () => {
-  const { t } = useTranslation()
   const { activeTool, highlightColor, highlightOpacity, setHighlightColor, setHighlightOpacity } = useUIStore()
 
   const COLORS = [
@@ -130,10 +140,10 @@ const MarkupProperties: React.FC = () => {
 
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div className="panel-title">{t(`tools.${activeTool}`)}</div>
+      <div className="panel-title">{MARKUP_LABELS[activeTool] || 'סימון'}</div>
 
       <div>
-        <label className="label">{t('annotation.color')}</label>
+        <label className="label">צבע</label>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {COLORS.map(c => (
             <div
@@ -148,7 +158,7 @@ const MarkupProperties: React.FC = () => {
       </div>
 
       <div>
-        <label className="label">{t('annotation.opacity')}: {Math.round(highlightOpacity * 100)}%</label>
+        <label className="label">שקיפות: {Math.round(highlightOpacity * 100)}%</label>
         <input type="range" min="0.1" max="1" step="0.05" value={highlightOpacity}
           onChange={e => setHighlightOpacity(+e.target.value)} style={{ width: '100%' }} />
       </div>
@@ -158,7 +168,6 @@ const MarkupProperties: React.FC = () => {
 
 // Draw properties
 const DrawProperties: React.FC = () => {
-  const { t } = useTranslation()
   const { drawColor, drawWidth, drawOpacity, setDrawColor, setDrawWidth, setDrawOpacity } = useUIStore()
   const { annotations, deleteAnnotation, pushHistory } = useAnnotationsStore()
 
@@ -175,10 +184,10 @@ const DrawProperties: React.FC = () => {
 
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div className="panel-title">{t('tools.draw')}</div>
+      <div className="panel-title">ציור</div>
 
       <div>
-        <label className="label">{t('annotation.color')}</label>
+        <label className="label">צבע</label>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           {COLORS.map(c => (
             <div key={c} className={`color-swatch ${drawColor === c ? 'selected' : ''}`}
@@ -192,13 +201,13 @@ const DrawProperties: React.FC = () => {
       </div>
 
       <div>
-        <label className="label">{t('annotation.strokeWidth')}: {drawWidth}px</label>
+        <label className="label">עובי קו: {drawWidth}px</label>
         <input type="range" min="1" max="20" value={drawWidth}
           onChange={e => setDrawWidth(+e.target.value)} style={{ width: '100%' }} />
       </div>
 
       <div>
-        <label className="label">{t('annotation.opacity')}: {Math.round(drawOpacity * 100)}%</label>
+        <label className="label">שקיפות: {Math.round(drawOpacity * 100)}%</label>
         <input type="range" min="0.1" max="1" step="0.05" value={drawOpacity}
           onChange={e => setDrawOpacity(+e.target.value)} style={{ width: '100%' }} />
       </div>
@@ -220,12 +229,11 @@ const DrawProperties: React.FC = () => {
 
 // Shape properties
 const ShapeProperties: React.FC = () => {
-  const { t } = useTranslation()
   const { shapeType, shapeFill, shapeStroke, shapeWidth, setShapeType, setShapeFill, setShapeStroke, setShapeWidth } = useUIStore()
 
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div className="panel-title">{t('tools.shapes')}</div>
+      <div className="panel-title">צורות</div>
 
       <div>
         <label className="label">סוג צורה</label>
@@ -240,12 +248,12 @@ const ShapeProperties: React.FC = () => {
 
       <div style={{ display: 'flex', gap: 8 }}>
         <div>
-          <label className="label">{t('annotation.strokeColor')}</label>
+          <label className="label">צבע קו</label>
           <input type="color" value={shapeStroke} onChange={e => setShapeStroke(e.target.value)}
             style={{ width: 44, height: 32, padding: 2, border: '1px solid var(--color-border)', borderRadius: 6, cursor: 'pointer' }} />
         </div>
         <div>
-          <label className="label">{t('annotation.fillColor')}</label>
+          <label className="label">צבע מילוי</label>
           <input type="color" value={shapeFill === 'transparent' ? '#ffffff' : shapeFill}
             onChange={e => setShapeFill(e.target.value)}
             style={{ width: 44, height: 32, padding: 2, border: '1px solid var(--color-border)', borderRadius: 6, cursor: 'pointer' }} />
@@ -259,7 +267,7 @@ const ShapeProperties: React.FC = () => {
       </div>
 
       <div>
-        <label className="label">{t('annotation.strokeWidth')}: {shapeWidth}px</label>
+        <label className="label">עובי קו: {shapeWidth}px</label>
         <input type="range" min="1" max="10" value={shapeWidth}
           onChange={e => setShapeWidth(+e.target.value)} style={{ width: '100%' }} />
       </div>
@@ -269,7 +277,6 @@ const ShapeProperties: React.FC = () => {
 
 // Signature properties (launches modal + shows saved signatures)
 const SignatureProperties: React.FC = () => {
-  const { t } = useTranslation()
   const [showModal, setShowModal] = useState(false)
   const { pdfDoc, currentPage } = usePDFStore()
   const { savedSignatures, removeSavedSignature, addToast } = useUIStore()
@@ -282,18 +289,18 @@ const SignatureProperties: React.FC = () => {
       rect: { x: 80, y: 280, width: 220, height: 90 },
       imageData, rotation: 0,
     } as any)
-    addToast(t('signature.placedSignature'), 'success')
+    addToast('חתימה הוצבה', 'success')
   }
 
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div className="panel-title">{t('tools.signature')}</div>
+      <div className="panel-title">חתימה</div>
       <button className="btn btn-primary" style={{ width: '100%' }}
         disabled={!pdfDoc} onClick={() => setShowModal(true)}>
         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
         </svg>
-        {t('signature.draw')}
+        שרטוט חתימה
       </button>
 
       {savedSignatures.length > 0 && (
@@ -355,7 +362,6 @@ const SignatureProperties: React.FC = () => {
 
 // Default / select tool
 const DefaultProperties: React.FC = () => {
-  const { t } = useTranslation()
   const { pdfDoc, fileName, pageCount } = usePDFStore()
   if (!pdfDoc) return (
     <div style={{ padding: 16, color: 'var(--color-text-muted)', fontSize: 13, textAlign: 'center' }}>

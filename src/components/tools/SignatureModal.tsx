@@ -1,5 +1,4 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
 import { useAnnotationsStore, usePDFStore, useUIStore } from '../../store'
 import type { SignatureAnnotation } from '../../store/types'
 import SignatureCanvas from 'react-signature-canvas'
@@ -10,7 +9,6 @@ type Mode = 'draw' | 'upload' | 'type'
 const CURSIVE_FONTS = ['Dancing Script', 'Pacifico', 'Satisfy', 'Great Vibes', 'Caveat']
 
 export const SignatureModal: React.FC<Props> = ({ onClose }) => {
-  const { t } = useTranslation()
   const sigPadRef = useRef<SignatureCanvas>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { addAnnotation, pushHistory } = useAnnotationsStore()
@@ -81,7 +79,7 @@ export const SignatureModal: React.FC<Props> = ({ onClose }) => {
       rotation: 0,
     }
     addAnnotation(sig)
-    addToast(t('signature.placedSignature'), 'success')
+    addToast('חתימה הוצבה', 'success')
     onClose()
   }
 

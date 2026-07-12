@@ -1,5 +1,4 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import { useUIStore } from '../../store'
 import { ThumbnailPanel } from './ThumbnailPanel'
 import { AnnotationsPanel } from './AnnotationsPanel'
@@ -9,12 +8,11 @@ import type { SidePanel } from '../../store/types'
 const EASE = 'cubic-bezier(0.23,1,0.32,1)'
 
 const TABS: Array<{ id: SidePanel; label: string }> = [
-  { id: 'thumbnails', label: 'viewer.thumbnails' },
-  { id: 'annotations', label: 'viewer.annotations' },
+  { id: 'thumbnails', label: 'תמונות ממוזערות' },
+  { id: 'annotations', label: 'הערות' },
 ]
 
 export const LeftPanel: React.FC = () => {
-  const { t } = useTranslation()
   const { sidePanel, setSidePanel, toolboxOpen, setToolboxOpen } = useUIStore()
 
   const activeIdx = TABS.findIndex(tab => tab.id === sidePanel)
@@ -59,7 +57,7 @@ export const LeftPanel: React.FC = () => {
                   cursor: 'pointer', transition: 'color 180ms ease-out',
                   fontFamily: 'inherit', letterSpacing: '0.01em',
                 }}
-              >{t(tab.label)}</button>
+              >{tab.label}</button>
             ))}
           </div>
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

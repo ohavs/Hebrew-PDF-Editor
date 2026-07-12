@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
 import { usePDFStore, useUIStore } from '../../store'
 import { usePDF } from '../../hooks/usePDF'
 
 export const ThumbnailPanel: React.FC = () => {
-  const { t } = useTranslation()
   const { pdfDoc, pageOrder, currentPage, setCurrentPage, reorderPages, pageInfos } = usePDFStore()
   const { addToast } = useUIStore()
   const { renderThumbnail } = usePDF()
@@ -77,14 +75,14 @@ export const ThumbnailPanel: React.FC = () => {
 
   if (!pdfDoc) return (
     <div style={{ padding: 16, color: 'var(--color-text-muted)', fontSize: 13, textAlign: 'center' }}>
-      {t('viewer.noFile')}
+      אין קובץ פתוח
     </div>
   )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--color-border)', fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)' }}>
-        {t('viewer.thumbnails')} ({pageOrder.length})
+        תמונות ממוזערות ({pageOrder.length})
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
         {pageOrder.map((pageIdx, orderIdx) => {
