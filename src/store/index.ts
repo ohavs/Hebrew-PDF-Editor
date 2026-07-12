@@ -167,6 +167,9 @@ export const useUIStore = create<UIState>()((set) => ({
     const v = !s.darkMode
     localStorage.setItem('darkMode', String(v))
     document.documentElement.classList.toggle('dark', v)
+    // Keep the mobile status bar / PWA chrome in sync with the app theme
+    document.querySelectorAll('meta[name="theme-color"]').forEach(m =>
+      m.setAttribute('content', v ? '#0f172a' : '#ffffff'))
     return { darkMode: v }
   }),
   setLanguage: (lang) => {

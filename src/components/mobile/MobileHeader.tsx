@@ -1,20 +1,22 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePDFStore, useAnnotationsStore, useUIStore } from '../../store'
-import { embedAnnotationsIntoPdf, downloadBlob } from '../../utils/pdfExport'
+import { embedAnnotationsIntoPdf, shareOrDownload } from '../../utils/pdfExport'
 import { usePWAInstall } from '../../hooks/usePWAInstall'
 
 const EASE = 'cubic-bezier(0.23,1,0.32,1)'
 
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+// iPadOS 13+ reports a macOS user agent — detect via touch points
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 const isInStandalone = () =>
   (window.navigator as any).standalone === true ||
   window.matchMedia('(display-mode: standalone)').matches
 
 export const MobileHeader: React.FC = () => {
-  const { pdfDoc, pdfBytes, fileName, currentPage, pageCount, pageInfos, pageOrder, zoom, setZoom } = usePDFStore()
+  const { pdfDoc, pdfBytes, fileName, currentPage, pageCount, pageInfos, pageOrder, hasUnsavedChanges } = usePDFStore()
   const { past } = useAnnotationsStore()
-  const { addToast } = useUIStore()
+  const { addToast, darkMode, toggleDarkMode } = useUIStore()
   const { canInstall, install } = usePWAInstall()
   const navigate = useNavigate()
   const [saving, setSaving] = useState(false)
@@ -30,19 +32,17 @@ export const MobileHeader: React.FC = () => {
       const annotations = useAnnotationsStore.getState().annotations
       const formFields = useAnnotationsStore.getState().formFields
       const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder)
-      downloadBlob(result, fileName.replace('.pdf', '') + '-edited.pdf')
-      addToast('הורד בהצלחה', 'success')
-    } catch {
+      const outcome = await shareOrDownload(result, fileName.replace('.pdf', '') + '-edited.pdf')
+      addToast(outcome === 'shared' ? 'הקובץ מוכן לשיתוף' : 'הורד בהצלחה', 'success')
+    } catch (e) {
+      console.error(e)
       addToast('שגיאה בשמירה', 'error')
     } finally {
       setSaving(false)
     }
   }
 
-  const zoomIn  = () => setZoom(Math.min(3.0, Math.round((zoom + 0.1) * 10) / 10))
-  const zoomOut = () => setZoom(Math.max(0.25, Math.round((zoom - 0.1) * 10) / 10))
-
-  const hasUnsaved = usePDFStore.getState().hasUnsavedChanges
+  const hasUnsaved = hasUnsavedChanges
 
   return (
     <>
@@ -63,7 +63,7 @@ export const MobileHeader: React.FC = () => {
         }}
       >
         {/* Back */}
-        <HeaderBtn onClick={() => navigate('/')}>
+        <HeaderBtn ariaLabel="דף הבית" onClick={() => navigate('/')}>
           <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
           </svg>
@@ -86,38 +86,16 @@ export const MobileHeader: React.FC = () => {
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
         )}
 
-        {/* Zoom controls — only when PDF loaded */}
-        {pdfDoc && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0 }}>
-            <ZoomBtn onClick={zoomOut} disabled={zoom <= 0.25}>
-              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" d="M5 12h14"/>
-              </svg>
-            </ZoomBtn>
-            <span style={{
-              fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)',
-              minWidth: 30, textAlign: 'center', userSelect: 'none',
-            }}>
-              {Math.round(zoom * 100)}%
-            </span>
-            <ZoomBtn onClick={zoomIn} disabled={zoom >= 3.0}>
-              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" d="M12 5v14M5 12h14"/>
-              </svg>
-            </ZoomBtn>
-          </div>
-        )}
-
         {/* Undo */}
-        <HeaderBtn onClick={() => useAnnotationsStore.getState().undo()} disabled={!past.length}>
+        <HeaderBtn ariaLabel="בטל" onClick={() => useAnnotationsStore.getState().undo()} disabled={!past.length}>
           <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6M3 10l6-6" />
           </svg>
         </HeaderBtn>
 
-        {/* Save */}
+        {/* Save / Share */}
         {pdfDoc && (
-          <HeaderBtn onClick={save} disabled={saving}>
+          <HeaderBtn ariaLabel="שמור ושתף" onClick={save} disabled={saving}>
             {saving ? (
               <svg className="spinner" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
@@ -130,9 +108,22 @@ export const MobileHeader: React.FC = () => {
           </HeaderBtn>
         )}
 
+        {/* Dark mode toggle */}
+        <HeaderBtn ariaLabel={darkMode ? 'מצב בהיר' : 'מצב כהה'} onClick={toggleDarkMode}>
+          {darkMode ? (
+            <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="5" /><path strokeLinecap="round" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+            </svg>
+          ) : (
+            <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+            </svg>
+          )}
+        </HeaderBtn>
+
         {/* Install / Add to Home Screen */}
         {showInstallBtn && (
-          <HeaderBtn onClick={() => { if (canInstall) { install() } else { setShowInstall(true) } }}>
+          <HeaderBtn ariaLabel="התקן אפליקציה" onClick={() => { if (canInstall) { install() } else { setShowInstall(true) } }}>
             <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.5a6.5 6.5 0 100-13 6.5 6.5 0 000 13zM12 8v4m0 0l-2-2m2 2l2-2M8 21h8" />
             </svg>
@@ -155,12 +146,13 @@ export const MobileHeader: React.FC = () => {
   )
 }
 
-const HeaderBtn: React.FC<{ onClick: () => void; disabled?: boolean; children: React.ReactNode }> = ({ onClick, disabled, children }) => (
+const HeaderBtn: React.FC<{ onClick: () => void; disabled?: boolean; ariaLabel?: string; children: React.ReactNode }> = ({ onClick, disabled, ariaLabel, children }) => (
   <button
     onClick={onClick}
     disabled={disabled}
+    aria-label={ariaLabel}
     style={{
-      width: 34, height: 34, borderRadius: 10, border: 'none',
+      width: 38, height: 38, borderRadius: 10, border: 'none',
       background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
       cursor: disabled ? 'not-allowed' : 'pointer', color: 'var(--color-text)',
       opacity: disabled ? 0.3 : 1, flexShrink: 0,
@@ -168,25 +160,6 @@ const HeaderBtn: React.FC<{ onClick: () => void; disabled?: boolean; children: R
       WebkitTapHighlightColor: 'transparent',
     }}
     onTouchStart={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.85)' }}
-    onTouchEnd={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
-  >
-    {children}
-  </button>
-)
-
-const ZoomBtn: React.FC<{ onClick: () => void; disabled?: boolean; children: React.ReactNode }> = ({ onClick, disabled, children }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    style={{
-      width: 26, height: 26, borderRadius: 7, border: 'none',
-      background: 'var(--color-surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      cursor: disabled ? 'not-allowed' : 'pointer', color: 'var(--color-text)',
-      opacity: disabled ? 0.3 : 1, flexShrink: 0,
-      WebkitTapHighlightColor: 'transparent',
-      transition: `transform 100ms ${EASE}`,
-    }}
-    onTouchStart={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.82)' }}
     onTouchEnd={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
   >
     {children}

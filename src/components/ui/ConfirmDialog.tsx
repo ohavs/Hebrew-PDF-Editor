@@ -96,7 +96,7 @@ const DialogButton: React.FC<{
     transition: `transform 150ms ${EASE}, background 150ms ease-out, filter 150ms ease-out`,
   }
   const styles: Record<string, React.CSSProperties> = {
-    primary: { ...base, background: 'var(--color-ink-black)', color: '#fff' },
+    primary: { ...base, background: 'var(--color-accent)', color: 'var(--color-on-accent)' },
     danger: { ...base, background: '#dc2626', color: '#fff' },
     ghost: { ...base, background: 'var(--color-surface-2)', color: 'var(--color-text)' },
   }

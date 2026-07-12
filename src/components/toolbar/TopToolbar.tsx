@@ -164,11 +164,11 @@ export const TopToolbar: React.FC = () => {
               textAlign: 'center',
             }}
           >
-            <option value="" disabled style={{ background: '#ffffff' }}>{Math.round(zoom * 100)}%</option>
-            <option value="fit-width" style={{ background: '#ffffff' }}>התאם רוחב</option>
-            <option value="fit-page" style={{ background: '#ffffff' }}>התאם דף</option>
+            <option value="" disabled style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}>{Math.round(zoom * 100)}%</option>
+            <option value="fit-width" style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}>התאם רוחב</option>
+            <option value="fit-page" style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}>התאם דף</option>
             {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2].map(v => (
-              <option key={v} value={v} style={{ background: '#ffffff' }}>{Math.round(v * 100)}%</option>
+              <option key={v} value={v} style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}>{Math.round(v * 100)}%</option>
             ))}
           </select>
           <TopBtn title={t('toolbar.zoomIn')} onClick={() => setZoom(Math.min(4, zoom + 0.1))}>

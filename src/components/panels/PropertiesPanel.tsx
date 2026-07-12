@@ -306,7 +306,7 @@ const SignatureProperties: React.FC = () => {
               <div key={sig.id} style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 border: '1px solid var(--color-border)', borderRadius: 8,
-                padding: '4px 8px', background: 'white',
+                padding: '4px 8px', background: 'var(--color-surface)',
                 cursor: pdfDoc ? 'pointer' : 'not-allowed',
                 opacity: pdfDoc ? 1 : 0.5,
                 transition: 'border-color 130ms cubic-bezier(0.23,1,0.32,1)',
@@ -319,7 +319,7 @@ const SignatureProperties: React.FC = () => {
                 title={`הוסף "${sig.name}"`}
               >
                 <img src={sig.imageData} alt={sig.name}
-                  style={{ height: 34, width: 76, objectFit: 'contain', flexShrink: 0 }} />
+                  style={{ height: 34, width: 76, objectFit: 'contain', flexShrink: 0, background: 'white', borderRadius: 4 }} />
                 <span style={{ flex: 1, fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {sig.name}
                 </span>

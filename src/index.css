@@ -38,13 +38,30 @@
   }
 
   .dark {
+    --color-primary: #0f172a;
+    --color-accent: #f1f5f9;
+    --color-accent-hover: #cbd5e1;
     --color-surface: #0f172a;
     --color-surface-2: #1e293b;
     --color-border: #334155;
     --color-text: #f1f5f9;
     --color-text-muted: #94a3b8;
     --shadow-page: 0 4px 24px rgba(0,0,0,0.4), 0 1px 4px rgba(0,0,0,0.2);
+    --shadow-elevated: 0 8px 40px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+    /* Swiss editorial tokens — dark variants */
+    --color-canvas-mist: #1e293b;
+    --color-pure-white: #0f172a;
+    --color-surface-mist: #1e293b;
+    --color-ink-black: #f1f5f9;
+    --color-steel-gray: #64748b;
+    --color-graphite: #cbd5e1;
+    --color-mint: #1e3a2f;
+    --color-mint-pulse: #1e3a2f;
   }
+
+  /* Text that sits ON an accent background (buttons, pills) */
+  :root { --color-on-accent: #ffffff; }
+  .dark { --color-on-accent: #0f172a; }
 
   html, body {
     direction: rtl;
@@ -63,15 +80,18 @@
     flex-direction: column;
   }
 
-  /* Editor layout needs overflow hidden; landing pages scroll normally */
+  /* Editor layout needs overflow hidden; landing pages scroll normally.
+     100dvh (with 100vh fallback) tracks iOS Safari's collapsing toolbars. */
   .editor-root {
     overflow: hidden;
     height: 100vh;
+    height: 100dvh;
   }
 
   .page-root {
     overflow-y: auto;
     min-height: 100vh;
+    min-height: 100dvh;
   }
 
   * { box-sizing: border-box; }
@@ -102,7 +122,7 @@
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn:active:not(:disabled) { transform: scale(0.97); }
 
-.btn-primary { background: var(--color-accent); color: white; }
+.btn-primary { background: var(--color-accent); color: var(--color-on-accent); }
 .btn-primary:hover:not(:disabled) { background: var(--color-accent-hover); }
 
 .btn-secondary {
@@ -152,6 +172,7 @@
   direction: inherit;
 }
 .input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(0,0,0,0.08); }
+.dark .input:focus { box-shadow: 0 0 0 3px rgba(255,255,255,0.12); }
 
 .select {
   background: var(--color-surface-2);
@@ -470,17 +491,25 @@ html, body {
     box-shadow: 0 2px 12px rgba(0,0,0,0.1) !important;
   }
 
-  /* Toast - float above bottom nav */
+  /* Toast — centered above the bottom nav.
+     Direction-independent: full-width container + centered items
+     (inset-inline-end + translateX pushed toasts off-screen in RTL). */
   .toast-container {
     bottom: calc(var(--bottom-nav-height) + 12px) !important;
-    inset-inline-end: 50% !important;
-    transform: translateX(50%) !important;
+    left: 12px !important;
+    right: 12px !important;
+    inset-inline-end: auto !important;
+    transform: none !important;
     align-items: center !important;
-    right: auto !important;
   }
 
-  /* Input & button tap targets */
-  input, select, button { min-height: 40px; }
+  /* Form-control tap targets. Scoped to real form controls only —
+     a blanket button rule distorted small square icon buttons.
+     16px font stops iOS from auto-zooming focused inputs. */
+  .input, .select, input[type="text"], input[type="number"], select, textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
 
   /* PDF pages container - tight padding on mobile */
   .pdf-pages-container { padding: 8px 0 !important; }
@@ -516,11 +545,14 @@ html, body {
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
   border-radius: 16px 16px 0 0;
-  z-index: 400;
+  z-index: 450;
   box-shadow: 0 -8px 32px rgba(0,0,0,0.12);
   max-height: 70vh;
   overflow-y: auto;
-  transform: translateY(0);
+  /* transform: none in the open state — a permanent transform would become
+     the containing block for position:fixed modals opened from inside
+     (SignatureModal was trapped/clipped inside the drawer). */
+  transform: none;
   transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 .mobile-props-drawer.hidden {

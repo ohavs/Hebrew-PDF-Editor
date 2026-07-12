@@ -69,8 +69,8 @@ export const PDFToolsContent: React.FC<{ onClose: () => void; initialCategory?: 
               style={{
                 display: 'flex', alignItems: 'center', gap: 5,
                 padding: '5px 10px', borderRadius: 20, border: 'none', cursor: 'pointer',
-                background: isActive ? 'var(--color-ink-black)' : 'var(--color-surface-2)',
-                color: isActive ? 'white' : 'var(--color-text-muted)',
+                background: isActive ? 'var(--color-accent)' : 'var(--color-surface-2)',
+                color: isActive ? 'var(--color-on-accent)' : 'var(--color-text-muted)',
                 fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
                 flexShrink: 0, transition: 'background 150ms ease-out, color 150ms ease-out',
                 whiteSpace: 'nowrap',
@@ -698,7 +698,7 @@ const FileRow: React.FC<{ name: string; size: number; onRemove: () => void }> = 
     <span style={{ flex: 1, fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'start' }}>{name}</span>
     <span style={{ fontSize: 12, color: 'var(--color-text-muted)', flexShrink: 0 }}>{(size / 1024).toFixed(0)} KB</span>
     <button onClick={onRemove} style={{
-      width: 22, height: 22, borderRadius: '50%', border: 'none', background: '#fee2e2', color: '#ef4444',
+      width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(239,68,68,0.15)', color: '#ef4444',
       cursor: 'pointer', flexShrink: 0, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>×</button>
   </div>
@@ -731,7 +731,7 @@ const PrimaryButton: React.FC<{ onClick: () => void; disabled?: boolean; childre
     style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
       padding: '13px 20px', borderRadius: 13, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
-      background: 'var(--color-ink-black)', color: '#fff', fontSize: 14.5, fontWeight: 600,
+      background: 'var(--color-accent)', color: 'var(--color-on-accent)', fontSize: 14.5, fontWeight: 600,
       fontFamily: 'inherit', opacity: disabled ? 0.5 : 1, flex: 1,
       transition: `transform 150ms ${EASE}, filter 150ms ease-out`,
     }}

@@ -6,16 +6,16 @@ import { listSessions, deleteSession, type SessionMeta } from '../utils/sessions
 import { ToastContainer } from '../components/ui/Toast'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 
-// ─── Design tokens (Swiss editorial) ─────────────────────────────────────────
+// ─── Design tokens (Swiss editorial) — theme-aware via CSS variables ─────────
 const C = {
-  canvas: '#e5e7eb',
-  white: '#ffffff',
-  mist: '#f3f3f3',
-  ink: '#000000',
-  steel: '#979797',
-  graphite: '#444444',
-  mint: '#d1ffca',
-  yellow: '#fff100',
+  canvas: 'var(--color-canvas-mist)',
+  white: 'var(--color-pure-white)',
+  mist: 'var(--color-surface-mist)',
+  ink: 'var(--color-ink-black)',
+  steel: 'var(--color-steel-gray)',
+  graphite: 'var(--color-graphite)',
+  mint: 'var(--color-mint-pulse)',
+  yellow: 'var(--color-electric-yellow)',
 } as const
 
 const ease = 'cubic-bezier(0.23, 1, 0.32, 1)'
