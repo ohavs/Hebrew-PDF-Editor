@@ -6,13 +6,10 @@ import type { CategoryId } from '../tools/PDFToolsModal'
 const EASE = 'cubic-bezier(0.23,1,0.32,1)'
 
 // ─── Annotation tools ────────────────────────────────────────
+// Only tools NOT already in the bottom nav (select/text/highlight/draw live there)
 const ANNOTATION_TOOLS: Array<{ id: ToolType; label: string; icon: React.ReactNode; color: string }> = [
-  { id: 'select',       label: 'בחר',      color: '#6b7280', icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 3l7 19 3-7 7-3L3 3z"/></svg> },
-  { id: 'text',         label: 'טקסט',     color: '#2563eb', icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 7V4h16v3M9 20h6M12 4v16"/></svg> },
-  { id: 'highlight',    label: 'הדגשה',    color: '#f59e0b', icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536-8.5 8.5H7v-3.268l8.232-8.232z"/></svg> },
   { id: 'underline',    label: 'קו תחתון', color: '#0ea5e9', icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" d="M6 4v6a6 6 0 0012 0V4M4 20h16"/></svg> },
   { id: 'strikethrough',label: 'קו חוצה', color: '#8b5cf6', icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" d="M6 12h12M12 4c-2.5 0-5 1-5 3.5S9 11 12 12m0 0c3 .8 5 2 5 4.5S14.5 20 12 20c-2.5 0-5-1-5-3.5"/></svg> },
-  { id: 'draw',         label: 'ציור',     color: '#ef4444', icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg> },
   { id: 'eraser',       label: 'מחק',      color: '#64748b', icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20 20H7L3 16l9-9 6 6-3.5 3.5M6.5 17.5l4-4"/></svg> },
   { id: 'shapes',       label: 'צורות',    color: '#10b981', icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><circle cx="17" cy="7" r="4"/><path strokeLinecap="round" strokeLinejoin="round" d="M7 17l5 5 5-5"/></svg> },
   { id: 'redact',       label: 'כיסוי',    color: '#64748b', icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="8" rx="1" fill="currentColor" opacity="0.3"/><rect x="3" y="8" width="18" height="8" rx="1"/></svg> },

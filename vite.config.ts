@@ -39,12 +39,12 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg'],
       manifest: {
         name: 'עורך PDF עברי',
         short_name: 'PDF Editor',
         description: 'עורך PDF מתקדם עם תמיכה מלאה בעברית',
-        theme_color: '#1a2332',
+        theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'any',
@@ -52,21 +52,45 @@ export default defineConfig({
         dir: 'rtl',
         start_url: base,
         scope: base,
+        // Relative srcs resolve against the manifest scope — absolute paths
+        // 404'd under a non-root base, failing Chrome installability
+        // (beforeinstallprompt never fired → install button was dead)
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // pdf.worker is ~2MB — allow it into the precache
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            // pdf.js cMaps + standard fonts — without these cached, Hebrew
+            // PDFs with cMap-encoded fonts fail to render offline
+            urlPattern: /\/(cmaps|standard_fonts)\//,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'google-fonts-cache',
+              cacheName: 'pdfjs-assets',
+              expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 365 }
+            }
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'google-fonts-css',
               expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 }
+            }
+          },
+          {
+            // The actual woff2 files live on gstatic — must be cached too
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-files',
+              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 365 }
             }
           }
         ]
@@ -82,7 +106,6 @@ export default defineConfig({
       output: {
         manualChunks: (id: string) => {
           if (id.includes('pdfjs-dist')) return 'pdfjs'
-          if (id.includes('/fabric/')) return 'fabric'
           if (id.includes('pdf-lib')) return 'pdflib'
           return undefined
         }

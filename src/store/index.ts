@@ -5,6 +5,7 @@ import type {
   ToolType, ViewMode, SidePanel, Annotation, FormField,
   PageInfo, HistoryEntry, AlignType, ShapeType, HighlightColor
 } from './types'
+import { ensureAnnotationFonts } from '../utils/textUtils'
 
 const MAX_HISTORY = 50
 const MAX_RECENT = 10
@@ -157,7 +158,7 @@ export const useUIStore = create<UIState>()((set) => ({
 
   savedSignatures: JSON.parse(localStorage.getItem('savedSignatures') || '[]'),
 
-  setTool: (tool) => set({ activeTool: tool }),
+  setTool: (tool) => { if (tool === 'text') ensureAnnotationFonts(); set({ activeTool: tool }) },
   setSidePanel: (panel) => set({ sidePanel: panel }),
   toggleSidePanel: (panel) => set((s) => ({ sidePanel: s.sidePanel === panel ? null : panel })),
   setSideToolbarOpen: (v) => set({ sideToolbarOpen: v }),

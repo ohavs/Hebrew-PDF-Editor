@@ -39,6 +39,18 @@ export const HEBREW_FONTS = [
 
 export const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40, 48, 56, 64, 72, 96]
 
+// Annotation fonts load lazily (first time the text tool is used) instead of
+// blocking every visitor's first paint with 9 font families.
+let annotationFontsLoaded = false
+export function ensureAnnotationFonts() {
+  if (annotationFontsLoaded) return
+  annotationFontsLoaded = true
+  const link = document.createElement('link')
+  link.rel = 'stylesheet'
+  link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@400;500;700&family=Frank+Ruhl+Libre:wght@400;500;700&family=Assistant:wght@400;600&family=David+Libre:wght@400;500;700&family=Rubik:wght@400;500;600&display=swap'
+  document.head.appendChild(link)
+}
+
 export function getFontCSSString(font: string, size: number, bold: boolean, italic: boolean): string {
   return `${italic ? 'italic ' : ''}${bold ? 'bold ' : ''}${size}px '${font}', 'Heebo', sans-serif`
 }

@@ -1,13 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter, Routes, Route } from 'react-router-dom'
-import './i18n'
 import App from './App.tsx'
 import { HomePage } from './pages/HomePage'
-import { PDFToImage } from './pages/converters/PDFToImage'
-import { CompressPDF } from './pages/converters/CompressPDF'
-import { SplitPDF } from './pages/converters/SplitPDF'
-import { MergePDF } from './pages/converters/MergePDF'
+import { QuickTools } from './pages/QuickTools'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
 
 // Apply the saved theme before first paint — on every route, with no flash
@@ -22,10 +18,13 @@ createRoot(document.getElementById('root')!).render(
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/editor" element={<App />} />
-          <Route path="/convert/to-image" element={<PDFToImage />} />
-          <Route path="/convert/compress" element={<CompressPDF />} />
-          <Route path="/convert/split" element={<SplitPDF />} />
-          <Route path="/convert/merge" element={<MergePDF />} />
+          <Route path="/tools" element={<QuickTools />} />
+          <Route path="/tools/:tool" element={<QuickTools />} />
+          {/* Legacy converter URLs → the unified tools hub */}
+          <Route path="/convert/to-image" element={<QuickTools />} />
+          <Route path="/convert/compress" element={<QuickTools />} />
+          <Route path="/convert/split" element={<QuickTools />} />
+          <Route path="/convert/merge" element={<QuickTools />} />
         </Routes>
       </HashRouter>
     </ErrorBoundary>

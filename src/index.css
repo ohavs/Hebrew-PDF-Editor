@@ -455,7 +455,7 @@ input[type=checkbox] {
 :root {
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-  --bottom-nav-height: calc(80px + var(--safe-area-bottom));
+  --bottom-nav-height: calc(72px + var(--safe-area-bottom));
 }
 
 /* Remove browser tap highlight globally */

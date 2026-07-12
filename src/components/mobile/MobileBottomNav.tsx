@@ -40,17 +40,10 @@ export const MobileBottomNav: React.FC = () => {
           display: 'flex', flexDirection: 'column',
         }}
       >
-        {/* Handle bar */}
-        <div style={{
-          width: 36, height: 4, borderRadius: 2,
-          background: 'var(--color-border)',
-          margin: '10px auto 4px', flexShrink: 0,
-        }} />
-
         <div style={{
           display: 'flex', alignItems: 'center',
           justifyContent: 'space-around',
-          padding: '4px 8px 8px',
+          padding: '8px 8px',
           gap: 4,
         }}>
           {PRIMARY_TOOLS.map(tool => {

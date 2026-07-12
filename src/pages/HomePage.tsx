@@ -36,7 +36,7 @@ export const HomePage: React.FC = () => {
     <div
       style={{
         background: C.canvas,
-        minHeight: '100vh',
+        minHeight: '100dvh',
         direction: 'rtl',
         fontFamily: 'var(--font-body)',
         color: C.ink,
@@ -71,7 +71,7 @@ export const HomePage: React.FC = () => {
       <NavPill onOpenEditor={() => navigate('/editor')} />
 
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
-      <section style={{ maxWidth: 1280, margin: '0 auto', padding: '80px 40px 0' }}>
+      <section style={{ maxWidth: 1280, margin: '0 auto', padding: 'clamp(36px, 8vw, 80px) clamp(16px, 5vw, 40px) 0' }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -83,7 +83,7 @@ export const HomePage: React.FC = () => {
             <MonoTag>עורך PDF עברי</MonoTag>
             <h1 style={{
               fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(64px, 9vw, 110px)',
+              fontSize: 'clamp(42px, 11vw, 110px)',
               fontWeight: 700,
               lineHeight: 0.92,
               letterSpacing: '-0.03em',
@@ -132,7 +132,7 @@ export const HomePage: React.FC = () => {
       <SessionsSection onResume={id => navigate('/editor', { state: { resumeId: id } })} />
 
       {/* ── Features grid ────────────────────────────────────────────────────── */}
-      <section style={{ maxWidth: 1280, margin: '96px auto 0', padding: '0 40px' }}>
+      <section style={{ maxWidth: 1280, margin: '96px auto 0', padding: '0 clamp(16px, 5vw, 40px)' }}>
         <div style={{ marginBottom: 48 }}>
           <MonoTag>הכלים שבחרנו</MonoTag>
           <h2 style={{
@@ -193,21 +193,23 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* ── Converters strip ─────────────────────────────────────────────────── */}
-      <section style={{ maxWidth: 1280, margin: '80px auto 0', padding: '0 40px' }}>
-        <MonoTag>כלי המרה</MonoTag>
+      {/* ── Quick tools strip ────────────────────────────────────────────────── */}
+      <section style={{ maxWidth: 1280, margin: '80px auto 0', padding: '0 clamp(16px, 5vw, 40px)' }}>
+        <MonoTag>כלים מהירים</MonoTag>
         <div style={{ display: 'flex', gap: 12, marginTop: 20, flexWrap: 'wrap' }}>
           {[
-            { href: '#/convert/to-image', label: 'PDF → תמונה' },
-            { href: '#/convert/compress', label: 'דחיסת PDF' },
-            { href: '#/convert/split', label: 'פיצול PDF' },
-            { href: '#/convert/merge', label: 'מיזוג PDF' },
+            { href: '#/tools/merge', label: 'מיזוג PDF' },
+            { href: '#/tools/split', label: 'פיצול PDF' },
+            { href: '#/tools/compress', label: 'דחיסת PDF' },
+            { href: '#/tools/organize', label: 'ארגון דפים' },
+            { href: '#/tools/to-image', label: 'PDF → תמונה' },
+            { href: '#/tools', label: 'כל הכלים' },
           ].map(item => (
             <a key={item.href} href={item.href} style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              padding: '8px 18px',
+              padding: '10px 18px',
               background: C.white,
               border: `1px solid ${C.canvas}`,
               borderRadius: 8,
@@ -234,7 +236,7 @@ export const HomePage: React.FC = () => {
         borderRadius: 32,
         maxWidth: 1280,
         margin: '96px auto 0',
-        padding: '64px 56px',
+        padding: 'clamp(28px, 6vw, 64px) clamp(20px, 5vw, 56px)',
       }}>
         <div style={{
           display: 'flex',
@@ -374,7 +376,7 @@ const SessionsSection: React.FC<{ onResume: (id: string) => void }> = ({ onResum
   if (!loaded || sessions.length === 0) return null
 
   return (
-    <section style={{ maxWidth: 1280, margin: '72px auto 0', padding: '0 40px' }}>
+    <section style={{ maxWidth: 1280, margin: '72px auto 0', padding: '0 clamp(16px, 5vw, 40px)' }}>
       <MonoTag>המשך מהיכן שהפסקת</MonoTag>
       <h2 style={{
         fontFamily: 'var(--font-display)',
@@ -429,12 +431,15 @@ const SessionCard: React.FC<{ session: SessionMeta; onResume: () => void; onDele
         onClick={e => { e.stopPropagation(); onDelete() }}
         title="מחק"
         style={{
-          position: 'absolute', top: 10, left: 10, width: 30, height: 30, borderRadius: '50%',
+          position: 'absolute', top: 10, left: 10, width: 34, height: 34, borderRadius: '50%',
           border: 'none', background: 'rgba(255,255,255,0.92)', color: '#dc2626', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)',
           boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-          opacity: hover ? 1 : 0, transform: hover ? 'scale(1)' : 'scale(0.85)',
+          // Always visible on touch devices (no hover there); hover-reveal on desktop
+          opacity: hover || !window.matchMedia('(hover: hover)').matches ? 1 : 0,
+          transform: hover ? 'scale(1)' : 'scale(0.95)',
           transition: `opacity 180ms ${ease}, transform 180ms ${ease}`,
+          minHeight: 0, padding: 0,
         }}
       >
         <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -459,7 +464,7 @@ const SessionCard: React.FC<{ session: SessionMeta; onResume: () => void; onDele
 
 // ─── Nav Pill ─────────────────────────────────────────────────────────────────
 const NavPill: React.FC<{ onOpenEditor: () => void }> = ({ onOpenEditor }) => (
-  <div style={{ padding: '20px 40px 0', maxWidth: 1280, margin: '0 auto' }}>
+  <div style={{ padding: '20px clamp(16px, 5vw, 40px) 0', maxWidth: 1280, margin: '0 auto' }}>
     <nav style={{
       background: C.white,
       borderRadius: 48,
@@ -475,11 +480,14 @@ const NavPill: React.FC<{ onOpenEditor: () => void }> = ({ onOpenEditor }) => (
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 24 }} className="desktop-only">
-        {['עורך', 'המרות', 'חתימה', 'ניהול עמודים'].map(item => (
-          <span key={item} style={{
+        {[
+          { label: 'עורך', href: '#/editor' },
+          { label: 'כלים מהירים', href: '#/tools' },
+        ].map(item => (
+          <a key={item.label} href={item.href} style={{
             fontSize: 14, fontWeight: 500, color: C.graphite,
-            letterSpacing: '-0.02em', cursor: 'pointer',
-          }}>{item}</span>
+            letterSpacing: '-0.02em', cursor: 'pointer', textDecoration: 'none',
+          }}>{item.label}</a>
         ))}
       </div>
 
@@ -613,7 +621,7 @@ const FeatureCard: React.FC<{
 
 // ─── PDF Illustration ─────────────────────────────────────────────────────────
 const PDFIllustration: React.FC = () => (
-  <div style={{ position: 'relative', width: 360, height: 460 }}>
+  <div style={{ position: 'relative', width: '100%', maxWidth: 360, aspectRatio: '360 / 460', margin: '0 auto' }}>
     {/* Main document */}
     <div style={{
       position: 'absolute',
