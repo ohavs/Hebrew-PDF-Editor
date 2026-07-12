@@ -1,16 +1,13 @@
 import React, { useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { usePDFStore, useAnnotationsStore, useUIStore } from '../../store'
 import { embedAnnotationsIntoPdf, downloadBlob } from '../../utils/pdfExport'
-import i18n from '../../i18n'
 
 export const TopToolbar: React.FC = () => {
-  const { t } = useTranslation()
   const { pdfDoc, pdfBytes, fileName, zoom, setZoom, currentPage, pageCount, setCurrentPage,
           viewMode, setViewMode, isSaving, setIsSaving, hasUnsavedChanges, pageInfos, pageOrder } = usePDFStore()
   const { annotations, formFields, undo, redo, past, future } = useAnnotationsStore()
-  const { darkMode, toggleDarkMode, language, setLanguage, addToast, isFullscreen, setFullscreen, sideToolbarOpen, toggleSideToolbar } = useUIStore()
+  const { darkMode, toggleDarkMode, addToast, isFullscreen, setFullscreen } = useUIStore()
   const navigate = useNavigate()
   const [pageInput, setPageInput] = useState('')
   const [showExportMenu, setShowExportMenu] = useState(false)
@@ -23,7 +20,7 @@ export const TopToolbar: React.FC = () => {
     try {
       const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder)
       downloadBlob(result, fileName.replace('.pdf', '') + '-edited.pdf')
-      addToast(t('file.saved'), 'success')
+      addToast('נשמר', 'success')
     } catch (e) { console.error(e); addToast('שגיאה בייצוא', 'error') }
     finally { setIsSaving(false) }
   }
@@ -56,14 +53,6 @@ export const TopToolbar: React.FC = () => {
     }
   }
 
-  const toggleLang = () => {
-    const next = language === 'he' ? 'en' : 'he'
-    setLanguage(next)
-    i18n.changeLanguage(next)
-    document.documentElement.lang = next
-    document.documentElement.dir = next === 'he' ? 'rtl' : 'ltr'
-  }
-
   return (
     <div
       className="no-print desktop-only"
@@ -87,20 +76,13 @@ export const TopToolbar: React.FC = () => {
 
       <div className="toolbar-sep" style={{ background: 'var(--color-border)' }} />
 
-      {/* Sidebar toggle */}
-      <TopBtn title={sideToolbarOpen ? 'הסתר סרגל כלים' : 'הצג סרגל כלים'} onClick={toggleSideToolbar} active={sideToolbarOpen}>
-        <SidebarIcon />
-      </TopBtn>
-
-      <div className="toolbar-sep" style={{ background: 'var(--color-border)' }} />
-
       {/* File actions */}
       {pdfDoc && (
         <>
-          <TopBtn title={t('file.exportAs')} onClick={handleExport}>
+          <TopBtn title="יצוא כ..." onClick={handleExport}>
             <ExportIcon />
           </TopBtn>
-          <TopBtn title={t('toolbar.print')} onClick={handlePrint}>
+          <TopBtn title="הדפס" onClick={handlePrint}>
             <PrintIcon />
           </TopBtn>
         </>
@@ -111,10 +93,10 @@ export const TopToolbar: React.FC = () => {
       {/* Undo/Redo */}
       {pdfDoc && (
         <>
-          <TopBtn title={`${t('toolbar.undo')} (Ctrl+Z)`} onClick={() => useAnnotationsStore.getState().undo()} disabled={!past.length}>
+          <TopBtn title="בטל (Ctrl+Z)" onClick={() => useAnnotationsStore.getState().undo()} disabled={!past.length}>
             <UndoIcon />
           </TopBtn>
-          <TopBtn title={`${t('toolbar.redo')} (Ctrl+Y)`} onClick={() => useAnnotationsStore.getState().redo()} disabled={!future.length}>
+          <TopBtn title="חזור (Ctrl+Y)" onClick={() => useAnnotationsStore.getState().redo()} disabled={!future.length}>
             <RedoIcon />
           </TopBtn>
           <div className="toolbar-sep" style={{ background: 'var(--color-border)' }} />
@@ -124,7 +106,7 @@ export const TopToolbar: React.FC = () => {
       {/* Zoom controls */}
       {pdfDoc && (
         <>
-          <TopBtn title={t('toolbar.zoomOut')} onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}>
+          <TopBtn title="הקטן" onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}>
             <ZoomOutIcon />
           </TopBtn>
           <select
@@ -171,7 +153,7 @@ export const TopToolbar: React.FC = () => {
               <option key={v} value={v} style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}>{Math.round(v * 100)}%</option>
             ))}
           </select>
-          <TopBtn title={t('toolbar.zoomIn')} onClick={() => setZoom(Math.min(4, zoom + 0.1))}>
+          <TopBtn title="הגדל" onClick={() => setZoom(Math.min(4, zoom + 0.1))}>
             <ZoomInIcon />
           </TopBtn>
           <div className="toolbar-sep" style={{ background: 'var(--color-border)' }} />
@@ -224,19 +206,16 @@ export const TopToolbar: React.FC = () => {
       )}
 
       {/* Right actions */}
-      <TopBtn title={t(darkMode ? 'toolbar.lightMode' : 'toolbar.darkMode')} onClick={toggleDarkMode}>
+      <TopBtn title={darkMode ? 'מצב בהיר' : 'מצב כהה'} onClick={toggleDarkMode}>
         {darkMode ? <SunIcon /> : <MoonIcon />}
       </TopBtn>
-      <TopBtn title={t('toolbar.language')} onClick={toggleLang}>
-        <span style={{ fontSize: 12, fontWeight: 700 }}>{language === 'he' ? 'EN' : 'עב'}</span>
-      </TopBtn>
-      <TopBtn title={t(isFullscreen ? 'toolbar.exitFullscreen' : 'toolbar.fullscreen')} onClick={toggleFullscreen}>
+      <TopBtn title={isFullscreen ? 'יציאה ממסך מלא' : 'מסך מלא'} onClick={toggleFullscreen}>
         {isFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
       </TopBtn>
 
       {/* Unsaved indicator */}
       {hasUnsavedChanges && (
-        <div style={{ width: 8, height: 8, background: '#f59e0b', borderRadius: '50%', flexShrink: 0 }} title={t('file.unsavedChanges')} />
+        <div style={{ width: 8, height: 8, background: '#f59e0b', borderRadius: '50%', flexShrink: 0 }} title="יש שינויים שלא נשמרו" />
       )}
     </div>
   )
@@ -285,7 +264,6 @@ const TopBtn: React.FC<{ title?: string; onClick?: () => void; disabled?: boolea
 
 // Icons
 const HomeIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-const SidebarIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" strokeWidth={2}/><path strokeWidth={2} d="M9 3v18" strokeLinecap="round"/></svg>
 const ExportIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
 const PrintIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
 const UndoIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6M3 10l6-6"/></svg>

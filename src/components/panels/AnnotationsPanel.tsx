@@ -1,5 +1,4 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import { useAnnotationsStore, usePDFStore } from '../../store'
 import type { Annotation } from '../../store/types'
 import { format } from 'date-fns'
@@ -17,7 +16,6 @@ const ANNOTATION_TYPE_LABELS: Record<string, string> = {
 }
 
 export const AnnotationsPanel: React.FC = () => {
-  const { t } = useTranslation()
   const { annotations, deleteAnnotation, selectAnnotation, selectedId, deleteAllOnPage } = useAnnotationsStore()
   const { currentPage, setCurrentPage } = usePDFStore()
 
@@ -27,7 +25,7 @@ export const AnnotationsPanel: React.FC = () => {
         <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ margin: '0 auto 8px', opacity: 0.4 }}>
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
         </svg>
-        {t('annotation.noAnnotations')}
+        אין הערות
       </div>
     )
   }
@@ -43,22 +41,22 @@ export const AnnotationsPanel: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)' }}>
-          {t('viewer.annotations')} ({annotations.length})
+          הערות ({annotations.length})
         </span>
         <button
           className="btn btn-ghost"
           style={{ fontSize: 11, padding: '2px 6px', color: 'var(--color-danger)' }}
           onClick={() => deleteAllOnPage(currentPage)}
-          title={t('annotation.deleteAll')}
+          title="מחק הכל"
         >
-          {t('annotation.deleteAll')}
+          מחק הכל
         </button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {Object.entries(byPage).sort(([a],[b]) => +a - +b).map(([pageIdx, anns]) => (
           <div key={pageIdx}>
             <div style={{ padding: '6px 12px', background: 'var(--color-surface-2)', fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)' }}>
-              {t('annotation.page')} {+pageIdx + 1}
+              דף {+pageIdx + 1}
             </div>
             {anns.map(ann => (
               <div

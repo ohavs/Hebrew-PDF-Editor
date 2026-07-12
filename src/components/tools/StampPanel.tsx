@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { useUIStore } from '../../store'
 
 const STAMPS_HE = ['אושר','טיוטה','סודי','התקבל','בוטל','דחוף','לבדיקה']
@@ -7,7 +6,6 @@ const STAMPS_EN = ['APPROVED','DRAFT','CONFIDENTIAL','RECEIVED','CANCELLED','URG
 const STAMP_COLORS = ['#dc2626','#2563eb','#16a34a','#d97706','#7c3aed','#0891b2']
 
 export const StampPanel: React.FC = () => {
-  const { t } = useTranslation()
   const { stampText, setStampText, stampColor, setStampColor, stampIsHebrew, setStampIsHebrew } = useUIStore()
   const [customText, setCustomText] = useState('')
 
@@ -15,7 +13,7 @@ export const StampPanel: React.FC = () => {
 
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div className="panel-title">{t('tools.stamp')}</div>
+      <div className="panel-title">חותמת</div>
 
       {/* Language toggle */}
       <div style={{ display: 'flex', gap: 4 }}>
@@ -50,7 +48,7 @@ export const StampPanel: React.FC = () => {
 
       {/* Custom text */}
       <div>
-        <label className="label">{t('stamp.customText')}</label>
+        <label className="label">טקסט מותאם</label>
         <div style={{ display: 'flex', gap: 4 }}>
           <input className="input" value={customText} onChange={e => setCustomText(e.target.value)}
             placeholder="הקלד טקסט..." style={{ flex: 1 }} />

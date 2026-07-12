@@ -1,11 +1,9 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import { useUIStore } from '../../store'
 import { PropertiesPanel } from './PropertiesPanel'
 
 export const RightPanel: React.FC = () => {
   const { rightPanelOpen, setRightPanelOpen } = useUIStore()
-  const { t } = useTranslation()
 
   return (
     <div
