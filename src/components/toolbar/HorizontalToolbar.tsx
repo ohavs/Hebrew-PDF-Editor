@@ -134,7 +134,6 @@ export const HorizontalToolbar: React.FC = () => {
 }
 
 // Mobile bottom toolbar — replaced by MobileBottomNav
-export const BottomToolbar: React.FC = () => null
 
 // Icons
 function SelectIcon() {

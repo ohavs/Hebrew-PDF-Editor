@@ -34,7 +34,7 @@ const PDF_TOOLS: Array<{ id: CategoryId; label: string; desc: string; color: str
 interface Props { open: boolean; onClose: () => void }
 
 export const MobileToolsSheet: React.FC<Props> = ({ open, onClose }) => {
-  const { activeTool, setTool, setToolboxOpen, setToolboxCategory } = useUIStore()
+  const { activeTool, setTool, setToolboxOpen, setToolboxCategory, setSettingsOpen } = useUIStore()
   const { pdfDoc } = usePDFStore()
 
   if (!open) return null
@@ -158,6 +158,24 @@ export const MobileToolsSheet: React.FC<Props> = ({ open, onClose }) => {
               )
             })}
           </div>
+
+          {/* Settings entry */}
+          <button
+            onClick={() => { setSettingsOpen(true); onClose() }}
+            style={{
+              width: '100%', marginTop: 14, padding: '13px 16px', borderRadius: 14, border: 'none',
+              background: 'var(--color-surface-2)', cursor: 'pointer', fontFamily: 'inherit',
+              display: 'flex', alignItems: 'center', gap: 10,
+              color: 'var(--color-text)', fontSize: 13.5, fontWeight: 600,
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="3" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" />
+            </svg>
+            הגדרות
+          </button>
         </div>
       </div>
     </>

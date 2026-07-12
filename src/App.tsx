@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useUIStore } from './store'
 import { TopToolbar } from './components/toolbar/TopToolbar'
@@ -13,15 +13,13 @@ import { SettingsModal } from './components/ui/SettingsModal'
 import { PDFToolsMobileSheet } from './components/tools/PDFToolsMobileSheet'
 import { MobileHeader } from './components/mobile/MobileHeader'
 import { MobileBottomNav } from './components/mobile/MobileBottomNav'
-import { InstallPrompt } from './components/ui/InstallPrompt'
 import { useKeyboard } from './hooks/useKeyboard'
 import { useSessionAutosave, useSessions } from './hooks/useSessions'
 import { usePDF } from './hooks/usePDF'
 import './index.css'
 
 export default function App() {
-  const { darkMode, setShowDropOverlay } = useUIStore()
-  const [showSettings, setShowSettings] = useState(false)
+  const { darkMode, setShowDropOverlay, settingsOpen, setSettingsOpen } = useUIStore()
   const { loadPDF } = usePDF()
   const { resumeSession } = useSessions()
   const location = useLocation()
@@ -128,11 +126,8 @@ export default function App() {
       {/* Mobile PDF tools bottom sheet */}
       <PDFToolsMobileSheet />
 
-      {/* PWA Install prompt */}
-      <InstallPrompt />
-
       {/* Settings modal */}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }

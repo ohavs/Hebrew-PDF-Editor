@@ -8,7 +8,7 @@ export type ViewMode = 'continuous' | 'two-page'
 export type HighlightColor = 'yellow' | 'green' | 'pink' | 'blue'
 export type AlignType = 'left' | 'center' | 'right' | 'justify'
 export type ExportFormat = 'pdf' | 'flattened' | 'pdfa'
-export type SidePanel = 'thumbnails' | 'annotations' | 'forms' | 'pages' | null
+export type SidePanel = 'thumbnails' | 'annotations' | null
 
 export interface Point { x: number; y: number }
 export interface Rect { x: number; y: number; width: number; height: number }

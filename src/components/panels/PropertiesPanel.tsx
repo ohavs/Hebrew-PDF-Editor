@@ -3,18 +3,19 @@ import { useUIStore, usePDFStore, useAnnotationsStore } from '../../store'
 import { HEBREW_FONTS, FONT_SIZES } from '../../utils/textUtils'
 import { SignatureModal } from '../tools/SignatureModal'
 import { StampPanel } from '../tools/StampPanel'
-import { PageManagement } from './PageManagement'
+
 export const PropertiesPanel: React.FC = () => {
   const { activeTool } = useUIStore()
 
   switch (activeTool) {
     case 'text': return <TextProperties />
-    case 'highlight': return <MarkupProperties />
+    case 'highlight':
+    case 'underline':
+    case 'strikethrough': return <MarkupProperties />
     case 'draw': return <DrawProperties />
     case 'shapes': return <ShapeProperties />
     case 'stamp': return <StampPanel />
     case 'signature': return <SignatureProperties />
-    case 'toolbox': return <PageManagement />
     default: return <DefaultProperties />
   }
 }

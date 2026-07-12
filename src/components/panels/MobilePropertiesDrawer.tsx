@@ -6,7 +6,7 @@ import type { ToolType } from '../../store/types'
 // Tools with real, adjustable properties. Others (eraser, underline,
 // strikethrough, redact, comment) get no drawer — it would only cover
 // the canvas with useless content.
-const TOOLS_WITH_PROPS: ToolType[] = ['text', 'draw', 'highlight', 'shapes', 'stamp', 'signature']
+const TOOLS_WITH_PROPS: ToolType[] = ['text', 'draw', 'highlight', 'underline', 'strikethrough', 'shapes', 'stamp', 'signature']
 
 export const MobilePropertiesDrawer: React.FC = () => {
   const { activeTool } = useUIStore()

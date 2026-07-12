@@ -16,16 +16,15 @@ const MAX_RECENT = 10
 interface UIState {
   activeTool: ToolType
   sidePanel: SidePanel
-  sideToolbarOpen: boolean
   rightPanelOpen: boolean
   darkMode: boolean
-  language: 'he' | 'en'
   isFullscreen: boolean
   isMobileMenuOpen: boolean
   showDropOverlay: boolean
   toasts: Array<{ id: string; message: string; type: 'info'|'success'|'error'|'warning' }>
   toolboxOpen: boolean
   toolboxCategory: string
+  settingsOpen: boolean
   confirmDialog: {
     open: boolean
     title: string
@@ -73,11 +72,8 @@ interface UIState {
   setTool: (tool: ToolType) => void
   setSidePanel: (panel: SidePanel) => void
   toggleSidePanel: (panel: SidePanel) => void
-  setSideToolbarOpen: (v: boolean) => void
-  toggleSideToolbar: () => void
   setRightPanelOpen: (open: boolean) => void
   toggleDarkMode: () => void
-  setLanguage: (lang: 'he' | 'en') => void
   setFullscreen: (v: boolean) => void
   setMobileMenuOpen: (v: boolean) => void
   setShowDropOverlay: (v: boolean) => void
@@ -85,6 +81,7 @@ interface UIState {
   removeToast: (id: string) => void
   setToolboxOpen: (v: boolean) => void
   setToolboxCategory: (cat: string) => void
+  setSettingsOpen: (v: boolean) => void
   confirm: (opts: { title: string; message?: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean }) => Promise<boolean>
   resolveConfirm: (v: boolean) => void
   setDrawColor: (c: string) => void
@@ -115,16 +112,15 @@ interface UIState {
 export const useUIStore = create<UIState>()((set) => ({
   activeTool: 'select',
   sidePanel: 'thumbnails',
-  sideToolbarOpen: true,
   rightPanelOpen: true,
   darkMode: localStorage.getItem('darkMode') === 'true',
-  language: (localStorage.getItem('lang') as 'he'|'en') || 'he',
   isFullscreen: false,
   isMobileMenuOpen: false,
   showDropOverlay: false,
   toasts: [],
   toolboxOpen: false,
   toolboxCategory: 'organize',
+  settingsOpen: false,
   confirmDialog: {
     open: false, title: '', message: '', confirmLabel: 'אישור', cancelLabel: 'ביטול',
     danger: false, resolve: null,
@@ -161,8 +157,6 @@ export const useUIStore = create<UIState>()((set) => ({
   setTool: (tool) => { if (tool === 'text') ensureAnnotationFonts(); set({ activeTool: tool }) },
   setSidePanel: (panel) => set({ sidePanel: panel }),
   toggleSidePanel: (panel) => set((s) => ({ sidePanel: s.sidePanel === panel ? null : panel })),
-  setSideToolbarOpen: (v) => set({ sideToolbarOpen: v }),
-  toggleSideToolbar: () => set((s) => ({ sideToolbarOpen: !s.sideToolbarOpen })),
   setRightPanelOpen: (open) => set({ rightPanelOpen: open }),
   toggleDarkMode: () => set((s) => {
     const v = !s.darkMode
@@ -173,10 +167,6 @@ export const useUIStore = create<UIState>()((set) => ({
       m.setAttribute('content', v ? '#0f172a' : '#ffffff'))
     return { darkMode: v }
   }),
-  setLanguage: (lang) => {
-    localStorage.setItem('lang', lang)
-    set({ language: lang })
-  },
   setFullscreen: (v) => set({ isFullscreen: v }),
   setMobileMenuOpen: (v) => set({ isMobileMenuOpen: v }),
   setShowDropOverlay: (v) => set({ showDropOverlay: v }),
@@ -190,6 +180,7 @@ export const useUIStore = create<UIState>()((set) => ({
   removeToast: (id) => set((s) => ({ toasts: s.toasts.filter(t => t.id !== id) })),
   setToolboxOpen: (v) => set({ toolboxOpen: v }),
   setToolboxCategory: (cat) => set({ toolboxCategory: cat }),
+  setSettingsOpen: (v) => set({ settingsOpen: v }),
   confirm: (opts) => new Promise<boolean>((resolve) => {
     set({
       confirmDialog: {

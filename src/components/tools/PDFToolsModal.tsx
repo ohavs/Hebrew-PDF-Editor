@@ -583,35 +583,6 @@ const InfoBar: React.FC<{ text: string }> = ({ text }) => (
   </div>
 )
 
-const BigAction: React.FC<{ icon: string; title: string; desc: string; onClick: () => void; disabled?: boolean; danger?: boolean }> =
-  ({ icon, title, desc, onClick, disabled, danger }) => (
-    <button
-      onClick={onClick} disabled={disabled}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 12, textAlign: 'start',
-        padding: 14, borderRadius: 14, cursor: disabled ? 'not-allowed' : 'pointer',
-        border: '1px solid var(--color-border)', background: 'var(--color-surface)',
-        opacity: disabled ? 0.5 : 1, fontFamily: 'inherit',
-        transition: `transform 150ms ${EASE}, border-color 150ms ease-out, background 150ms ease-out`,
-      }}
-      onMouseEnter={e => { if (!disabled) { (e.currentTarget as HTMLButtonElement).style.borderColor = danger ? '#dc2626' : 'var(--color-ink-black)' } }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)' }}
-      onMouseDown={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)' }}
-      onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
-    >
-      <span style={{
-        width: 42, height: 42, borderRadius: 11, flexShrink: 0, fontSize: 20,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: danger ? 'rgba(220,38,38,0.1)' : 'var(--color-mint)',
-        color: danger ? '#dc2626' : 'var(--color-ink-black)',
-      }}>{icon}</span>
-      <span style={{ display: 'flex', flexDirection: 'column' }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: danger ? '#dc2626' : 'var(--color-ink-black)' }}>{title}</span>
-        <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{desc}</span>
-      </span>
-    </button>
-  )
-
 const FilePicker: React.FC<{ accept: string; multiple?: boolean; label: string; onPick: (files: File[]) => void }> =
   ({ accept, multiple, label, onPick }) => {
     const ref = React.useRef<HTMLInputElement>(null)
