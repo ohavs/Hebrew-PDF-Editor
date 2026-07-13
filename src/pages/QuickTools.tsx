@@ -9,7 +9,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 
 const EASE = 'cubic-bezier(0.23,1,0.32,1)'
 
-const TOOL_META: Array<{ id: CategoryId; label: string; desc: string; emoji: string }> = [
+export const TOOL_META: Array<{ id: CategoryId; label: string; desc: string; emoji: string }> = [
   { id: 'organize',   label: 'ארגון דפים',  desc: 'סובב, סדר, מחק ושכפל דפים', emoji: '🗂️' },
   { id: 'merge',      label: 'מיזוג PDF',   desc: 'אחד כמה קבצים לאחד',        emoji: '🔗' },
   { id: 'split',      label: 'פיצול PDF',   desc: 'פצל לקבצים נפרדים',          emoji: '✂️' },

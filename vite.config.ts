@@ -41,6 +41,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
+        id: base,
         name: 'עורך PDF עברי',
         short_name: 'PDF Editor',
         description: 'עורך PDF מתקדם עם תמיכה מלאה בעברית',
