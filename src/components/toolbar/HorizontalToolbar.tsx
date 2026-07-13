@@ -55,6 +55,14 @@ export const HorizontalToolbar: React.FC = () => {
         overflowX: 'auto',
         overflowY: 'hidden',
         zIndex: 150,
+        scrollbarWidth: 'thin',
+      }}
+      // Mouse wheel scrolls the toolbar horizontally when it overflows
+      onWheel={e => {
+        const el = e.currentTarget
+        if (el.scrollWidth > el.clientWidth && e.deltaY !== 0) {
+          el.scrollLeft += e.deltaY
+        }
       }}
     >
       {GROUPS.map((group, gi) => (

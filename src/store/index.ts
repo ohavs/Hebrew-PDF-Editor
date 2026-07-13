@@ -265,6 +265,8 @@ interface PDFState {
   viewMode: ViewMode
   pageOrder: number[]
   pageInfos: PageInfo[]
+  /** Optional per-page badge, aligned to natural page index (e.g. "עותק") */
+  pageLabels: (string | null)[]
   isLoading: boolean
   loadingProgress: number
   isSaving: boolean
@@ -277,6 +279,7 @@ interface PDFState {
   setZoom: (zoom: number) => void
   setViewMode: (mode: ViewMode) => void
   setPageOrder: (order: number[]) => void
+  setPageLabels: (labels: (string | null)[]) => void
   setPageInfo: (index: number, info: Partial<PageInfo>) => void
   setIsLoading: (v: boolean, progress?: number) => void
   setIsSaving: (v: boolean) => void
@@ -296,6 +299,7 @@ export const usePDFStore = create<PDFState>()((set, get) => ({
   viewMode: 'continuous',
   pageOrder: [],
   pageInfos: [],
+  pageLabels: [],
   isLoading: false,
   loadingProgress: 0,
   isSaving: false,
@@ -305,13 +309,14 @@ export const usePDFStore = create<PDFState>()((set, get) => ({
   setPdfDoc: (doc, bytes, name, pageCount) => {
     const order = Array.from({ length: pageCount }, (_, i) => i)
     const infos: PageInfo[] = order.map(i => ({ index: i, width: 595, height: 842, rotation: 0, scale: 1 }))
-    set({ pdfDoc: doc, pdfBytes: bytes, fileName: name, pageCount, pageOrder: order, pageInfos: infos, currentPage: 0, hasUnsavedChanges: false })
+    set({ pdfDoc: doc, pdfBytes: bytes, fileName: name, pageCount, pageOrder: order, pageInfos: infos, pageLabels: new Array(pageCount).fill(null), currentPage: 0, hasUnsavedChanges: false })
   },
-  clearPdf: () => set({ pdfDoc: null, pdfBytes: null, fileName: '', pageCount: 0, currentPage: 0, pageOrder: [], pageInfos: [] }),
+  clearPdf: () => set({ pdfDoc: null, pdfBytes: null, fileName: '', pageCount: 0, currentPage: 0, pageOrder: [], pageInfos: [], pageLabels: [], hasUnsavedChanges: false }),
   setCurrentPage: (page) => set({ currentPage: Math.max(0, Math.min(page, get().pageCount - 1)) }),
   setZoom: (zoom) => set({ zoom: Math.max(0.25, Math.min(zoom, 5.0)) }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setPageOrder: (order) => set({ pageOrder: order }),
+  setPageLabels: (labels) => set({ pageLabels: labels }),
   setPageInfo: (index, info) => set((s) => {
     const infos = [...s.pageInfos]
     if (infos[index]) infos[index] = { ...infos[index], ...info }

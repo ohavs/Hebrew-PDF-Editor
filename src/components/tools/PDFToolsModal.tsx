@@ -13,6 +13,7 @@ export type CategoryId =
   | 'organize' | 'merge' | 'split' | 'extract'
   | 'compress' | 'to-image' | 'from-image'
   | 'watermark' | 'reverse'
+  | 'to-word' | 'from-word' | 'page-numbers'
 
 interface Category {
   id: CategoryId
@@ -32,6 +33,9 @@ const CATEGORIES: Category[] = [
   { id: 'reverse', label: 'הפוך סדר', desc: 'הפוך את סדר הדפים', color: '#7c3aed', icon: <ReverseIcon /> },
   { id: 'to-image', label: 'PDF לתמונה', desc: 'ייצא דפים כ-PNG / JPG', color: '#10b981', icon: <ImageIcon /> },
   { id: 'from-image', label: 'תמונה ל-PDF', desc: 'צור PDF מתמונות', color: '#ec4899', icon: <FromImageIcon /> },
+  { id: 'to-word', label: 'PDF לוורד', desc: 'ייצא את הטקסט כ-DOCX', color: '#2563eb', icon: <WordIcon /> },
+  { id: 'from-word', label: 'וורד ל-PDF', desc: 'המר מסמך DOCX ל-PDF', color: '#1d4ed8', icon: <FromWordIcon /> },
+  { id: 'page-numbers', label: 'מספור עמודים', desc: 'הוסף מספרי עמודים', color: '#0891b2', icon: <NumbersIcon /> },
 ]
 
 export const PDFToolsContent: React.FC<{ onClose: () => void; initialCategory?: CategoryId }> = ({ onClose, initialCategory }) => {
@@ -56,11 +60,11 @@ export const PDFToolsContent: React.FC<{ onClose: () => void; initialCategory?: 
         </button>
       </div>
 
-      {/* Category pills - horizontal scroll */}
+      {/* Category pills — wrap so every tool is always visible (a hidden
+          horizontal scroll was unusable with a mouse) */}
       <div style={{
-        display: 'flex', gap: 6, padding: '8px 10px', overflowX: 'auto',
+        display: 'flex', flexWrap: 'wrap', gap: 6, padding: '8px 10px',
         borderBottom: '1px solid var(--color-border)', flexShrink: 0,
-        scrollbarWidth: 'none',
       }}>
         {CATEGORIES.map(cat => {
           const isActive = active === cat.id
@@ -165,6 +169,9 @@ const ToolPanel: React.FC<{ category: CategoryId }> = ({ category }) => {
     case 'reverse': return <ReversePanel />
     case 'to-image': return <ToImagePanel />
     case 'from-image': return <FromImagePanel />
+    case 'to-word': return <ToWordPanel />
+    case 'from-word': return <FromWordPanel />
+    case 'page-numbers': return <PageNumbersPanel />
   }
 }
 
@@ -802,11 +809,187 @@ const ReversePanel: React.FC = () => {
 }
 
 // ─────────────────────────────────────────────────────────────
+// PDF → Word
+// ─────────────────────────────────────────────────────────────
+const ToWordPanel: React.FC = () => {
+  const { pdfDoc, fileName } = usePDFStore()
+  const { addToast } = useUIStore()
+  const [busy, setBusy] = useState(false)
+  const getEdited = useEditedBytes()
+
+  if (!pdfDoc) return <EmptyHint />
+
+  const convert = async () => {
+    setBusy(true)
+    try {
+      const { extractParagraphs, buildDocx } = await import('../../utils/wordConvert')
+      // Extract from the edited doc so page order matches what the user sees
+      const edited = await loadEditedForRender(getEdited)
+      const pages = await extractParagraphs(edited)
+      edited.destroy()
+      const total = pages.reduce((n, p) => n + p.length, 0)
+      if (total === 0) {
+        addToast('לא נמצא טקסט במסמך (ייתכן שהוא סרוק כתמונה)', 'warning')
+        return
+      }
+      const docx = buildDocx(pages)
+      triggerDownload(
+        new Blob([docx.buffer as ArrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
+        `${fileName.replace(/\.pdf$/i, '')}.docx`
+      )
+      addToast('קובץ Word ירד בהצלחה', 'success')
+    } catch (e) { console.error(e); addToast('שגיאה בהמרה לוורד', 'error') } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <InfoBar text="הטקסט מחולץ לקובץ DOCX הניתן לעריכה בוורד. עיצוב מורכב, טבלאות ותמונות לא נשמרים. מסמכים סרוקים (תמונה) — ללא טקסט לחילוץ." />
+      <PrimaryButton onClick={convert} disabled={busy}>
+        {busy ? <><Spinner /> ממיר…</> : 'המר ל-Word והורד'}
+      </PrimaryButton>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Word → PDF
+// ─────────────────────────────────────────────────────────────
+const FromWordPanel: React.FC = () => {
+  const { addToast } = useUIStore()
+  const { loadPDF } = usePDF()
+  const [file, setFile] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const convert = async (mode: 'download' | 'edit') => {
+    if (!file) return
+    setBusy(true)
+    try {
+      const { parseDocx, renderParagraphsToPages } = await import('../../utils/wordConvert')
+      const paras = parseDocx(new Uint8Array(await file.arrayBuffer()))
+      if (!paras.some(p => p.text.trim() && p.text !== '\f')) {
+        addToast('לא נמצא טקסט בקובץ', 'warning')
+        return
+      }
+      const pageImages = renderParagraphsToPages(paras)
+      const doc = await PDFDocument.create()
+      for (const dataUrl of pageImages) {
+        const bytes = Uint8Array.from(atob(dataUrl.split(',')[1]), c => c.charCodeAt(0))
+        const img = await doc.embedPng(bytes)
+        const page = doc.addPage([595, 842])
+        page.drawImage(img, { x: 0, y: 0, width: 595, height: 842 })
+      }
+      const saved = await doc.save()
+      const outName = file.name.replace(/\.docx?$/i, '') + '.pdf'
+      if (mode === 'edit') {
+        await loadPDF(saved.buffer as ArrayBuffer, { name: outName })
+        addToast('הקובץ הומר ונפתח בעורך', 'success')
+      } else {
+        downloadBlob(saved, outName)
+        addToast('קובץ PDF ירד בהצלחה', 'success')
+      }
+      setFile(null)
+    } catch (e) { console.error(e); addToast('שגיאה בהמרה מוורד', 'error') } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <InfoBar text="בחר קובץ Word ‏(DOCX). הטקסט מומר לדפי PDF בפריסת A4 — תמונות ועיצוב מורכב לא נשמרים." />
+      <FilePicker accept=".docx" label="בחר קובץ Word" onPick={fs => setFile(fs[0] || null)} />
+      {file && <FileRow name={file.name} size={file.size} onRemove={() => setFile(null)} />}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <PrimaryButton onClick={() => convert('download')} disabled={busy || !file}>
+          {busy ? <><Spinner /> ממיר…</> : 'המר והורד PDF'}
+        </PrimaryButton>
+        <GhostButton onClick={() => convert('edit')} disabled={busy || !file}>
+          פתח בעורך
+        </GhostButton>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// Page numbers
+// ─────────────────────────────────────────────────────────────
+const PageNumbersPanel: React.FC = () => {
+  const { pdfDoc, fileName } = usePDFStore()
+  const { addToast } = useUIStore()
+  const { loadPDF } = usePDF()
+  const [position, setPosition] = useState<'center' | 'right' | 'left'>('center')
+  const [startAt, setStartAt] = useState('1')
+  const [busy, setBusy] = useState(false)
+  const getEdited = useEditedBytes()
+
+  if (!pdfDoc) return <EmptyHint />
+
+  const apply = async () => {
+    setBusy(true)
+    try {
+      const { PDFDocument: PDFLib, StandardFonts, rgb, degrees } = await import('pdf-lib')
+      const { pageMapper } = await import('../../utils/pdfExport')
+      const doc = await PDFLib.load(await getEdited())
+      const font = await doc.embedFont(StandardFonts.Helvetica)
+      const start = parseInt(startAt) || 1
+      const fontSize = 11
+
+      doc.getPages().forEach((page, i) => {
+        const { width: W, height: H } = page.getSize()
+        const R = ((page.getRotation().angle % 360) + 360) % 360
+        const [dw, dh] = R % 180 === 90 ? [H, W] : [W, H]
+        const label = String(start + i)
+        const textW = font.widthOfTextAtSize(label, fontSize)
+        // Display-space anchor at the visual bottom of the page
+        const dx = position === 'center' ? (dw - textW) / 2 : position === 'right' ? dw - 40 - textW : 40
+        const map = pageMapper(R, W, H)
+        const place = map.imagePlacement({ x: dx, y: dh - 34, width: textW, height: fontSize })
+        page.drawText(label, {
+          x: place.x, y: place.y + 2,
+          size: fontSize, font, color: rgb(0.35, 0.35, 0.35),
+          rotate: degrees(place.rotate),
+        })
+      })
+
+      await loadPDF((await doc.save()).buffer as ArrayBuffer, { name: fileName })
+      addToast('מספרי עמודים נוספו', 'success')
+    } catch (e) { console.error(e); addToast('שגיאה במספור', 'error') } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <InfoBar text="מספר עמוד יתווסף בתחתית כל דף וייטבע בקובץ." />
+      <SegmentedControl
+        label="מיקום"
+        value={position}
+        options={[
+          { value: 'center', label: 'מרכז' },
+          { value: 'right', label: 'ימין' },
+          { value: 'left', label: 'שמאל' },
+        ]}
+        onChange={v => setPosition(v as 'center' | 'right' | 'left')}
+      />
+      <div>
+        <label className="label">התחל ממספר</label>
+        <input
+          className="input" value={startAt} onChange={e => setStartAt(e.target.value.replace(/\D/g, ''))}
+          inputMode="numeric" dir="ltr" style={{ width: '100%', textAlign: 'center' }}
+        />
+      </div>
+      <PrimaryButton onClick={apply} disabled={busy}>
+        {busy ? <><Spinner /> מוסיף…</> : 'הוסף מספרי עמודים'}
+      </PrimaryButton>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
 // Category icons
 // ─────────────────────────────────────────────────────────────
 function OrganizeIcon()   { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg> }
 function WatermarkIcon()  { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 7l10 10M7 17L17 7" opacity="0.5"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg> }
 function ReverseIcon()    { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16"/><path strokeLinecap="round" strokeLinejoin="round" d="M9 3l-5 4 5 4M15 13l5 4-5 4"/></svg> }
+function WordIcon()       { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 3v5h5M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z"/><path strokeLinecap="round" strokeLinejoin="round" d="M8.5 12l1.5 5 2-4 2 4 1.5-5"/></svg> }
+function FromWordIcon()   { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 3v5h5M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 11v6m0 0l-2.5-2.5M12 17l2.5-2.5"/></svg> }
+function NumbersIcon()    { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path strokeLinecap="round" d="M12 17h.01M9 7h6M9 11h6"/></svg> }
 function MergeIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 8V5a2 2 0 012-2h6a2 2 0 012 2v3M9 21h6a2 2 0 002-2v-3M12 8v8M8 12h8" /></svg> }
 function SplitIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M4 11h16M6 11v8a2 2 0 002 2h2M18 11v8a2 2 0 01-2 2h-2" /></svg> }
 function ExtractIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-3-3v6M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" /></svg> }

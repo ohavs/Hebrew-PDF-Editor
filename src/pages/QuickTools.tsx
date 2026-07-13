@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { usePDF } from '../hooks/usePDF'
-import { usePDFStore, useUIStore } from '../store'
+import { usePDFStore, useUIStore, useAnnotationsStore } from '../store'
 import { PDFToolsContent } from '../components/tools/PDFToolsModal'
 import type { CategoryId } from '../components/tools/PDFToolsModal'
 import { ToastContainer } from '../components/ui/Toast'
@@ -19,6 +19,9 @@ export const TOOL_META: Array<{ id: CategoryId; label: string; desc: string; emo
   { id: 'reverse',    label: 'הפוך סדר',    desc: 'הפוך את סדר הדפים',          emoji: '🔄' },
   { id: 'to-image',   label: 'PDF לתמונה',  desc: 'ייצא דפים כ-PNG / JPG',      emoji: '🖼️' },
   { id: 'from-image', label: 'תמונה ל-PDF', desc: 'צור PDF מתמונות',            emoji: '📷' },
+  { id: 'to-word',    label: 'PDF לוורד',   desc: 'ייצא את הטקסט כ-DOCX',       emoji: '📝' },
+  { id: 'from-word',  label: 'וורד ל-PDF',  desc: 'המר מסמך DOCX ל-PDF',        emoji: '📄' },
+  { id: 'page-numbers', label: 'מספור עמודים', desc: 'הוסף מספרי עמודים',       emoji: '🔢' },
 ]
 
 /**
@@ -42,8 +45,8 @@ export const QuickTools: React.FC = () => {
     document.documentElement.classList.toggle('dark', darkMode)
   }, [darkMode])
 
-  // from-image works without an open PDF; everything else needs a file
-  const needsFile = activeTool !== 'from-image'
+  // from-image / from-word create a new PDF; everything else needs one open
+  const needsFile = activeTool !== 'from-image' && activeTool !== 'from-word'
   const showPanel = activeTool && (!needsFile || pdfDoc)
 
   const handleFile = async (file: File) => {
@@ -102,30 +105,50 @@ export const QuickTools: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
+
+      <div style={{ flex: 1, maxWidth: 560, width: '100%', margin: '0 auto', padding: '16px clamp(12px, 4vw, 24px) 40px' }}>
+
+        {/* Current file bar — always obvious which document the tools act on */}
         {pdfDoc && (
-          <>
-            <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={() => navigate('/editor')}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            background: 'var(--color-mint)',
+            borderRadius: 16, padding: '12px 14px', marginBottom: 16,
+          }}>
+            <span style={{ fontSize: 20, flexShrink: 0 }}>📄</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--color-ink-black)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {fileName}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>הכלים יפעלו על הקובץ הזה</div>
+            </div>
+            <button className="btn btn-secondary" style={{ fontSize: 12, flexShrink: 0 }} onClick={() => navigate('/editor')}>
               פתח בעורך
+            </button>
+            <button className="btn btn-secondary" style={{ fontSize: 12, flexShrink: 0 }} onClick={() => fileInputRef.current?.click()}>
+              החלף
             </button>
             <button
               aria-label="סגור קובץ"
-              onClick={() => { clearPdf(); }}
+              title="סגור קובץ"
+              onClick={() => {
+                clearPdf()
+                useAnnotationsStore.setState({ annotations: [], formFields: [], past: [], future: [], selectedId: null })
+              }}
               style={{
-                width: 38, height: 38, borderRadius: 10, border: 'none',
-                background: 'var(--color-surface-2)', cursor: 'pointer', color: 'var(--color-text-muted)',
+                width: 36, height: 36, borderRadius: 10, border: 'none', flexShrink: 0,
+                background: 'rgba(0,0,0,0.08)', cursor: 'pointer', color: 'var(--color-ink-black)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 WebkitTapHighlightColor: 'transparent', minHeight: 0, padding: 0,
               }}
             >
-              <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-          </>
+          </div>
         )}
-      </div>
-
-      <div style={{ flex: 1, maxWidth: 560, width: '100%', margin: '0 auto', padding: '16px clamp(12px, 4vw, 24px) 40px' }}>
 
         {/* Step 1: choose a file (when a tool needs one) */}
         {(!pdfDoc && (activeTool === null || needsFile)) && (

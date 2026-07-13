@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePDF } from '../hooks/usePDF'
-import { useUIStore } from '../store'
+import { useUIStore, usePDFStore, useAnnotationsStore } from '../store'
 import { listSessions, deleteSession, type SessionMeta } from '../utils/sessions'
 import { ToastContainer } from '../components/ui/Toast'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
@@ -93,6 +93,9 @@ export const HomePage: React.FC = () => {
       </div>
 
       <div style={{ flex: 1, maxWidth: 960, margin: '0 auto', width: '100%', padding: '0 clamp(14px, 4vw, 32px) 48px' }}>
+
+        {/* ── Document still open in the editor ──────────────────────────────── */}
+        <OpenDocumentBanner />
 
         {/* ── Open / upload ──────────────────────────────────────────────────── */}
         <section style={{ marginTop: 'clamp(24px, 5vw, 48px)' }}>
@@ -208,6 +211,41 @@ export const HomePage: React.FC = () => {
 
       <ToastContainer />
       <ConfirmDialog />
+    </div>
+  )
+}
+
+// ─── Open document banner ─────────────────────────────────────────────────────
+const OpenDocumentBanner: React.FC = () => {
+  const navigate = useNavigate()
+  const { pdfDoc, fileName, pageCount, clearPdf } = usePDFStore()
+  if (!pdfDoc) return null
+
+  const closeDoc = () => {
+    clearPdf()
+    useAnnotationsStore.setState({ annotations: [], formFields: [], past: [], future: [], selectedId: null })
+  }
+
+  return (
+    <div style={{
+      marginTop: 20,
+      display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+      background: 'var(--color-mint-pulse)',
+      borderRadius: 16, padding: '12px 14px',
+    }}>
+      <span style={{ fontSize: 20, flexShrink: 0 }}>📄</span>
+      <div style={{ flex: 1, minWidth: 140 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          מסמך פתוח: {fileName}
+        </div>
+        <div style={{ fontSize: 11, color: C.steel }}>{pageCount} עמודים · העריכה נשמרת אוטומטית</div>
+      </div>
+      <button className="btn btn-primary" style={{ fontSize: 12.5, flexShrink: 0 }} onClick={() => navigate('/editor')}>
+        המשך עריכה
+      </button>
+      <button className="btn btn-secondary" style={{ fontSize: 12.5, flexShrink: 0 }} onClick={closeDoc}>
+        סגור מסמך
+      </button>
     </div>
   )
 }

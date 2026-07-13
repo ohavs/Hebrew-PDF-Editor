@@ -30,7 +30,7 @@ function parseColor(color: string): [number, number, number] {
  * R = total display rotation (intrinsic /Rotate + in-app delta), 0/90/180/270.
  * W, H = the UNROTATED page size in points (pdf-lib page.getSize()).
  */
-function pageMapper(R: number, W: number, H: number) {
+export function pageMapper(R: number, W: number, H: number) {
   const rot = ((R % 360) + 360) % 360
   return {
     /** Map a display point (y down) to page space (y up). */

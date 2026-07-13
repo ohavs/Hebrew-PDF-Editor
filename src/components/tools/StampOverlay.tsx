@@ -10,8 +10,10 @@ export const StampOverlay: React.FC<Props> = ({ annotation, zoom }) => {
   const { activeTool } = useUIStore()
   const isSelected = selectedId === annotation.id
 
+  const canInteract = activeTool === 'select' || activeTool === 'stamp'
+
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (activeTool !== 'select') return
+    if (!canInteract) return
     if ((e.target as HTMLElement).closest('button')) return
     e.preventDefault(); e.stopPropagation()
     selectAnnotation(annotation.id)
@@ -36,13 +38,13 @@ export const StampOverlay: React.FC<Props> = ({ annotation, zoom }) => {
         borderRadius: 4,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         transform: `rotate(${annotation.rotation}deg)`,
-        cursor: activeTool === 'select' ? 'move' : 'default',
+        cursor: canInteract ? 'move' : 'default',
         opacity: 0.8,
         outline: isSelected ? '2px solid var(--color-accent)' : 'none',
         zIndex: 40,
         userSelect: 'none',
         pointerEvents: 'all',
-        touchAction: activeTool === 'select' ? 'none' : 'auto',
+        touchAction: canInteract ? 'none' : 'auto',
       }}
       onPointerDown={handlePointerDown}
       onClick={e => { e.stopPropagation(); if (activeTool === 'select') selectAnnotation(annotation.id) }}

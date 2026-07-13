@@ -29,11 +29,21 @@ export function usePageOps() {
   const { loadPDF } = usePDF()
   const getEdited = useEditedBytes()
 
-  const rebuild = async (fn: (src: PDFDocument, dest: PDFDocument) => Promise<void>) => {
+  /** Current labels re-based to display order (the order getEdited bakes). */
+  const bakedLabels = (): (string | null)[] => {
+    const { pageOrder, pageLabels } = usePDFStore.getState()
+    return pageOrder.map(n => pageLabels[n] ?? null)
+  }
+
+  const rebuild = async (
+    fn: (src: PDFDocument, dest: PDFDocument) => Promise<void>,
+    newLabels?: (string | null)[],
+  ) => {
     const src = await PDFDocument.load(await getEdited())
     const dest = await PDFDocument.create()
     await fn(src, dest)
     await loadPDF((await dest.save()).buffer as ArrayBuffer, { name: fileName })
+    if (newLabels) usePDFStore.getState().setPageLabels(newLabels)
   }
 
   const deletePage = async (pos: number): Promise<boolean> => {
@@ -45,11 +55,13 @@ export function usePageOps() {
     })
     if (!ok) return false
     try {
+      const labels = bakedLabels()
+      labels.splice(pos, 1)
       await rebuild(async (src, dest) => {
         const order = src.getPageIndices().filter(i => i !== pos)
         const pages = await dest.copyPages(src, order)
         pages.forEach(p => dest.addPage(p))
-      })
+      }, labels)
       addToast('הדף נמחק', 'success')
       return true
     } catch (e) { console.error(e); addToast('שגיאה במחיקה', 'error'); return false }
@@ -57,22 +69,27 @@ export function usePageOps() {
 
   const duplicatePage = async (pos: number): Promise<boolean> => {
     try {
+      const labels = bakedLabels()
+      labels.splice(pos + 1, 0, `עותק של עמוד ${pos + 1}`)
       await rebuild(async (src, dest) => {
         const order = src.getPageIndices()
         order.splice(pos + 1, 0, pos)
         const pages = await dest.copyPages(src, order)
         pages.forEach(p => dest.addPage(p))
-      })
-      addToast('הדף שוכפל', 'success')
+      }, labels)
+      addToast(`עמוד ${pos + 1} שוכפל — העותק נוסף אחריו`, 'success')
       return true
     } catch (e) { console.error(e); addToast('שגיאה בשכפול', 'error'); return false }
   }
 
   const addBlankAfter = async (pos: number, size?: [number, number]): Promise<boolean> => {
     try {
+      const labels = bakedLabels()
+      labels.splice(pos + 1, 0, 'דף ריק')
       const doc = await PDFDocument.load(await getEdited())
       doc.insertPage(pos + 1, size || [595, 842])
       await loadPDF((await doc.save()).buffer as ArrayBuffer, { name: fileName })
+      usePDFStore.getState().setPageLabels(labels)
       addToast('דף ריק הוסף', 'success')
       return true
     } catch (e) { console.error(e); addToast('שגיאה בהוספה', 'error'); return false }
@@ -80,9 +97,11 @@ export function usePageOps() {
 
   const rotateAllPages = async (): Promise<boolean> => {
     try {
+      const labels = bakedLabels()
       const doc = await PDFDocument.load(await getEdited())
       doc.getPages().forEach(p => p.setRotation(degrees((p.getRotation().angle + 90) % 360)))
       await loadPDF((await doc.save()).buffer as ArrayBuffer, { name: fileName })
+      usePDFStore.getState().setPageLabels(labels)
       addToast('כל הדפים סובבו', 'success')
       return true
     } catch (e) { console.error(e); addToast('שגיאה בסיבוב', 'error'); return false }

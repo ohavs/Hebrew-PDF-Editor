@@ -13,10 +13,11 @@ const ROW_H = 76 // fixed row height keeps the drag math trivial
  * panel + mobile sheet) and the mobile pages sheet.
  */
 export const PageListPanel: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
-  const { pdfDoc, currentPage, setCurrentPage, pageOrder, pageInfos, rotatePage } = usePDFStore()
+  const { pdfDoc, currentPage, setCurrentPage, pageOrder, pageInfos, pageLabels, rotatePage } = usePDFStore()
   const { addToast } = useUIStore()
   const { deletePage, duplicatePage } = usePageOps()
   const [busy, setBusy] = useState(false)
+  const [previewIdx, setPreviewIdx] = useState<number | null>(null)
 
   // Drag state
   const [dragIdx, setDragIdx] = useState<number | null>(null)
@@ -114,12 +115,33 @@ export const PageListPanel: React.FC<{ onNavigate?: () => void }> = ({ onNavigat
               </svg>
             </div>
 
-            {/* Thumbnail */}
-            <PageThumbLazy pdfDoc={pdfDoc} pageIndex={naturalIdx} rotation={pageInfos[naturalIdx]?.rotation || 0} />
+            {/* Thumbnail — tap to preview the page content */}
+            <div
+              onClick={e => { e.stopPropagation(); setPreviewIdx(naturalIdx) }}
+              style={{ cursor: 'zoom-in' }}
+              aria-label={`תצוגה מקדימה של עמוד ${i + 1}`}
+            >
+              <PageThumbLazy pdfDoc={pdfDoc} pageIndex={naturalIdx} rotation={pageInfos[naturalIdx]?.rotation || 0} />
+            </div>
 
             {/* Label */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)' }}>עמוד {i + 1}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)' }}>עמוד {i + 1}</span>
+                {pageLabels[naturalIdx] && (
+                  <span style={{
+                    fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 20,
+                    background: 'rgba(37,99,235,0.12)', color: '#2563eb', whiteSpace: 'nowrap',
+                  }}>
+                    {pageLabels[naturalIdx]}
+                  </span>
+                )}
+              </div>
+              {naturalIdx !== i && (
+                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2 }}>
+                  הוזז · היה עמוד {naturalIdx + 1}
+                </div>
+              )}
               {(pageInfos[naturalIdx]?.rotation || 0) % 360 !== 0 && (
                 <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>
                   ↻ {((pageInfos[naturalIdx]?.rotation || 0) % 360 + 360) % 360}°
@@ -146,6 +168,69 @@ export const PageListPanel: React.FC<{ onNavigate?: () => void }> = ({ onNavigat
           </div>
         )
       })}
+
+      {previewIdx !== null && (
+        <PagePreviewModal
+          pdfDoc={pdfDoc}
+          pageIndex={previewIdx}
+          displayNum={Math.max(0, pageOrder.indexOf(previewIdx)) + 1}
+          rotation={pageInfos[previewIdx]?.rotation || 0}
+          onClose={() => setPreviewIdx(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+/** Large page preview — opened by tapping a thumbnail in the list. */
+const PagePreviewModal: React.FC<{
+  pdfDoc: any; pageIndex: number; displayNum: number; rotation: number; onClose: () => void
+}> = ({ pdfDoc, pageIndex, displayNum, rotation, onClose }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const { renderThumbnail } = usePDF()
+
+  useEffect(() => {
+    if (!canvasRef.current) return
+    const width = Math.min(window.innerWidth - 48, 620)
+    renderThumbnail(pdfDoc, pageIndex, canvasRef.current, width, rotation)
+  }, [pdfDoc, pageIndex, rotation, renderThumbnail])
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 900,
+        background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: 20, cursor: 'zoom-out',
+      }}
+    >
+      <div style={{
+        color: 'white', fontSize: 14, fontWeight: 700, marginBottom: 12,
+        display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        עמוד {displayNum}
+        <button
+          onClick={onClose}
+          aria-label="סגור"
+          style={{
+            width: 32, height: 32, borderRadius: 9, border: 'none',
+            background: 'rgba(255,255,255,0.15)', color: 'white', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            minHeight: 0, padding: 0,
+          }}
+        >
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div style={{
+        maxHeight: 'calc(100dvh - 120px)', overflow: 'auto',
+        borderRadius: 8, boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
+        background: 'white',
+      }}>
+        <canvas ref={canvasRef} style={{ display: 'block', maxWidth: '100%' }} />
+      </div>
     </div>
   )
 }

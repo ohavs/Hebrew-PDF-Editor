@@ -12,8 +12,13 @@ export const SignatureOverlay: React.FC<Props> = ({ annotation, zoom }) => {
   const { activeTool } = useUIStore()
   const isSelected = selectedId === annotation.id
 
+  // Draggable in select mode AND while the signature tool is active —
+  // right after placing a signature the tool is still 'signature', and
+  // positioning it is exactly what the user wants to do next.
+  const canInteract = activeTool === 'select' || activeTool === 'signature'
+
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (activeTool !== 'select') return
+    if (!canInteract) return
     const target = e.target as HTMLElement
     if (target.dataset.handle || target.closest('button')) return
     e.preventDefault(); e.stopPropagation()
@@ -48,10 +53,10 @@ export const SignatureOverlay: React.FC<Props> = ({ annotation, zoom }) => {
     <div
       style={{
         position: 'absolute', left: x, top: y, width, height,
-        cursor: activeTool === 'select' ? 'move' : 'default', zIndex: 35, userSelect: 'none',
+        cursor: canInteract ? 'move' : 'default', zIndex: 35, userSelect: 'none',
         outline: isSelected ? '2px solid var(--color-accent)' : 'none',
         pointerEvents: 'all',
-        touchAction: activeTool === 'select' ? 'none' : 'auto',
+        touchAction: canInteract ? 'none' : 'auto',
       }}
       onPointerDown={handlePointerDown}
     >
