@@ -8,6 +8,7 @@ import { LeftPanel } from './components/panels/LeftPanel'
 import { RightPanel } from './components/panels/RightPanel'
 import { PDFViewer } from './components/viewer/PDFViewer'
 import { ToastContainer } from './components/ui/Toast'
+import { SearchBar } from './components/ui/SearchBar'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import { SettingsModal } from './components/ui/SettingsModal'
 import { PDFToolsMobileSheet } from './components/tools/PDFToolsMobileSheet'
@@ -116,6 +117,9 @@ export default function App() {
 
       {/* Mobile properties drawer */}
       <MobilePropertiesDrawer />
+
+      {/* Document search */}
+      <SearchBar />
 
       {/* Toasts */}
       <ToastContainer />

@@ -25,6 +25,9 @@ interface UIState {
   toolboxOpen: boolean
   toolboxCategory: string
   settingsOpen: boolean
+  searchOpen: boolean
+  searchMatches: Array<{ pageIndex: number; rect: { x: number; y: number; width: number; height: number }; snippet: string }>
+  searchActiveIdx: number
   confirmDialog: {
     open: boolean
     title: string
@@ -82,6 +85,9 @@ interface UIState {
   setToolboxOpen: (v: boolean) => void
   setToolboxCategory: (cat: string) => void
   setSettingsOpen: (v: boolean) => void
+  setSearchOpen: (v: boolean) => void
+  setSearchMatches: (m: UIState['searchMatches']) => void
+  setSearchActiveIdx: (i: number) => void
   confirm: (opts: { title: string; message?: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean }) => Promise<boolean>
   resolveConfirm: (v: boolean) => void
   setDrawColor: (c: string) => void
@@ -121,6 +127,9 @@ export const useUIStore = create<UIState>()((set) => ({
   toolboxOpen: false,
   toolboxCategory: 'organize',
   settingsOpen: false,
+  searchOpen: false,
+  searchMatches: [],
+  searchActiveIdx: 0,
   confirmDialog: {
     open: false, title: '', message: '', confirmLabel: 'אישור', cancelLabel: 'ביטול',
     danger: false, resolve: null,
@@ -154,7 +163,14 @@ export const useUIStore = create<UIState>()((set) => ({
 
   savedSignatures: JSON.parse(localStorage.getItem('savedSignatures') || '[]'),
 
-  setTool: (tool) => { if (tool === 'text') ensureAnnotationFonts(); set({ activeTool: tool }) },
+  setTool: (tool) => {
+    if (tool === 'text') ensureAnnotationFonts()
+    if (tool === 'redact' && !localStorage.getItem('redactWarned')) {
+      localStorage.setItem('redactWarned', '1')
+      setTimeout(() => useUIStore.getState().addToast('שים לב: הכיסוי מסתיר ויזואלית בלבד — הטקסט המקורי נשאר בקובץ', 'warning'), 300)
+    }
+    set({ activeTool: tool })
+  },
   setSidePanel: (panel) => set({ sidePanel: panel }),
   toggleSidePanel: (panel) => set((s) => ({ sidePanel: s.sidePanel === panel ? null : panel })),
   setRightPanelOpen: (open) => set({ rightPanelOpen: open }),
@@ -181,6 +197,9 @@ export const useUIStore = create<UIState>()((set) => ({
   setToolboxOpen: (v) => set({ toolboxOpen: v }),
   setToolboxCategory: (cat) => set({ toolboxCategory: cat }),
   setSettingsOpen: (v) => set({ settingsOpen: v }),
+  setSearchOpen: (v) => set(v ? { searchOpen: true } : { searchOpen: false, searchMatches: [], searchActiveIdx: 0 }),
+  setSearchMatches: (m) => set({ searchMatches: m, searchActiveIdx: 0 }),
+  setSearchActiveIdx: (i) => set({ searchActiveIdx: i }),
   confirm: (opts) => new Promise<boolean>((resolve) => {
     set({
       confirmDialog: {

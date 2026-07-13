@@ -16,7 +16,7 @@ const isInStandalone = () =>
 export const MobileHeader: React.FC = () => {
   const { pdfDoc, pdfBytes, fileName, currentPage, pageCount, pageInfos, pageOrder, hasUnsavedChanges } = usePDFStore()
   const { past } = useAnnotationsStore()
-  const { addToast, darkMode, toggleDarkMode } = useUIStore()
+  const { addToast, darkMode, toggleDarkMode, searchOpen, setSearchOpen } = useUIStore()
   const { canInstall, install } = usePWAInstall()
   const navigate = useNavigate()
   const [saving, setSaving] = useState(false)
@@ -84,6 +84,15 @@ export const MobileHeader: React.FC = () => {
         {/* Unsaved dot */}
         {hasUnsaved && (
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
+        )}
+
+        {/* Search */}
+        {pdfDoc && (
+          <HeaderBtn ariaLabel="חיפוש" onClick={() => setSearchOpen(!searchOpen)}>
+            <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+            </svg>
+          </HeaderBtn>
         )}
 
         {/* Undo */}

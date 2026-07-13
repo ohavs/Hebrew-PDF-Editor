@@ -70,6 +70,13 @@ export function usePDF() {
       loadingTask.onProgress = (p: { loaded: number; total: number }) => {
         if (p.total > 0) setIsLoading(true, 30 + Math.round((p.loaded / p.total) * 60))
       }
+      // Password-protected PDFs (bank statements, payslips...) — prompt
+      // instead of failing with a generic load error. reason 2 = wrong password.
+      loadingTask.onPassword = (updatePassword: (pw: string) => void, reason: number) => {
+        const pw = window.prompt(reason === 2 ? 'סיסמה שגויה. נסה שוב:' : 'הקובץ מוגן בסיסמה. הזן סיסמה:')
+        if (pw !== null && pw !== '') updatePassword(pw)
+        else throw new Error('PasswordCancelled')
+      }
 
       const pdfDoc = await loadingTask.promise
       setIsLoading(true, 95)
@@ -84,7 +91,9 @@ export function usePDF() {
     } catch (err: any) {
       console.error('loadPDF failed', err)
       setIsLoading(false)
-      const msg = err?.message?.includes('Invalid PDF') ? 'הקובץ אינו PDF תקין' : 'שגיאה בטעינת הקובץ'
+      const msg = err?.message?.includes('PasswordCancelled') || err?.name === 'PasswordException'
+        ? 'הקובץ מוגן בסיסמה'
+        : err?.message?.includes('Invalid PDF') ? 'הקובץ אינו PDF תקין' : 'שגיאה בטעינת הקובץ'
       addToast(msg, 'error')
       return null
     }

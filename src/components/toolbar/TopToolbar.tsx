@@ -7,7 +7,7 @@ export const TopToolbar: React.FC = () => {
   const { pdfDoc, pdfBytes, fileName, zoom, setZoom, currentPage, pageCount, setCurrentPage,
           viewMode, setViewMode, isSaving, setIsSaving, hasUnsavedChanges, pageInfos, pageOrder } = usePDFStore()
   const { annotations, formFields, undo, redo, past, future } = useAnnotationsStore()
-  const { darkMode, toggleDarkMode, addToast, isFullscreen, setFullscreen, setSettingsOpen } = useUIStore()
+  const { darkMode, toggleDarkMode, addToast, isFullscreen, setFullscreen, setSettingsOpen, searchOpen, setSearchOpen } = useUIStore()
   const navigate = useNavigate()
   const [pageInput, setPageInput] = useState('')
   const [showExportMenu, setShowExportMenu] = useState(false)
@@ -206,6 +206,13 @@ export const TopToolbar: React.FC = () => {
       )}
 
       {/* Right actions */}
+      {pdfDoc && (
+        <TopBtn title="חיפוש במסמך (Ctrl+F)" onClick={() => setSearchOpen(!searchOpen)} active={searchOpen}>
+          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+          </svg>
+        </TopBtn>
+      )}
       <TopBtn title={darkMode ? 'מצב בהיר' : 'מצב כהה'} onClick={toggleDarkMode}>
         {darkMode ? <SunIcon /> : <MoonIcon />}
       </TopBtn>

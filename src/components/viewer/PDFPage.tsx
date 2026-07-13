@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { usePDF } from '../../hooks/usePDF'
-import { usePDFStore } from '../../store'
+import { usePDFStore, useUIStore } from '../../store'
 import { AnnotationLayer } from './AnnotationLayer'
 
 interface Props {
@@ -55,6 +55,7 @@ export const PDFPage: React.FC<Props> = ({ pageIndex, isVisible }) => {
         />
       )}
       <canvas ref={canvasRef} className="pdf-canvas" style={{ width: cssW, height: cssH }} />
+      {renderedOnce && <SearchHighlights pageIndex={pageIndex} zoom={zoom} />}
       {renderedOnce && (
         <AnnotationLayer
           pageIndex={pageIndex}
@@ -63,6 +64,36 @@ export const PDFPage: React.FC<Props> = ({ pageIndex, isVisible }) => {
           zoom={zoom}
         />
       )}
+    </div>
+  )
+}
+
+/** Search-match highlights for this page (natural coords × zoom). */
+const SearchHighlights: React.FC<{ pageIndex: number; zoom: number }> = ({ pageIndex, zoom }) => {
+  const { searchMatches, searchActiveIdx } = useUIStore()
+  const pageMatches = searchMatches
+    .map((m, i) => ({ ...m, globalIdx: i }))
+    .filter(m => m.pageIndex === pageIndex)
+  if (!pageMatches.length) return null
+
+  return (
+    <div style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 9 }}>
+      {pageMatches.map(m => (
+        <div
+          key={m.globalIdx}
+          style={{
+            position: 'absolute',
+            left: m.rect.x * zoom - 2,
+            top: m.rect.y * zoom - 2,
+            width: m.rect.width * zoom + 4,
+            height: m.rect.height * zoom + 4,
+            background: m.globalIdx === searchActiveIdx ? 'rgba(255,150,0,0.45)' : 'rgba(255,220,0,0.35)',
+            outline: m.globalIdx === searchActiveIdx ? '2px solid rgba(255,120,0,0.8)' : 'none',
+            borderRadius: 3,
+            mixBlendMode: 'multiply',
+          }}
+        />
+      ))}
     </div>
   )
 }

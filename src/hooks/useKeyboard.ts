@@ -1,10 +1,25 @@
 import { useEffect } from 'react'
 import { useAnnotationsStore, usePDFStore, useUIStore } from '../store'
+import { embedAnnotationsIntoPdf, downloadBlob } from '../utils/pdfExport'
+
+async function saveDocument() {
+  const { pdfBytes, fileName, pageInfos, pageOrder } = usePDFStore.getState()
+  if (!pdfBytes) return
+  const { annotations, formFields } = useAnnotationsStore.getState()
+  try {
+    const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder)
+    downloadBlob(result, fileName.replace('.pdf', '') + '-edited.pdf')
+    useUIStore.getState().addToast('הקובץ נשמר', 'success')
+  } catch (e) {
+    console.error(e)
+    useUIStore.getState().addToast('שגיאה בשמירה', 'error')
+  }
+}
 
 export function useKeyboard() {
   const { undo, redo } = useAnnotationsStore()
   const { setZoom, zoom, setCurrentPage, currentPage, pageCount } = usePDFStore()
-  const { setTool, activeTool } = useUIStore()
+  const { setTool } = useUIStore()
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -34,6 +49,14 @@ export function useKeyboard() {
           case '0':
             e.preventDefault()
             setZoom(1.0)
+            break
+          case 's':
+            e.preventDefault()
+            saveDocument()
+            break
+          case 'f':
+            e.preventDefault()
+            useUIStore.getState().setSearchOpen(true)
             break
           case 'p':
             e.preventDefault()
