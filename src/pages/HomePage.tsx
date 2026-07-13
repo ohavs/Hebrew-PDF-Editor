@@ -5,6 +5,7 @@ import { useUIStore } from '../store'
 import { listSessions, deleteSession, type SessionMeta } from '../utils/sessions'
 import { ToastContainer } from '../components/ui/Toast'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { InstallButton } from '../components/ui/InstallButton'
 
 // ─── Design tokens (Swiss editorial) — theme-aware via CSS variables ─────────
 const C = {
@@ -491,28 +492,31 @@ const NavPill: React.FC<{ onOpenEditor: () => void }> = ({ onOpenEditor }) => (
         ))}
       </div>
 
-      <button
-        onClick={onOpenEditor}
-        style={{
-          background: C.ink,
-          color: C.white,
-          border: 'none',
-          borderRadius: 8,
-          padding: '8px 20px',
-          fontSize: 14,
-          fontWeight: 500,
-          cursor: 'pointer',
-          letterSpacing: '-0.02em',
-          fontFamily: 'var(--font-body)',
-          transition: `opacity 150ms ${ease}, transform 150ms ${ease}`,
-        }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.82' }}
-        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1' }}
-        onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)' }}
-        onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
-      >
-        פתח עורך
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <InstallButton />
+        <button
+          onClick={onOpenEditor}
+          style={{
+            background: C.ink,
+            color: C.white,
+            border: 'none',
+            borderRadius: 8,
+            padding: '8px 20px',
+            fontSize: 14,
+            fontWeight: 500,
+            cursor: 'pointer',
+            letterSpacing: '-0.02em',
+            fontFamily: 'var(--font-body)',
+            transition: `opacity 150ms ${ease}, transform 150ms ${ease}`,
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.82' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1' }}
+          onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)' }}
+          onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
+        >
+          פתח עורך
+        </button>
+      </div>
     </nav>
   </div>
 )
