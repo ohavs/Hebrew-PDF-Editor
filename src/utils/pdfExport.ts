@@ -1,6 +1,44 @@
-import { PDFDocument, rgb, degrees } from 'pdf-lib'
+import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib'
 import type { Annotation, FormField, PageInfo, Rect, Point } from '../store/types'
 import { rasterizeTextBox, rasterizeStamp, rasterizeStickyCard, rasterizePlainText } from './textRaster'
+
+export interface ExportDecorations {
+  watermark?: {
+    text: string
+    fontSize: number
+    opacity: number
+    dx: number
+    dy: number
+  } | null
+  pageNumbers?: {
+    position: 'center' | 'right' | 'left'
+    startAt: number
+    dx: number
+    dy: number
+  } | null
+}
+
+/** Rasterize the watermark text (Hebrew-safe) as a square diagonal tile. */
+function rasterizeWatermark(text: string, fontSize: number): { dataUrl: string; side: number } {
+  const canvas = document.createElement('canvas')
+  const S = 2
+  canvas.width = 800 * S
+  canvas.height = 800 * S
+  const ctx = canvas.getContext('2d')!
+  ctx.translate(canvas.width / 2, canvas.height / 2)
+  ctx.rotate(-Math.PI / 4)
+  let fs = fontSize
+  ctx.font = `bold ${fs * S}px Heebo, Arial`
+  while (fs > 20 && ctx.measureText(text).width > 1050 * S) {
+    fs -= 5
+    ctx.font = `bold ${fs * S}px Heebo, Arial`
+  }
+  ctx.fillStyle = 'rgba(0,0,0,1)'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, 0, 0)
+  return { dataUrl: canvas.toDataURL('image/png'), side: 800 }
+}
 
 function hexToRgb(hex: string): [number, number, number] {
   const r = parseInt(hex.slice(1, 3), 16) / 255
@@ -81,6 +119,7 @@ export async function embedAnnotationsIntoPdf(
   formFields: FormField[],
   pageInfos: PageInfo[],
   pageOrder: number[],
+  decorations?: ExportDecorations,
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true })
   const pages = pdfDoc.getPages()
@@ -236,6 +275,58 @@ export async function embedAnnotationsIntoPdf(
         page.drawImage(img, { ...place, rotate: degrees(place.rotate) })
       }
     } catch (e) { console.error('form field export failed', e) }
+  }
+
+  // Live decorations — watermark + page numbers on every page
+  if (decorations?.watermark?.text?.trim()) {
+    const wm = decorations.watermark
+    try {
+      const raster = rasterizeWatermark(wm.text, wm.fontSize)
+      const img = await embedDataUrl(pdfDoc, raster.dataUrl)
+      pages.forEach((page, idx) => {
+        const { width: W, height: H } = page.getSize()
+        const R = totalRotation(idx)
+        const [dw, dh] = R % 180 === 90 ? [H, W] : [W, H]
+        const side = Math.min(dw, dh) * 0.8
+        const displayRect: Rect = {
+          x: (dw - side) / 2 + wm.dx,
+          y: (dh - side) / 2 + wm.dy,
+          width: side, height: side,
+        }
+        const map = pageMapper(R, W, H)
+        const place = map.imagePlacement(displayRect)
+        page.drawImage(img, { ...place, rotate: degrees(place.rotate), opacity: wm.opacity })
+      })
+    } catch (e) { console.error('watermark export failed', e) }
+  }
+
+  if (decorations?.pageNumbers) {
+    const pn = decorations.pageNumbers
+    try {
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+      const fontSize = 11
+      pages.forEach((page, idx) => {
+        const { width: W, height: H } = page.getSize()
+        const R = totalRotation(idx)
+        const [dw, dh] = R % 180 === 90 ? [H, W] : [W, H]
+        // Number by DISPLAY position so it matches what the user sees
+        const displayPos = pageOrder.length ? pageOrder.indexOf(idx) : idx
+        if (displayPos < 0) return
+        const label = String(pn.startAt + displayPos)
+        const textW = font.widthOfTextAtSize(label, fontSize)
+        const baseX = pn.position === 'center' ? (dw - textW) / 2
+          : pn.position === 'right' ? dw - 40 - textW : 40
+        const map = pageMapper(R, W, H)
+        const place = map.imagePlacement({
+          x: baseX + pn.dx, y: dh - 34 + pn.dy, width: textW, height: fontSize,
+        })
+        page.drawText(label, {
+          x: place.x, y: place.y + 2,
+          size: fontSize, font, color: rgb(0.35, 0.35, 0.35),
+          rotate: degrees(place.rotate),
+        })
+      })
+    } catch (e) { console.error('page numbers export failed', e) }
   }
 
   // Bake in-app page rotations so viewers show what the user saw

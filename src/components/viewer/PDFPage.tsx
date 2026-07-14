@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { usePDF } from '../../hooks/usePDF'
 import { usePDFStore, useUIStore } from '../../store'
 import { AnnotationLayer } from './AnnotationLayer'
+import { DecorationsLayer } from './DecorationsLayer'
 
 interface Props {
   pageIndex: number
@@ -56,6 +57,14 @@ export const PDFPage: React.FC<Props> = ({ pageIndex, isVisible }) => {
       )}
       <canvas ref={canvasRef} className="pdf-canvas" style={{ width: cssW, height: cssH }} />
       {renderedOnce && <SearchHighlights pageIndex={pageIndex} zoom={zoom} />}
+      {renderedOnce && (
+        <DecorationsLayer
+          pageIndex={pageIndex}
+          naturalWidth={naturalW}
+          naturalHeight={naturalH}
+          zoom={zoom}
+        />
+      )}
       {renderedOnce && (
         <AnnotationLayer
           pageIndex={pageIndex}

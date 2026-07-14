@@ -3,11 +3,11 @@ import { useAnnotationsStore, usePDFStore, useUIStore } from '../store'
 import { embedAnnotationsIntoPdf, downloadBlob } from '../utils/pdfExport'
 
 async function saveDocument() {
-  const { pdfBytes, fileName, pageInfos, pageOrder } = usePDFStore.getState()
+  const { pdfBytes, fileName, pageInfos, pageOrder, watermark, pageNumbers } = usePDFStore.getState()
   if (!pdfBytes) return
   const { annotations, formFields } = useAnnotationsStore.getState()
   try {
-    const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder)
+    const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder, { watermark, pageNumbers })
     downloadBlob(result, fileName.replace('.pdf', '') + '-edited.pdf')
     useUIStore.getState().addToast('הקובץ נשמר', 'success')
   } catch (e) {

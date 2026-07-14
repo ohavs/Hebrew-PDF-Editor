@@ -31,7 +31,8 @@ export const MobileHeader: React.FC = () => {
     try {
       const annotations = useAnnotationsStore.getState().annotations
       const formFields = useAnnotationsStore.getState().formFields
-      const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder)
+      const { watermark, pageNumbers } = usePDFStore.getState()
+      const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder, { watermark, pageNumbers })
       const outcome = await shareOrDownload(result, fileName.replace('.pdf', '') + '-edited.pdf')
       addToast(outcome === 'shared' ? 'הקובץ מוכן לשיתוף' : 'הורד בהצלחה', 'success')
     } catch (e) {

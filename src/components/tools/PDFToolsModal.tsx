@@ -119,8 +119,8 @@ async function renderPageCanvas(pdfDoc: any, pageNum: number, scale: number): Pr
 
 /** Load the EDITED document (annotations + order + rotation baked) into pdf.js
  *  so raster exports (compress, to-image) include everything the user sees. */
-async function loadEditedForRender(getEdited: () => Promise<Uint8Array>): Promise<any> {
-  const bytes = await getEdited()
+async function loadEditedForRender(getEdited: (o?: { withDecorations?: boolean }) => Promise<Uint8Array>): Promise<any> {
+  const bytes = await getEdited({ withDecorations: true })
   const base = import.meta.env.BASE_URL || '/'
   return pdfjsLib.getDocument({
     data: bytes,
@@ -272,7 +272,7 @@ const SplitPanel: React.FC = () => {
   const splitEach = async () => {
     setBusy(true)
     try {
-      const src = await PDFDocument.load(await getEdited())
+      const src = await PDFDocument.load(await getEdited({ withDecorations: true }))
       const baseName = fileName.replace(/\.pdf$/i, '')
       for (let i = 0; i < pageCount; i++) {
         const dest = await PDFDocument.create()
@@ -291,7 +291,7 @@ const SplitPanel: React.FC = () => {
     if (!groups.length) { addToast('הזן טווחים תקינים', 'warning'); return }
     setBusy(true)
     try {
-      const src = await PDFDocument.load(await getEdited())
+      const src = await PDFDocument.load(await getEdited({ withDecorations: true }))
       const baseName = fileName.replace(/\.pdf$/i, '')
       for (let gi = 0; gi < groups.length; gi++) {
         const pages = parseRanges(groups[gi], pageCount)
@@ -357,7 +357,7 @@ const ExtractPanel: React.FC = () => {
     if (!pages.length) { addToast('הזן טווח דפים תקין', 'warning'); return }
     setBusy(true)
     try {
-      const src = await PDFDocument.load(await getEdited())
+      const src = await PDFDocument.load(await getEdited({ withDecorations: true }))
       const dest = await PDFDocument.create()
       const copied = await dest.copyPages(src, pages.map(p => p - 1))
       copied.forEach(p => dest.addPage(p))
@@ -694,60 +694,31 @@ const GhostButton: React.FC<{ onClick: () => void; disabled?: boolean; children:
 // Watermark
 // ─────────────────────────────────────────────────────────────
 const WatermarkPanel: React.FC = () => {
-  const { pdfDoc, fileName } = usePDFStore()
+  const { pdfDoc, watermark, setWatermark } = usePDFStore()
   const { addToast } = useUIStore()
-  const { loadPDF } = usePDF()
-  const [text, setText] = useState('טיוטה')
-  const [opacity, setOpacity] = useState(0.2)
-  const [fontSize, setFontSize] = useState(80)
-  const [busy, setBusy] = useState(false)
-  const getEdited = useEditedBytes()
+  const [text, setText] = useState(watermark?.text ?? 'טיוטה')
+  const [opacity, setOpacity] = useState(watermark?.opacity ?? 0.2)
+  const [fontSize, setFontSize] = useState(watermark?.fontSize ?? 80)
 
   if (!pdfDoc) return <EmptyHint />
 
-  const apply = async () => {
+  const apply = () => {
     if (!text.trim()) { addToast('הזן טקסט לסימן המים', 'warning'); return }
-    setBusy(true)
-    try {
-      const bytes = await getEdited()
-      const doc = await PDFDocument.load(bytes)
+    setWatermark({
+      text: text.trim(), fontSize, opacity,
+      dx: watermark?.dx ?? 0, dy: watermark?.dy ?? 0,
+    })
+    addToast(watermark ? 'סימן המים עודכן' : 'סימן המים נוסף — גרור אותו על הדף למיקום אחר', 'success')
+  }
 
-      // Render watermark text onto a canvas and embed as image.
-      // Full alpha here — drawImage's opacity is the single control
-      // (double-applying made 20% render as 4%).
-      const canvas = document.createElement('canvas')
-      canvas.width = 800; canvas.height = 800
-      const ctx = canvas.getContext('2d')!
-      ctx.translate(400, 400)
-      ctx.rotate(-Math.PI / 4)
-      // Shrink font if the text overflows the diagonal
-      let fs = fontSize
-      ctx.font = `bold ${fs}px Heebo, Arial`
-      while (fs > 20 && ctx.measureText(text).width > 1050) {
-        fs -= 5
-        ctx.font = `bold ${fs}px Heebo, Arial`
-      }
-      ctx.fillStyle = 'rgba(0,0,0,1)'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(text, 0, 0)
-      const pngBytes = Uint8Array.from(atob(canvas.toDataURL('image/png').split(',')[1]), c => c.charCodeAt(0))
-      const img = await doc.embedPng(pngBytes)
-
-      doc.getPages().forEach(page => {
-        const { width, height } = page.getSize()
-        const side = Math.min(width, height) * 0.8
-        page.drawImage(img, { x: (width - side) / 2, y: (height - side) / 2, width: side, height: side, opacity })
-      })
-
-      await loadPDF((await doc.save()).buffer as ArrayBuffer, { name: fileName })
-      addToast('סימן המים נוסף לכל הדפים', 'success')
-    } catch { addToast('שגיאה בהוספת סימן מים', 'error') } finally { setBusy(false) }
+  const remove = () => {
+    setWatermark(null)
+    addToast('סימן המים הוסר', 'success')
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <InfoBar text="הטקסט יתווסף באלכסון על כל דפי המסמך. הוא ייטבע בקובץ הסופי." />
+      <InfoBar text="סימן המים מוצג על כל הדפים כשכבה חיה: אפשר לגרור אותו, לעדכן או להסיר בכל רגע. הוא נטבע בקובץ רק בשמירה." />
       <div>
         <label className="label">טקסט סימן המים</label>
         <input className="input" value={text} onChange={e => setText(e.target.value)}
@@ -766,9 +737,14 @@ const WatermarkPanel: React.FC = () => {
           <span>שקוף יותר</span><span>בולט יותר</span>
         </div>
       </div>
-      <PrimaryButton onClick={apply} disabled={busy || !text.trim()}>
-        {busy ? <><Spinner /> מוסיף…</> : 'הוסף סימן מים'}
-      </PrimaryButton>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <PrimaryButton onClick={apply} disabled={!text.trim()}>
+          {watermark ? 'עדכן סימן מים' : 'הוסף סימן מים'}
+        </PrimaryButton>
+        {watermark && (
+          <GhostButton onClick={remove}>הסר</GhostButton>
+        )}
+      </div>
     </div>
   )
 }
@@ -912,51 +888,31 @@ const FromWordPanel: React.FC = () => {
 // Page numbers
 // ─────────────────────────────────────────────────────────────
 const PageNumbersPanel: React.FC = () => {
-  const { pdfDoc, fileName } = usePDFStore()
+  const { pdfDoc, pageNumbers, setPageNumbers } = usePDFStore()
   const { addToast } = useUIStore()
-  const { loadPDF } = usePDF()
-  const [position, setPosition] = useState<'center' | 'right' | 'left'>('center')
-  const [startAt, setStartAt] = useState('1')
-  const [busy, setBusy] = useState(false)
-  const getEdited = useEditedBytes()
+  const [position, setPosition] = useState<'center' | 'right' | 'left'>(pageNumbers?.position ?? 'center')
+  const [startAt, setStartAt] = useState(String(pageNumbers?.startAt ?? 1))
 
   if (!pdfDoc) return <EmptyHint />
 
-  const apply = async () => {
-    setBusy(true)
-    try {
-      const { PDFDocument: PDFLib, StandardFonts, rgb, degrees } = await import('pdf-lib')
-      const { pageMapper } = await import('../../utils/pdfExport')
-      const doc = await PDFLib.load(await getEdited())
-      const font = await doc.embedFont(StandardFonts.Helvetica)
-      const start = parseInt(startAt) || 1
-      const fontSize = 11
+  const apply = () => {
+    setPageNumbers({
+      position,
+      startAt: parseInt(startAt) || 1,
+      dx: pageNumbers?.dx ?? 0,
+      dy: pageNumbers?.dy ?? 0,
+    })
+    addToast(pageNumbers ? 'המספור עודכן' : 'המספור נוסף — גרור אותו על הדף למיקום מדויק', 'success')
+  }
 
-      doc.getPages().forEach((page, i) => {
-        const { width: W, height: H } = page.getSize()
-        const R = ((page.getRotation().angle % 360) + 360) % 360
-        const [dw, dh] = R % 180 === 90 ? [H, W] : [W, H]
-        const label = String(start + i)
-        const textW = font.widthOfTextAtSize(label, fontSize)
-        // Display-space anchor at the visual bottom of the page
-        const dx = position === 'center' ? (dw - textW) / 2 : position === 'right' ? dw - 40 - textW : 40
-        const map = pageMapper(R, W, H)
-        const place = map.imagePlacement({ x: dx, y: dh - 34, width: textW, height: fontSize })
-        page.drawText(label, {
-          x: place.x, y: place.y + 2,
-          size: fontSize, font, color: rgb(0.35, 0.35, 0.35),
-          rotate: degrees(place.rotate),
-        })
-      })
-
-      await loadPDF((await doc.save()).buffer as ArrayBuffer, { name: fileName })
-      addToast('מספרי עמודים נוספו', 'success')
-    } catch (e) { console.error(e); addToast('שגיאה במספור', 'error') } finally { setBusy(false) }
+  const remove = () => {
+    setPageNumbers(null)
+    addToast('המספור הוסר', 'success')
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <InfoBar text="מספר עמוד יתווסף בתחתית כל דף וייטבע בקובץ." />
+      <InfoBar text="המספור מוצג כשכבה חיה: אפשר לגרור, לעדכן או להסיר בכל רגע. נטבע בקובץ רק בשמירה." />
       <SegmentedControl
         label="מיקום"
         value={position}
@@ -974,9 +930,14 @@ const PageNumbersPanel: React.FC = () => {
           inputMode="numeric" dir="ltr" style={{ width: '100%', textAlign: 'center' }}
         />
       </div>
-      <PrimaryButton onClick={apply} disabled={busy}>
-        {busy ? <><Spinner /> מוסיף…</> : 'הוסף מספרי עמודים'}
-      </PrimaryButton>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <PrimaryButton onClick={apply}>
+          {pageNumbers ? 'עדכן מספור' : 'הוסף מספרי עמודים'}
+        </PrimaryButton>
+        {pageNumbers && (
+          <GhostButton onClick={remove}>הסר</GhostButton>
+        )}
+      </div>
     </div>
   )
 }

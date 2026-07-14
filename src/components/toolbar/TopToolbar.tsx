@@ -18,7 +18,8 @@ export const TopToolbar: React.FC = () => {
     setShowExportMenu(false)
     setIsSaving(true)
     try {
-      const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder)
+      const { watermark, pageNumbers } = usePDFStore.getState()
+      const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder, { watermark, pageNumbers })
       downloadBlob(result, fileName.replace('.pdf', '') + '-edited.pdf')
       addToast('נשמר', 'success')
     } catch (e) { console.error(e); addToast('שגיאה בייצוא', 'error') }

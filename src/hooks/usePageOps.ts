@@ -3,18 +3,26 @@ import { usePDFStore, useAnnotationsStore, useUIStore } from '../store'
 import { usePDF } from './usePDF'
 import { embedAnnotationsIntoPdf } from '../utils/pdfExport'
 
-/** Bake annotations + display order + rotation into fresh bytes. */
+/**
+ * Bake annotations + display order + rotation into fresh bytes.
+ * Live decorations (watermark / page numbers) are included only when
+ * `withDecorations` is set — final outputs (save, split, compress, images)
+ * want them; intermediate rebuilds (organize ops, merge-reload) must NOT
+ * bake them, or they would duplicate on the next save.
+ */
 export function useEditedBytes() {
   const { pdfBytes, pageInfos, pageOrder } = usePDFStore()
   const { annotations, formFields } = useAnnotationsStore()
-  return async (): Promise<Uint8Array> => {
+  return async (opts?: { withDecorations?: boolean }): Promise<Uint8Array> => {
     if (!pdfBytes) throw new Error('no pdf')
+    const { watermark, pageNumbers } = usePDFStore.getState()
+    const decorations = opts?.withDecorations ? { watermark, pageNumbers } : undefined
     const hasRotation = pageInfos.some(i => (i?.rotation || 0) % 360 !== 0)
     const isIdentity = pageOrder.every((n, i) => n === i)
-    if (annotations.length === 0 && formFields.every(f => !f.value) && !hasRotation && isIdentity) {
+    if (annotations.length === 0 && formFields.every(f => !f.value) && !hasRotation && isIdentity && !decorations?.watermark && !decorations?.pageNumbers) {
       return pdfBytes.slice()
     }
-    return embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder)
+    return embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder, decorations)
   }
 }
 

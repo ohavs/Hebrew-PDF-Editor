@@ -255,6 +255,23 @@ export const useUIStore = create<UIState>()((set) => ({
 // ────────────────────────────────────────────────
 // PDF Store
 // ────────────────────────────────────────────────
+export interface WatermarkSettings {
+  text: string
+  fontSize: number
+  opacity: number
+  /** Drag offset from page center, natural display px */
+  dx: number
+  dy: number
+}
+
+export interface PageNumberSettings {
+  position: 'center' | 'right' | 'left'
+  startAt: number
+  /** Drag offset from the default anchor, natural display px */
+  dx: number
+  dy: number
+}
+
 interface PDFState {
   pdfDoc: any | null
   pdfBytes: Uint8Array | null
@@ -267,6 +284,9 @@ interface PDFState {
   pageInfos: PageInfo[]
   /** Optional per-page badge, aligned to natural page index (e.g. "עותק") */
   pageLabels: (string | null)[]
+  /** Live document decorations — editable overlays, baked only on export */
+  watermark: WatermarkSettings | null
+  pageNumbers: PageNumberSettings | null
   isLoading: boolean
   loadingProgress: number
   isSaving: boolean
@@ -280,6 +300,8 @@ interface PDFState {
   setViewMode: (mode: ViewMode) => void
   setPageOrder: (order: number[]) => void
   setPageLabels: (labels: (string | null)[]) => void
+  setWatermark: (w: WatermarkSettings | null) => void
+  setPageNumbers: (p: PageNumberSettings | null) => void
   setPageInfo: (index: number, info: Partial<PageInfo>) => void
   setIsLoading: (v: boolean, progress?: number) => void
   setIsSaving: (v: boolean) => void
@@ -300,6 +322,8 @@ export const usePDFStore = create<PDFState>()((set, get) => ({
   pageOrder: [],
   pageInfos: [],
   pageLabels: [],
+  watermark: null,
+  pageNumbers: null,
   isLoading: false,
   loadingProgress: 0,
   isSaving: false,
@@ -311,12 +335,14 @@ export const usePDFStore = create<PDFState>()((set, get) => ({
     const infos: PageInfo[] = order.map(i => ({ index: i, width: 595, height: 842, rotation: 0, scale: 1 }))
     set({ pdfDoc: doc, pdfBytes: bytes, fileName: name, pageCount, pageOrder: order, pageInfos: infos, pageLabels: new Array(pageCount).fill(null), currentPage: 0, hasUnsavedChanges: false })
   },
-  clearPdf: () => set({ pdfDoc: null, pdfBytes: null, fileName: '', pageCount: 0, currentPage: 0, pageOrder: [], pageInfos: [], pageLabels: [], hasUnsavedChanges: false }),
+  clearPdf: () => set({ pdfDoc: null, pdfBytes: null, fileName: '', pageCount: 0, currentPage: 0, pageOrder: [], pageInfos: [], pageLabels: [], watermark: null, pageNumbers: null, hasUnsavedChanges: false }),
   setCurrentPage: (page) => set({ currentPage: Math.max(0, Math.min(page, get().pageCount - 1)) }),
   setZoom: (zoom) => set({ zoom: Math.max(0.25, Math.min(zoom, 5.0)) }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setPageOrder: (order) => set({ pageOrder: order }),
   setPageLabels: (labels) => set({ pageLabels: labels }),
+  setWatermark: (w) => set({ watermark: w, hasUnsavedChanges: true }),
+  setPageNumbers: (p) => set({ pageNumbers: p, hasUnsavedChanges: true }),
   setPageInfo: (index, info) => set((s) => {
     const infos = [...s.pageInfos]
     if (infos[index]) infos[index] = { ...infos[index], ...info }

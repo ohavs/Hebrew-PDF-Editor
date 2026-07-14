@@ -17,6 +17,8 @@ export interface PdfSession {
   formFields: FormField[]
   pageOrder: number[]
   pageInfos: PageInfo[]
+  watermark?: unknown
+  pageNumbers?: unknown
   pageCount: number
   currentPage: number
   zoom: number
