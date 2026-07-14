@@ -45,8 +45,9 @@ export const QuickTools: React.FC = () => {
     document.documentElement.classList.toggle('dark', darkMode)
   }, [darkMode])
 
-  // from-image / from-word create a new PDF; everything else needs one open
-  const needsFile = activeTool !== 'from-image' && activeTool !== 'from-word'
+  // Tools that work without an open document: converters that create a new
+  // PDF, and merge (which manages its own multi-file list)
+  const needsFile = activeTool !== 'from-image' && activeTool !== 'from-word' && activeTool !== 'merge'
   const showPanel = activeTool && (!needsFile || pdfDoc)
 
   const handleFile = async (file: File) => {

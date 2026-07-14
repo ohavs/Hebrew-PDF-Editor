@@ -214,44 +214,191 @@ const OrganizePanel: React.FC = () => {
 // ─────────────────────────────────────────────────────────────
 const MergePanel: React.FC = () => {
   const { pdfDoc, fileName } = usePDFStore()
-  const { addToast } = useUIStore()
+  const { addToast, mergeItems, setMergeItems } = useUIStore()
   const { loadPDF } = usePDF()
-  const [files, setFiles] = useState<File[]>([])
   const [busy, setBusy] = useState(false)
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const [dragDy, setDragDy] = useState(0)
+  const dragDyRef = React.useRef(0)
   const getEdited = useEditedBytes()
 
-  if (!pdfDoc) return <EmptyHint />
+  const ROW = 56
 
-  const merge = async () => {
-    if (!files.length) return
-    setBusy(true)
-    try {
-      const base = await PDFDocument.load(await getEdited())
-      for (const f of files) {
-        const doc = await PDFDocument.load(await f.arrayBuffer())
-        const pages = await base.copyPages(doc, doc.getPageIndices())
-        pages.forEach(p => base.addPage(p))
-      }
-      await loadPDF((await base.save()).buffer as ArrayBuffer, { name: fileName })
-      addToast(`${files.length} קבצים מוזגו למסמך`, 'success')
-      setFiles([])
-    } catch { addToast('שגיאה במיזוג', 'error') } finally { setBusy(false) }
+  // Drop stale "current document" entries; seed one when a doc is open
+  React.useEffect(() => {
+    const items = useUIStore.getState().mergeItems
+    const cleaned = pdfDoc ? items : items.filter(i => i.kind !== 'current')
+    if (pdfDoc && !cleaned.some(i => i.kind === 'current') && cleaned.length === 0) {
+      setMergeItems([{ id: 'current', kind: 'current' }])
+    } else if (cleaned.length !== items.length) {
+      setMergeItems(cleaned)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdfDoc])
+
+  const items = pdfDoc ? mergeItems : mergeItems.filter(i => i.kind !== 'current')
+
+  const addFiles = (fs: File[]) => {
+    const newItems = fs.map(f => ({ id: `${f.name}-${f.size}-${Math.random().toString(36).slice(2, 7)}`, kind: 'file' as const, file: f }))
+    setMergeItems([...items, ...newItems])
   }
 
+  const removeItem = (id: string) => setMergeItems(items.filter(i => i.id !== id))
+
+  const dragTarget = dragIdx === null ? null
+    : Math.max(0, Math.min(items.length - 1, dragIdx + Math.round(dragDy / ROW)))
+
+  const startRowDrag = (e: React.PointerEvent, idx: number) => {
+    e.preventDefault(); e.stopPropagation()
+    const el = e.currentTarget as HTMLElement
+    const pid = e.pointerId
+    const startY = e.clientY
+    try { el.setPointerCapture(pid) } catch { /* ignore */ }
+    setDragIdx(idx); setDragDy(0); dragDyRef.current = 0
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pid) return
+      ev.preventDefault()
+      dragDyRef.current = ev.clientY - startY
+      setDragDy(dragDyRef.current)
+    }
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pid) return
+      el.removeEventListener('pointermove', onMove)
+      el.removeEventListener('pointerup', onUp)
+      el.removeEventListener('pointercancel', onUp)
+      const cur = useUIStore.getState().mergeItems
+      const target = Math.max(0, Math.min(cur.length - 1, idx + Math.round(dragDyRef.current / ROW)))
+      if (target !== idx) {
+        const next = [...cur]
+        const [moved] = next.splice(idx, 1)
+        next.splice(target, 0, moved)
+        setMergeItems(next)
+      }
+      setDragIdx(null); setDragDy(0)
+    }
+    el.addEventListener('pointermove', onMove)
+    el.addEventListener('pointerup', onUp)
+    el.addEventListener('pointercancel', onUp)
+  }
+
+  const buildMerged = async (): Promise<{ bytes: Uint8Array; name: string }> => {
+    const out = await PDFDocument.create()
+    for (const item of items) {
+      const srcBytes = item.kind === 'current'
+        ? await getEdited({ withDecorations: true })
+        : new Uint8Array(await item.file.arrayBuffer())
+      const doc = await PDFDocument.load(srcBytes, { ignoreEncryption: true })
+      const pages = await out.copyPages(doc, doc.getPageIndices())
+      pages.forEach(p => out.addPage(p))
+    }
+    const first = items[0]
+    const baseName = first?.kind === 'current'
+      ? fileName.replace(/\.pdf$/i, '')
+      : (first?.kind === 'file' ? first.file.name.replace(/\.pdf$/i, '') : 'merged')
+    return { bytes: await out.save(), name: `${baseName}-ממוזג.pdf` }
+  }
+
+  const mergeAndDownload = async () => {
+    setBusy(true)
+    try {
+      const { bytes, name } = await buildMerged()
+      downloadBlob(bytes, name)
+      addToast('הקובץ הממוזג ירד בהצלחה', 'success')
+    } catch (e) { console.error(e); addToast('שגיאה במיזוג', 'error') } finally { setBusy(false) }
+  }
+
+  const mergeAndOpen = async () => {
+    setBusy(true)
+    try {
+      const { bytes, name } = await buildMerged()
+      await loadPDF(bytes.buffer as ArrayBuffer, { name })
+      setMergeItems([])
+      addToast('הקובץ הממוזג נפתח בעורך', 'success')
+    } catch (e) { console.error(e); addToast('שגיאה במיזוג', 'error') } finally { setBusy(false) }
+  }
+
+  const fileCount = items.length
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <InfoBar text="הקבצים שתבחר יתווספו בסוף המסמך הנוכחי." />
-      <FilePicker accept=".pdf" multiple label="בחר קבצי PDF להוספה" onPick={fs => setFiles(prev => [...prev, ...fs])} />
-      {files.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {files.map((f, i) => (
-            <FileRow key={i} name={f.name} size={f.size} onRemove={() => setFiles(prev => prev.filter((_, j) => j !== i))} />
-          ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <InfoBar text="הוסף קבצי PDF, גרור מהידית לשינוי הסדר, ואז הורד או פתח בעורך. הרשימה נשמרת גם אם תעבור לכלי אחר." />
+      <FilePicker accept=".pdf" multiple label="הוסף קבצי PDF" onPick={addFiles} />
+
+      {items.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {items.map((item, i) => {
+            const isDragging = dragIdx === i
+            let shift = 0
+            if (dragIdx !== null && dragTarget !== null && !isDragging) {
+              if (dragIdx < dragTarget && i > dragIdx && i <= dragTarget) shift = -ROW
+              else if (dragIdx > dragTarget && i >= dragTarget && i < dragIdx) shift = ROW
+            }
+            return (
+              <div key={item.id} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                height: ROW - 6, padding: '0 8px', borderRadius: 12,
+                background: item.kind === 'current' ? 'var(--color-mint)' : 'var(--color-surface-2)',
+                transform: isDragging ? `translateY(${dragDy}px) scale(1.02)` : `translateY(${shift}px)`,
+                transition: isDragging ? 'none' : 'transform 180ms cubic-bezier(0.23,1,0.32,1)',
+                zIndex: isDragging ? 10 : 1, position: 'relative',
+                boxShadow: isDragging ? '0 8px 24px rgba(0,0,0,0.2)' : 'none',
+              }}>
+                <div
+                  onPointerDown={e => startRowDrag(e, i)}
+                  style={{
+                    width: 34, height: '100%', flexShrink: 0, display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    cursor: 'grab', touchAction: 'none', color: 'var(--color-text-muted)',
+                  }}
+                  aria-label="גרור לשינוי סדר"
+                >
+                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                    <circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/>
+                    <circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/>
+                    <circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/>
+                  </svg>
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', width: 16, textAlign: 'center', flexShrink: 0 }}>{i + 1}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.kind === 'current' ? `המסמך הפתוח (${fileName})` : item.file.name}
+                  </div>
+                  {item.kind === 'file' && (
+                    <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>{(item.file.size / 1024 / 1024).toFixed(1)}MB</div>
+                  )}
+                </div>
+                <button
+                  aria-label="הסר"
+                  onClick={() => removeItem(item.id)}
+                  style={{
+                    width: 30, height: 30, borderRadius: '50%', border: 'none', flexShrink: 0,
+                    background: 'rgba(239,68,68,0.15)', color: '#ef4444',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    minHeight: 0, padding: 0,
+                  }}
+                >
+                  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
-      <PrimaryButton onClick={merge} disabled={busy || !files.length}>
-        {busy ? <><Spinner /> ממזג…</> : `מזג ${files.length || ''} קבצים למסמך`}
-      </PrimaryButton>
+
+      {fileCount < 2 && (
+        <div style={{ fontSize: 12, color: 'var(--color-text-muted)', textAlign: 'center' }}>
+          הוסף לפחות שני קבצים למיזוג
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <PrimaryButton onClick={mergeAndDownload} disabled={busy || fileCount < 2}>
+          {busy ? <><Spinner /> ממזג…</> : 'מזג והורד'}
+        </PrimaryButton>
+        <GhostButton onClick={mergeAndOpen} disabled={busy || fileCount < 2}>
+          מזג ופתח בעורך
+        </GhostButton>
+      </div>
     </div>
   )
 }
