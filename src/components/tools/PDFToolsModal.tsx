@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { PDFDocument } from 'pdf-lib'
 import * as pdfjsLib from 'pdfjs-dist'
-import { usePDFStore, useUIStore } from '../../store'
+import { usePDFStore, useUIStore, useAnnotationsStore } from '../../store'
+import type { TextBoxAnnotation } from '../../store/types'
 import { usePDF } from '../../hooks/usePDF'
 import { downloadBlob, triggerDownload } from '../../utils/pdfExport'
 import { useEditedBytes, usePageOps } from '../../hooks/usePageOps'
@@ -320,6 +321,7 @@ const MergePanel: React.FC = () => {
       await loadPDF(bytes.buffer as ArrayBuffer, { name })
       setMergeItems([])
       addToast('הקובץ הממוזג נפתח בעורך', 'success')
+      window.location.hash = '#/editor'
     } catch (e) { console.error(e); addToast('שגיאה במיזוג', 'error') } finally { setBusy(false) }
   }
 
@@ -995,7 +997,58 @@ const FromWordPanel: React.FC = () => {
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const convert = async (mode: 'download' | 'edit') => {
+  /**
+   * Open-in-editor: every Word paragraph becomes a LIVE TextBox annotation
+   * on blank pages — tap any paragraph to edit the words, drag to move,
+   * restyle with the text tool. As close to editing the original Word
+   * document as a PDF editor gets.
+   */
+  const convertToEditable = async () => {
+    if (!file) return
+    setBusy(true)
+    try {
+      const { parseDocx, layoutParagraphsToBoxes } = await import('../../utils/wordConvert')
+      const paras = parseDocx(new Uint8Array(await file.arrayBuffer()))
+      if (!paras.some(p => p.text.trim() && p.text !== '\f')) {
+        addToast('לא נמצא טקסט בקובץ', 'warning')
+        return
+      }
+      const { pageCount, boxes } = layoutParagraphsToBoxes(paras)
+
+      const doc = await PDFDocument.create()
+      for (let i = 0; i < pageCount; i++) doc.addPage([595, 842])
+      const saved = await doc.save()
+      const name = file.name.replace(/\.docx?$/i, '') + '.pdf'
+      const loaded = await loadPDF(saved.buffer as ArrayBuffer, { name })
+      if (!loaded) return
+
+      const { addAnnotation } = useAnnotationsStore.getState()
+      boxes.forEach(b => {
+        const tb: Omit<TextBoxAnnotation, 'id' | 'createdAt'> = {
+          type: 'textbox',
+          pageIndex: b.pageIndex,
+          rect: { x: b.x, y: b.y, width: b.width, height: b.height },
+          content: b.text,
+          fontFamily: 'Heebo',
+          fontSize: 12,
+          fontWeight: 'normal',
+          fontStyle: 'normal',
+          textDecoration: 'none',
+          color: '#111111',
+          align: b.rtl ? 'right' : 'left',
+          direction: b.rtl ? 'rtl' : 'ltr',
+        }
+        addAnnotation(tb)
+      })
+      useAnnotationsStore.getState().selectAnnotation(null)
+      setFile(null)
+      addToast('המסמך נפתח לעריכה — הקש על כל פסקה כדי לערוך אותה', 'success')
+      window.location.hash = '#/editor'
+    } catch (e) { console.error(e); addToast('שגיאה בהמרה מוורד', 'error') } finally { setBusy(false) }
+  }
+
+  /** Download: rasterized pages (fixed layout, not editable). */
+  const convertToDownload = async () => {
     if (!file) return
     setBusy(true)
     try {
@@ -1015,31 +1068,26 @@ const FromWordPanel: React.FC = () => {
       }
       const saved = await doc.save()
       const defaultName = file.name.replace(/\.docx?$/i, '') + '.pdf'
-      if (mode === 'edit') {
-        await loadPDF(saved.buffer as ArrayBuffer, { name: defaultName })
-        addToast('הקובץ הומר ונפתח בעורך', 'success')
-      } else {
-        const outName = await askFileName(defaultName, '.pdf')
-        if (outName) {
-          downloadBlob(saved, outName)
-          addToast('קובץ PDF ירד בהצלחה', 'success')
-        }
+      const outName = await askFileName(defaultName, '.pdf')
+      if (outName) {
+        downloadBlob(saved, outName)
+        addToast('קובץ PDF ירד בהצלחה', 'success')
+        setFile(null)
       }
-      setFile(null)
     } catch (e) { console.error(e); addToast('שגיאה בהמרה מוורד', 'error') } finally { setBusy(false) }
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <InfoBar text="בחר קובץ Word ‏(DOCX). הטקסט מומר לדפי PDF בפריסת A4 — תמונות ועיצוב מורכב לא נשמרים." />
+      <InfoBar text="״פתח לעריכה״ הופך כל פסקה לטקסט חי בעורך — אפשר לערוך מילים, להזיז ולעצב, ממש כמו בוורד. ״הורד PDF״ מייצר קובץ סופי בפריסה קבועה." />
       <FilePicker accept=".docx" label="בחר קובץ Word" onPick={fs => setFile(fs[0] || null)} />
       {file && <FileRow name={file.name} size={file.size} onRemove={() => setFile(null)} />}
       <div style={{ display: 'flex', gap: 10 }}>
-        <PrimaryButton onClick={() => convert('download')} disabled={busy || !file}>
-          {busy ? <><Spinner /> ממיר…</> : 'המר והורד PDF'}
+        <PrimaryButton onClick={convertToEditable} disabled={busy || !file}>
+          {busy ? <><Spinner /> ממיר…</> : 'המר ופתח לעריכה'}
         </PrimaryButton>
-        <GhostButton onClick={() => convert('edit')} disabled={busy || !file}>
-          פתח בעורך
+        <GhostButton onClick={convertToDownload} disabled={busy || !file}>
+          הורד PDF
         </GhostButton>
       </div>
     </div>

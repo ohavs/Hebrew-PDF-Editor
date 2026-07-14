@@ -102,6 +102,67 @@ export function parseDocx(bytes: Uint8Array): DocParagraph[] {
   return out
 }
 
+// ─── Paragraphs → editable text boxes ─────────────────────────────────────────
+
+export interface LaidOutBox {
+  pageIndex: number
+  x: number
+  y: number
+  width: number
+  height: number
+  text: string
+  rtl: boolean
+}
+
+/**
+ * Lay paragraphs out on A4 pages as TEXT BOXES (natural display px = PDF
+ * points) — the "open in editor" path, where every paragraph becomes a live,
+ * editable TextBox annotation instead of baked pixels.
+ */
+export function layoutParagraphsToBoxes(paras: DocParagraph[]): { pageCount: number; boxes: LaidOutBox[] } {
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')!
+  const fontSize = 12
+  const lineH = fontSize * 1.4
+  const margin = 56
+  const contentW = 595 - margin * 2
+  ctx.font = `${fontSize}px 'Heebo', Arial, sans-serif`
+
+  const boxes: LaidOutBox[] = []
+  let pageIndex = 0
+  let y = margin
+
+  for (const para of paras) {
+    if (para.text === '\f') { pageIndex++; y = margin; continue }
+    if (!para.text.trim()) { y += lineH * 0.6; continue }
+
+    // Count wrapped lines to estimate the box height (TextBox auto-grows,
+    // so a close estimate is enough)
+    const words = para.text.split(/\s+/)
+    let line = ''
+    let lines = 1
+    for (const word of words) {
+      const probe = line ? `${line} ${word}` : word
+      if (ctx.measureText(probe).width > contentW - 14 && line) { lines++; line = word }
+      else line = probe
+    }
+    const height = lines * lineH + 10
+
+    if (y + height > 842 - margin && y > margin) { pageIndex++; y = margin }
+
+    boxes.push({
+      pageIndex,
+      x: margin, y,
+      width: contentW, height,
+      text: para.text,
+      rtl: para.rtl,
+    })
+    y += height + lineH * 0.35
+  }
+
+  return { pageCount: pageIndex + 1, boxes }
+}
+
 // ─── Paragraphs → PDF (rasterized pages, Hebrew-safe) ────────────────────────
 
 const PAGE_W = 595, PAGE_H = 842 // A4 points

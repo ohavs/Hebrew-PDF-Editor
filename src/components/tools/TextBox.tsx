@@ -55,17 +55,37 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
     contentRef.current.style.direction = dir
   }, [annotation.direction, annotation.content, isEditing])
 
-  const enterEditMode = useCallback((selectAll: boolean) => {
+  const enterEditMode = useCallback((at?: { x: number; y: number }) => {
     selectAnnotation(annotation.id)
     setIsEditing(true)
     setTimeout(() => {
       const el = contentRef.current
       if (!el) return
       el.focus()
-      if (selectAll) {
+      const sel = window.getSelection()
+      // Caret lands where the user tapped — like a word processor.
+      // (Selecting everything meant one keystroke wiped the paragraph.)
+      let placed = false
+      if (at) {
+        const range = (document as any).caretRangeFromPoint?.(at.x, at.y)
+          ?? (() => {
+            const pos = (document as any).caretPositionFromPoint?.(at.x, at.y)
+            if (!pos) return null
+            const r = document.createRange()
+            r.setStart(pos.offsetNode, pos.offset)
+            return r
+          })()
+        if (range && el.contains(range.startContainer)) {
+          sel?.removeAllRanges()
+          sel?.addRange(range)
+          placed = true
+        }
+      }
+      if (!placed) {
+        // Fall back to caret at the end of the content
         const range = document.createRange()
         range.selectNodeContents(el)
-        const sel = window.getSelection()
+        range.collapse(false)
         sel?.removeAllRanges()
         sel?.addRange(range)
       }
@@ -85,6 +105,7 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
     selectAnnotation(annotation.id)
     hasMoved.current = false
     const start = { x: annotation.rect.x, y: annotation.rect.y }
+    const tapPoint = { x: e.clientX, y: e.clientY }
 
     startPointerDrag(e, {
       onMove: (dx, dy) => {
@@ -98,7 +119,7 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
         // Tap / double-tap detection
         const now = Date.now()
         if (now - lastTapRef.current < 300) {
-          enterEditMode(true)
+          enterEditMode(tapPoint)
         }
         lastTapRef.current = now
       },
@@ -107,7 +128,7 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
 
   const handleDblClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
-    enterEditMode(true)
+    enterEditMode({ x: e.clientX, y: e.clientY })
   }, [enterEditMode])
 
   // ── Pointer drag: resize ──────────────────────────────────────────────────
@@ -129,7 +150,7 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
   // Auto-focus when newly created (empty box + selected)
   useEffect(() => {
     if (annotation.content === '' && isSelected && !isEditing) {
-      enterEditMode(false)
+      enterEditMode()
     }
   }, [isSelected]) // eslint-disable-line react-hooks/exhaustive-deps
 
