@@ -10,6 +10,7 @@ import { PDFViewer } from './components/viewer/PDFViewer'
 import { ToastContainer } from './components/ui/Toast'
 import { SearchBar } from './components/ui/SearchBar'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
+import { PromptDialog } from './components/ui/PromptDialog'
 import { SettingsModal } from './components/ui/SettingsModal'
 import { PDFToolsMobileSheet } from './components/tools/PDFToolsMobileSheet'
 import { MobileHeader } from './components/mobile/MobileHeader'
@@ -126,6 +127,9 @@ export default function App() {
 
       {/* Global confirm dialog */}
       <ConfirmDialog />
+
+      {/* File-name prompt dialog */}
+      <PromptDialog />
 
       {/* Mobile PDF tools bottom sheet */}
       <PDFToolsMobileSheet />

@@ -39,6 +39,13 @@ interface UIState {
     danger: boolean
     resolve: ((v: boolean) => void) | null
   }
+  promptDialog: {
+    open: boolean
+    title: string
+    value: string
+    suffix: string
+    resolve: ((v: string | null) => void) | null
+  }
 
   // Tool properties
   drawColor: string
@@ -93,6 +100,9 @@ interface UIState {
   setMergeItems: (items: UIState['mergeItems']) => void
   confirm: (opts: { title: string; message?: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean }) => Promise<boolean>
   resolveConfirm: (v: boolean) => void
+  /** Ask the user for a text value (e.g. a file name). Resolves null on cancel. */
+  promptText: (opts: { title: string; value: string; suffix?: string }) => Promise<string | null>
+  resolvePrompt: (v: string | null) => void
   setDrawColor: (c: string) => void
   setDrawWidth: (w: number) => void
   setDrawOpacity: (o: number) => void
@@ -138,6 +148,7 @@ export const useUIStore = create<UIState>()((set) => ({
     open: false, title: '', message: '', confirmLabel: 'אישור', cancelLabel: 'ביטול',
     danger: false, resolve: null,
   },
+  promptDialog: { open: false, title: '', value: '', suffix: '', resolve: null },
 
   drawColor: '#ef4444',
   drawWidth: 3,
@@ -221,6 +232,13 @@ export const useUIStore = create<UIState>()((set) => ({
   resolveConfirm: (v) => set((s) => {
     s.confirmDialog.resolve?.(v)
     return { confirmDialog: { ...s.confirmDialog, open: false, resolve: null } }
+  }),
+  promptText: (opts) => new Promise<string | null>((resolve) => {
+    set({ promptDialog: { open: true, title: opts.title, value: opts.value, suffix: opts.suffix || '', resolve } })
+  }),
+  resolvePrompt: (v) => set((s) => {
+    s.promptDialog.resolve?.(v)
+    return { promptDialog: { ...s.promptDialog, open: false, resolve: null } }
   }),
   setDrawColor: (c) => set({ drawColor: c }),
   setDrawWidth: (w) => set({ drawWidth: w }),

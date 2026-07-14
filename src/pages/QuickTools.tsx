@@ -6,6 +6,7 @@ import { PDFToolsContent } from '../components/tools/PDFToolsModal'
 import type { CategoryId } from '../components/tools/PDFToolsModal'
 import { ToastContainer } from '../components/ui/Toast'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { PromptDialog } from '../components/ui/PromptDialog'
 
 const EASE = 'cubic-bezier(0.23,1,0.32,1)'
 
@@ -228,6 +229,7 @@ export const QuickTools: React.FC = () => {
 
       <ToastContainer />
       <ConfirmDialog />
+      <PromptDialog />
     </div>
   )
 }

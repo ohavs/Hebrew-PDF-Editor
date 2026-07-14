@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePDFStore, useAnnotationsStore, useUIStore } from '../../store'
 import { embedAnnotationsIntoPdf, downloadBlob } from '../../utils/pdfExport'
+import { askFileName } from '../ui/PromptDialog'
 
 export const TopToolbar: React.FC = () => {
   const { pdfDoc, pdfBytes, fileName, zoom, setZoom, currentPage, pageCount, setCurrentPage,
@@ -16,11 +17,13 @@ export const TopToolbar: React.FC = () => {
   const handleExport = async () => {
     if (!pdfBytes) return
     setShowExportMenu(false)
+    const outName = await askFileName(fileName.replace(/\.pdf$/i, '') + '-ערוך.pdf', '.pdf')
+    if (!outName) return
     setIsSaving(true)
     try {
       const { watermark, pageNumbers } = usePDFStore.getState()
       const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder, { watermark, pageNumbers })
-      downloadBlob(result, fileName.replace('.pdf', '') + '-edited.pdf')
+      downloadBlob(result, outName)
       addToast('נשמר', 'success')
     } catch (e) { console.error(e); addToast('שגיאה בייצוא', 'error') }
     finally { setIsSaving(false) }

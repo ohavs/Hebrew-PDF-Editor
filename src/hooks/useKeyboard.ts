@@ -1,14 +1,17 @@
 import { useEffect } from 'react'
 import { useAnnotationsStore, usePDFStore, useUIStore } from '../store'
 import { embedAnnotationsIntoPdf, downloadBlob } from '../utils/pdfExport'
+import { askFileName } from '../components/ui/PromptDialog'
 
 async function saveDocument() {
   const { pdfBytes, fileName, pageInfos, pageOrder, watermark, pageNumbers } = usePDFStore.getState()
   if (!pdfBytes) return
   const { annotations, formFields } = useAnnotationsStore.getState()
+  const outName = await askFileName(fileName.replace(/\.pdf$/i, '') + '-ערוך.pdf', '.pdf')
+  if (!outName) return
   try {
     const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder, { watermark, pageNumbers })
-    downloadBlob(result, fileName.replace('.pdf', '') + '-edited.pdf')
+    downloadBlob(result, outName)
     useUIStore.getState().addToast('הקובץ נשמר', 'success')
   } catch (e) {
     console.error(e)

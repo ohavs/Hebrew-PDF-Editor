@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { usePDFStore, useAnnotationsStore, useUIStore } from '../../store'
 import { embedAnnotationsIntoPdf, shareOrDownload } from '../../utils/pdfExport'
 import { usePWAInstall } from '../../hooks/usePWAInstall'
+import { askFileName } from '../ui/PromptDialog'
 
 const EASE = 'cubic-bezier(0.23,1,0.32,1)'
 
@@ -27,13 +28,15 @@ export const MobileHeader: React.FC = () => {
 
   const save = async () => {
     if (!pdfBytes) return
+    const outName = await askFileName(fileName.replace(/\.pdf$/i, '') + '-ערוך.pdf', '.pdf')
+    if (!outName) return
     setSaving(true)
     try {
       const annotations = useAnnotationsStore.getState().annotations
       const formFields = useAnnotationsStore.getState().formFields
       const { watermark, pageNumbers } = usePDFStore.getState()
       const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder, { watermark, pageNumbers })
-      const outcome = await shareOrDownload(result, fileName.replace('.pdf', '') + '-edited.pdf')
+      const outcome = await shareOrDownload(result, outName)
       addToast(outcome === 'shared' ? 'הקובץ מוכן לשיתוף' : 'הורד בהצלחה', 'success')
     } catch (e) {
       console.error(e)

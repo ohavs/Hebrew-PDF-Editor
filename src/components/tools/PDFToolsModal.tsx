@@ -6,6 +6,7 @@ import { usePDF } from '../../hooks/usePDF'
 import { downloadBlob, triggerDownload } from '../../utils/pdfExport'
 import { useEditedBytes, usePageOps } from '../../hooks/usePageOps'
 import { PageListPanel } from '../panels/PageListPanel'
+import { askFileName } from '../ui/PromptDialog'
 
 const EASE = 'cubic-bezier(0.23,1,0.32,1)'
 
@@ -299,10 +300,15 @@ const MergePanel: React.FC = () => {
   }
 
   const mergeAndDownload = async () => {
+    const suggested = items[0]?.kind === 'current'
+      ? fileName.replace(/\.pdf$/i, '') + '-ממוזג.pdf'
+      : (items[0]?.kind === 'file' ? items[0].file.name.replace(/\.pdf$/i, '') + '-ממוזג.pdf' : 'merged.pdf')
+    const outName = await askFileName(suggested, '.pdf')
+    if (!outName) return
     setBusy(true)
     try {
-      const { bytes, name } = await buildMerged()
-      downloadBlob(bytes, name)
+      const { bytes } = await buildMerged()
+      downloadBlob(bytes, outName)
       addToast('הקובץ הממוזג ירד בהצלחה', 'success')
     } catch (e) { console.error(e); addToast('שגיאה במיזוג', 'error') } finally { setBusy(false) }
   }
@@ -502,13 +508,15 @@ const ExtractPanel: React.FC = () => {
   const extract = async () => {
     const pages = parseRanges(range, pageCount)
     if (!pages.length) { addToast('הזן טווח דפים תקין', 'warning'); return }
+    const extractName = await askFileName(`${fileName.replace(/\.pdf$/i, '')}-חילוץ.pdf`, '.pdf')
+    if (!extractName) return
     setBusy(true)
     try {
       const src = await PDFDocument.load(await getEdited({ withDecorations: true }))
       const dest = await PDFDocument.create()
       const copied = await dest.copyPages(src, pages.map(p => p - 1))
       copied.forEach(p => dest.addPage(p))
-      downloadBlob(await dest.save(), `${fileName.replace(/\.pdf$/i, '')}-חילוץ.pdf`)
+      downloadBlob(await dest.save(), extractName)
       addToast(`${pages.length} דפים חולצו`, 'success')
     } catch { addToast('שגיאה בחילוץ', 'error') } finally { setBusy(false) }
   }
@@ -545,6 +553,8 @@ const CompressPanel: React.FC = () => {
   if (!pdfDoc) return <EmptyHint />
 
   const compress = async () => {
+    const outName = await askFileName(`${fileName.replace(/\.pdf$/i, '')}-דחוס.pdf`, '.pdf')
+    if (!outName) return
     setBusy(true)
     try {
       // Render the EDITED document so annotations/signatures are included
@@ -561,7 +571,7 @@ const CompressPanel: React.FC = () => {
       }
       edited.destroy()
       const saved = await out.save()
-      downloadBlob(saved, `${fileName.replace(/\.pdf$/i, '')}-דחוס.pdf`)
+      downloadBlob(saved, outName)
       addToast(`הקובץ נדחס (${(saved.length / 1024 / 1024).toFixed(1)}MB)`, 'success')
     } catch (e) { console.error(e); addToast('שגיאה בקימפרוס', 'error') } finally { setBusy(false) }
   }
@@ -943,6 +953,8 @@ const ToWordPanel: React.FC = () => {
   if (!pdfDoc) return <EmptyHint />
 
   const convert = async () => {
+    const outName = await askFileName(`${fileName.replace(/\.pdf$/i, '')}.docx`, '.docx')
+    if (!outName) return
     setBusy(true)
     try {
       const { extractParagraphs, buildDocx } = await import('../../utils/wordConvert')
@@ -958,7 +970,7 @@ const ToWordPanel: React.FC = () => {
       const docx = buildDocx(pages)
       triggerDownload(
         new Blob([docx.buffer as ArrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
-        `${fileName.replace(/\.pdf$/i, '')}.docx`
+        outName
       )
       addToast('קובץ Word ירד בהצלחה', 'success')
     } catch (e) { console.error(e); addToast('שגיאה בהמרה לוורד', 'error') } finally { setBusy(false) }
@@ -1002,13 +1014,16 @@ const FromWordPanel: React.FC = () => {
         page.drawImage(img, { x: 0, y: 0, width: 595, height: 842 })
       }
       const saved = await doc.save()
-      const outName = file.name.replace(/\.docx?$/i, '') + '.pdf'
+      const defaultName = file.name.replace(/\.docx?$/i, '') + '.pdf'
       if (mode === 'edit') {
-        await loadPDF(saved.buffer as ArrayBuffer, { name: outName })
+        await loadPDF(saved.buffer as ArrayBuffer, { name: defaultName })
         addToast('הקובץ הומר ונפתח בעורך', 'success')
       } else {
-        downloadBlob(saved, outName)
-        addToast('קובץ PDF ירד בהצלחה', 'success')
+        const outName = await askFileName(defaultName, '.pdf')
+        if (outName) {
+          downloadBlob(saved, outName)
+          addToast('קובץ PDF ירד בהצלחה', 'success')
+        }
       }
       setFile(null)
     } catch (e) { console.error(e); addToast('שגיאה בהמרה מוורד', 'error') } finally { setBusy(false) }
