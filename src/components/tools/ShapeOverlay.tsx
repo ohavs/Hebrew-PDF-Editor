@@ -6,7 +6,7 @@ import { startPointerDrag } from '../../utils/pointerDrag'
 interface Props { annotation: ShapeAnnotation; zoom: number }
 
 export const ShapeOverlay: React.FC<Props> = ({ annotation, zoom }) => {
-  const { updateAnnotation, deleteAnnotation, selectAnnotation, selectedId } = useAnnotationsStore()
+  const { updateAnnotation, deleteAnnotation, selectAnnotation, selectedId, pushHistory } = useAnnotationsStore()
   const { activeTool } = useUIStore()
   const isSelected = selectedId === annotation.id
 
@@ -16,8 +16,10 @@ export const ShapeOverlay: React.FC<Props> = ({ annotation, zoom }) => {
     e.preventDefault(); e.stopPropagation()
     selectAnnotation(annotation.id)
     const start = { x: annotation.rect.x, y: annotation.rect.y }
+    let pushed = false
     startPointerDrag(e, {
       onMove: (dx, dy) => {
+        if (!pushed) { pushed = true; pushHistory() }
         updateAnnotation(annotation.id, { rect: { ...annotation.rect,
           x: start.x + dx / zoom,
           y: start.y + dy / zoom,

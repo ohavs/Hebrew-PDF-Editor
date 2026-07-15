@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
-import { usePDFStore, useUIStore } from '../../store'
+import { usePDFStore, useUIStore, useAnnotationsStore } from '../../store'
 import { PDFPage } from './PDFPage'
 import { useDropzone } from 'react-dropzone'
 import { usePDF } from '../../hooks/usePDF'
@@ -269,6 +269,14 @@ export const PDFViewer: React.FC = () => {
         position: 'relative',
         // Browser handles panning; two-finger pinch reaches our JS handler
         touchAction: 'pan-x pan-y',
+      }}
+      // Click on empty space (canvas / background) deselects. In select mode
+      // the annotation layer is pointer-transparent, so this is the only
+      // element that hears the click; overlays stop propagation themselves.
+      onClick={() => {
+        if (useUIStore.getState().activeTool === 'select') {
+          useAnnotationsStore.getState().selectAnnotation(null)
+        }
       }}
     >
       {!pdfDoc && <input {...getInputProps()} />}

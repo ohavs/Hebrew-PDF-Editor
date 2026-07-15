@@ -8,7 +8,7 @@ interface Props { annotation: SignatureAnnotation; zoom: number }
 const IS_COARSE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
 
 export const SignatureOverlay: React.FC<Props> = ({ annotation, zoom }) => {
-  const { updateAnnotation, deleteAnnotation, selectAnnotation, selectedId } = useAnnotationsStore()
+  const { updateAnnotation, deleteAnnotation, selectAnnotation, selectedId, pushHistory } = useAnnotationsStore()
   const { activeTool } = useUIStore()
   const isSelected = selectedId === annotation.id
 
@@ -24,8 +24,10 @@ export const SignatureOverlay: React.FC<Props> = ({ annotation, zoom }) => {
     e.preventDefault(); e.stopPropagation()
     selectAnnotation(annotation.id)
     const start = { x: annotation.rect.x, y: annotation.rect.y }
+    let pushed = false
     startPointerDrag(e, {
       onMove: (dx, dy) => {
+        if (!pushed) { pushed = true; pushHistory() }
         updateAnnotation(annotation.id, { rect: { ...annotation.rect,
           x: start.x + dx / zoom,
           y: start.y + dy / zoom,
@@ -38,8 +40,10 @@ export const SignatureOverlay: React.FC<Props> = ({ annotation, zoom }) => {
     e.stopPropagation(); e.preventDefault()
     const start = { w: annotation.rect.width }
     const ratio = annotation.rect.height / annotation.rect.width
+    let pushed = false
     startPointerDrag(e, {
       onMove: (dx) => {
+        if (!pushed) { pushed = true; pushHistory() }
         const newW = Math.max(40, start.w + dx / zoom)
         updateAnnotation(annotation.id, { rect: { ...annotation.rect, width: newW, height: newW * ratio } })
       },
@@ -59,6 +63,7 @@ export const SignatureOverlay: React.FC<Props> = ({ annotation, zoom }) => {
         touchAction: canInteract ? 'none' : 'auto',
       }}
       onPointerDown={handlePointerDown}
+      onClick={e => e.stopPropagation()}
     >
       <img
         src={annotation.imageData}

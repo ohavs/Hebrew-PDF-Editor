@@ -9,7 +9,7 @@ interface Props { annotation: TextBoxAnnotation; zoom: number }
 const IS_COARSE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
 
 export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
-  const { updateAnnotation, deleteAnnotation, selectAnnotation, selectedId } = useAnnotationsStore()
+  const { updateAnnotation, deleteAnnotation, selectAnnotation, selectedId, pushHistory } = useAnnotationsStore()
   const { activeTool } = useUIStore()
   const isSelected = selectedId === annotation.id
   const contentRef = useRef<HTMLDivElement>(null)
@@ -56,6 +56,8 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
   }, [annotation.direction, annotation.content, isEditing])
 
   const enterEditMode = useCallback((at?: { x: number; y: number }) => {
+    // One undo step per edit session (new empty boxes already pushed on create)
+    if (annotation.content) pushHistory()
     selectAnnotation(annotation.id)
     setIsEditing(true)
     setTimeout(() => {
@@ -92,7 +94,7 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
       // Keep the caret visible above the virtual keyboard
       if (IS_COARSE) setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
     }, 20)
-  }, [annotation.id, selectAnnotation])
+  }, [annotation.id, annotation.content, selectAnnotation, pushHistory])
 
   // ── Pointer drag: move ────────────────────────────────────────────────────
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
@@ -109,6 +111,7 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
 
     startPointerDrag(e, {
       onMove: (dx, dy) => {
+        if (!hasMoved.current) pushHistory()
         hasMoved.current = true
         updateAnnotation(annotation.id, {
           rect: { ...annotation.rect, x: start.x + dx / zoom, y: start.y + dy / zoom }
@@ -124,7 +127,7 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
         lastTapRef.current = now
       },
     })
-  }, [annotation.id, annotation.rect, isInteractive, isEditing, zoom, selectAnnotation, updateAnnotation, enterEditMode])
+  }, [annotation.id, annotation.rect, isInteractive, isEditing, zoom, selectAnnotation, updateAnnotation, enterEditMode, pushHistory])
 
   const handleDblClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
@@ -135,8 +138,10 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
   const handleResizeDown = useCallback((e: React.PointerEvent) => {
     e.stopPropagation(); e.preventDefault()
     const start = { w: annotation.rect.width, h: annotation.rect.height }
+    let pushed = false
     startPointerDrag(e, {
       onMove: (dx, dy) => {
+        if (!pushed) { pushed = true; pushHistory() }
         updateAnnotation(annotation.id, {
           rect: { ...annotation.rect,
             width: Math.max(80, start.w + dx / zoom),
@@ -145,7 +150,7 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
         })
       },
     })
-  }, [annotation.id, annotation.rect, zoom, updateAnnotation])
+  }, [annotation.id, annotation.rect, zoom, updateAnnotation, pushHistory])
 
   // Auto-focus when newly created (empty box + selected)
   useEffect(() => {
@@ -196,6 +201,7 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
       onMouseLeave={() => setIsHovered(false)}
       onPointerDown={handlePointerDown}
       onDoubleClick={handleDblClick}
+      onClick={e => e.stopPropagation()}
     >
       <div
         ref={contentRef}

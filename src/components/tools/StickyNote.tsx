@@ -7,7 +7,7 @@ import { startPointerDrag } from '../../utils/pointerDrag'
 interface Props { annotation: StickyAnnotation; zoom: number }
 
 export const StickyNote: React.FC<Props> = ({ annotation, zoom }) => {
-  const { updateAnnotation, deleteAnnotation } = useAnnotationsStore()
+  const { updateAnnotation, deleteAnnotation, pushHistory } = useAnnotationsStore()
 
   const handlePointerDown = (e: React.PointerEvent) => {
     const tag = (e.target as HTMLElement).tagName
@@ -15,8 +15,10 @@ export const StickyNote: React.FC<Props> = ({ annotation, zoom }) => {
     e.preventDefault()
     e.stopPropagation()
     const start = { x: annotation.position.x, y: annotation.position.y }
+    let pushed = false
     startPointerDrag(e, {
       onMove: (dx, dy) => {
+        if (!pushed) { pushed = true; pushHistory() }
         updateAnnotation(annotation.id, { position: {
           x: start.x + dx / zoom,
           y: start.y + dy / zoom,
@@ -43,6 +45,7 @@ export const StickyNote: React.FC<Props> = ({ annotation, zoom }) => {
         touchAction: 'none',
       }}
       onPointerDown={handlePointerDown}
+      onClick={e => e.stopPropagation()}
     >
       {/* Pin icon */}
       <div
@@ -81,6 +84,7 @@ export const StickyNote: React.FC<Props> = ({ annotation, zoom }) => {
           </div>
           <textarea
             value={annotation.content}
+            onFocus={() => { if (annotation.content) pushHistory() }}
             onChange={e => updateAnnotation(annotation.id, { content: e.target.value })}
             placeholder="הוסף הערה..."
             style={{
