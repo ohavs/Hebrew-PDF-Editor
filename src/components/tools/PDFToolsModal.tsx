@@ -8,6 +8,7 @@ import { downloadBlob, triggerDownload } from '../../utils/pdfExport'
 import { useEditedBytes, usePageOps } from '../../hooks/usePageOps'
 import { PageListPanel } from '../panels/PageListPanel'
 import { askFileName } from '../ui/PromptDialog'
+import { extractParagraphs, buildDocx, parseDocx, renderParagraphsToPages, layoutParagraphsToBoxes } from '../../utils/wordConvert'
 
 const EASE = 'cubic-bezier(0.23,1,0.32,1)'
 
@@ -959,7 +960,6 @@ const ToWordPanel: React.FC = () => {
     if (!outName) return
     setBusy(true)
     try {
-      const { extractParagraphs, buildDocx } = await import('../../utils/wordConvert')
       // Extract from the edited doc so page order matches what the user sees
       const edited = await loadEditedForRender(getEdited)
       const pages = await extractParagraphs(edited)
@@ -1007,7 +1007,6 @@ const FromWordPanel: React.FC = () => {
     if (!file) return
     setBusy(true)
     try {
-      const { parseDocx, layoutParagraphsToBoxes } = await import('../../utils/wordConvert')
       const paras = parseDocx(new Uint8Array(await file.arrayBuffer()))
       if (!paras.some(p => p.text.trim() && p.text !== '\f')) {
         addToast('לא נמצא טקסט בקובץ', 'warning')
@@ -1044,7 +1043,15 @@ const FromWordPanel: React.FC = () => {
       setFile(null)
       addToast('המסמך נפתח לעריכה — הקש על כל פסקה כדי לערוך אותה', 'success')
       window.location.hash = '#/editor'
-    } catch (e) { console.error(e); addToast('שגיאה בהמרה מוורד', 'error') } finally { setBusy(false) }
+    } catch (e: any) {
+      console.error(e)
+      const msg = e?.message === 'LEGACY_DOC'
+        ? 'זהו קובץ .doc ישן — שמור אותו כ-DOCX בוורד ונסה שוב'
+        : e?.message === 'NOT_DOCX'
+        ? 'הקובץ אינו DOCX תקין'
+        : 'שגיאה בהמרה מוורד — נסה לרענן את הדף'
+      addToast(msg, 'error')
+    } finally { setBusy(false) }
   }
 
   /** Download: rasterized pages (fixed layout, not editable). */
@@ -1052,7 +1059,6 @@ const FromWordPanel: React.FC = () => {
     if (!file) return
     setBusy(true)
     try {
-      const { parseDocx, renderParagraphsToPages } = await import('../../utils/wordConvert')
       const paras = parseDocx(new Uint8Array(await file.arrayBuffer()))
       if (!paras.some(p => p.text.trim() && p.text !== '\f')) {
         addToast('לא נמצא טקסט בקובץ', 'warning')
@@ -1074,7 +1080,15 @@ const FromWordPanel: React.FC = () => {
         addToast('קובץ PDF ירד בהצלחה', 'success')
         setFile(null)
       }
-    } catch (e) { console.error(e); addToast('שגיאה בהמרה מוורד', 'error') } finally { setBusy(false) }
+    } catch (e: any) {
+      console.error(e)
+      const msg = e?.message === 'LEGACY_DOC'
+        ? 'זהו קובץ .doc ישן — שמור אותו כ-DOCX בוורד ונסה שוב'
+        : e?.message === 'NOT_DOCX'
+        ? 'הקובץ אינו DOCX תקין'
+        : 'שגיאה בהמרה מוורד — נסה לרענן את הדף'
+      addToast(msg, 'error')
+    } finally { setBusy(false) }
   }
 
   return (

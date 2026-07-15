@@ -79,9 +79,22 @@ export function buildDocx(pages: DocParagraph[][]): Uint8Array {
 
 /** Parse a .docx file into a flat list of paragraphs (page breaks → markers). */
 export function parseDocx(bytes: Uint8Array): DocParagraph[] {
-  const files = unzipSync(bytes)
-  const doc = files['word/document.xml']
-  if (!doc) throw new Error('not a docx')
+  // Old binary .doc files start with the OLE2 signature — not a zip at all
+  if (bytes[0] === 0xd0 && bytes[1] === 0xcf) {
+    throw new Error('LEGACY_DOC')
+  }
+  let files: Record<string, Uint8Array>
+  try {
+    files = unzipSync(bytes)
+  } catch {
+    throw new Error('NOT_DOCX')
+  }
+  // Some producers name the main part differently (document2.xml etc.)
+  const mainPart = files['word/document.xml']
+    ? 'word/document.xml'
+    : Object.keys(files).find(k => /^word\/document\d*\.xml$/.test(k))
+  const doc = mainPart ? files[mainPart] : undefined
+  if (!doc) throw new Error('NOT_DOCX')
   const xml = new DOMParser().parseFromString(strFromU8(doc), 'application/xml')
   const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
   const out: DocParagraph[] = []

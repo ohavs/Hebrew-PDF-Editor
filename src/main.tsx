@@ -24,6 +24,21 @@ for (const proto of [Map.prototype, WeakMap.prototype] as any[]) {
   }
 }
 
+// A new deploy while the app is open purges the old service-worker cache;
+// lazy chunks from the previous version then 404 mid-session. Recover by
+// reloading once onto the fresh version instead of surfacing an error.
+window.addEventListener('vite:preloadError', (e) => {
+  e.preventDefault()
+  if (!sessionStorage.getItem('chunkReloaded')) {
+    sessionStorage.setItem('chunkReloaded', '1')
+    window.location.reload()
+  }
+})
+window.addEventListener('load', () => {
+  // Successful load → arm the guard again for future deploys
+  setTimeout(() => sessionStorage.removeItem('chunkReloaded'), 10000)
+})
+
 // Apply the saved theme before first paint — on every route, with no flash
 if (localStorage.getItem('darkMode') === 'true') {
   document.documentElement.classList.add('dark')
