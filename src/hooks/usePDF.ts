@@ -180,10 +180,10 @@ export function usePDF() {
       const scale = thumbWidth / viewport.width
       const scaledViewport = page.getViewport({ scale, rotation: totalRotation })
 
+      // Bitmap size only — CSS sizing belongs to the caller's layout.
+      // (Forcing pixel width/height here clipped thumbnails inside sized boxes.)
       canvas.width = scaledViewport.width
       canvas.height = scaledViewport.height
-      canvas.style.width = `${scaledViewport.width}px`
-      canvas.style.height = `${scaledViewport.height}px`
 
       const ctx = canvas.getContext('2d')!
       await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise

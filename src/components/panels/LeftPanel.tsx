@@ -28,7 +28,7 @@ export const LeftPanel: React.FC = () => {
     <div
       className="no-print desktop-only"
       style={{
-        width: toolboxOpen ? 300 : 200,
+        width: toolboxOpen ? 380 : 200,
         background: 'var(--color-surface)',
         borderInlineEnd: '1px solid var(--color-border)',
         display: 'flex',
