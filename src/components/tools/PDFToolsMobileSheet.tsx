@@ -1,5 +1,6 @@
 import React from 'react'
 import { useUIStore } from '../../store'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { PDFToolsContent } from './PDFToolsModal'
 import type { CategoryId } from './PDFToolsModal'
 
@@ -7,8 +8,11 @@ const EASE = 'cubic-bezier(0.32,0.72,0,1)'
 
 export const PDFToolsMobileSheet: React.FC = () => {
   const { toolboxOpen, setToolboxOpen, toolboxCategory } = useUIStore()
+  const isMobile = useIsMobile()
 
-  if (!toolboxOpen) return null
+  // Only mount on mobile — the desktop LeftPanel renders its own copy, and a
+  // CSS-hidden second instance would still render every page thumbnail.
+  if (!toolboxOpen || !isMobile) return null
 
   return (
     <>

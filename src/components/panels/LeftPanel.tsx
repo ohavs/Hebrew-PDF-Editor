@@ -1,5 +1,6 @@
 import React from 'react'
 import { useUIStore } from '../../store'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { ThumbnailPanel } from './ThumbnailPanel'
 import { AnnotationsPanel } from './AnnotationsPanel'
 import { PDFToolsContent } from '../tools/PDFToolsModal'
@@ -14,6 +15,11 @@ const TABS: Array<{ id: SidePanel; label: string }> = [
 
 export const LeftPanel: React.FC = () => {
   const { sidePanel, setSidePanel, toolboxOpen, setToolboxOpen } = useUIStore()
+  const isMobile = useIsMobile()
+
+  // The whole panel is CSS-hidden on mobile; skip mounting it entirely so its
+  // thumbnails and tool panels don't render off-screen.
+  if (isMobile) return null
 
   const activeIdx = TABS.findIndex(tab => tab.id === sidePanel)
   const indicatorLeft = activeIdx >= 0 ? `${(activeIdx / TABS.length) * 100}%` : '0%'
@@ -34,7 +40,7 @@ export const LeftPanel: React.FC = () => {
     >
       {toolboxOpen ? (
         /* PDF Tools mode */
-        <PDFToolsContent onClose={() => setToolboxOpen(false)} />
+        <PDFToolsContent onClose={() => setToolboxOpen(false)} initialCategory={useUIStore.getState().toolboxCategory as any} />
       ) : (
         /* Normal mode: tabs */
         <>

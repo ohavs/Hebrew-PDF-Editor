@@ -5,7 +5,7 @@ import { usePDFStore, useUIStore, useAnnotationsStore } from '../../store'
 import type { TextBoxAnnotation } from '../../store/types'
 import { usePDF } from '../../hooks/usePDF'
 import { downloadBlob, triggerDownload } from '../../utils/pdfExport'
-import { useEditedBytes, usePageOps } from '../../hooks/usePageOps'
+import { useEditedBytes, usePageOps, useDownloadDocument } from '../../hooks/usePageOps'
 import { PageListPanel } from '../panels/PageListPanel'
 import { askFileName } from '../ui/PromptDialog'
 import { extractParagraphs, buildDocx, parseDocx, renderParagraphsToPages, layoutParagraphsToBoxes } from '../../utils/wordConvert'
@@ -96,6 +96,69 @@ export const PDFToolsContent: React.FC<{ onClose: () => void; initialCategory?: 
       <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
         <ToolPanel category={active} />
       </div>
+
+      {/* Always-available download — finishing a tool never requires
+          a detour through the editor */}
+      <DownloadFooter />
+    </div>
+  )
+}
+
+/** Sticky "download the document" bar, visible in every tool. */
+const DownloadFooter: React.FC = () => {
+  const { pdfDoc, fileName, pageCount } = usePDFStore()
+  const { download } = useDownloadDocument()
+  const [busy, setBusy] = useState(false)
+
+  if (!pdfDoc) return null
+
+  const run = async () => {
+    setBusy(true)
+    try { await download() } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{
+      flexShrink: 0,
+      borderTop: '1px solid var(--color-border)',
+      background: 'var(--color-surface)',
+      padding: '10px 12px',
+      display: 'flex', alignItems: 'center', gap: 10,
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 12, fontWeight: 600, color: 'var(--color-text)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {fileName}
+        </div>
+        <div style={{ fontSize: 10.5, color: 'var(--color-text-muted)' }}>
+          {pageCount} עמודים · כולל כל העריכות והשכבות
+        </div>
+      </div>
+      <button
+        onClick={run}
+        disabled={busy}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
+          padding: '10px 16px', borderRadius: 12, border: 'none',
+          background: 'var(--color-accent)', color: 'var(--color-on-accent)',
+          fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
+          cursor: busy ? 'wait' : 'pointer',
+          opacity: busy ? 0.6 : 1,
+          WebkitTapHighlightColor: 'transparent',
+          transition: `transform 140ms ${EASE}`,
+        }}
+        onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)' }}
+        onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
+      >
+        {busy ? <Spinner /> : (
+          <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+        )}
+        הורד PDF
+      </button>
     </div>
   )
 }

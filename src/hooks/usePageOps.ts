@@ -1,7 +1,8 @@
 import { PDFDocument, degrees } from 'pdf-lib'
 import { usePDFStore, useAnnotationsStore, useUIStore } from '../store'
 import { usePDF } from './usePDF'
-import { embedAnnotationsIntoPdf } from '../utils/pdfExport'
+import { embedAnnotationsIntoPdf, shareOrDownload } from '../utils/pdfExport'
+import { askFileName } from '../components/ui/PromptDialog'
 
 /**
  * Bake annotations + display order + rotation into fresh bytes.
@@ -24,6 +25,38 @@ export function useEditedBytes() {
     }
     return embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder, decorations)
   }
+}
+
+/**
+ * Download the finished document from anywhere — every tool panel gets this,
+ * so finishing a task never requires a detour through the editor.
+ * Bakes annotations, page order, rotations and live decorations, asks for a
+ * file name, then shares (mobile) or downloads.
+ */
+export function useDownloadDocument() {
+  const { fileName, pdfDoc } = usePDFStore()
+  const { addToast } = useUIStore()
+  const getEdited = useEditedBytes()
+
+  const download = async (opts?: { suffix?: string }): Promise<boolean> => {
+    if (!pdfDoc) return false
+    const base = fileName.replace(/\.pdf$/i, '')
+    const suggested = `${base}${opts?.suffix ?? '-ערוך'}.pdf`
+    const outName = await askFileName(suggested, '.pdf')
+    if (!outName) return false
+    try {
+      const bytes = await getEdited({ withDecorations: true })
+      const outcome = await shareOrDownload(bytes, outName)
+      addToast(outcome === 'shared' ? 'הקובץ מוכן לשיתוף' : 'הקובץ ירד בהצלחה', 'success')
+      return true
+    } catch (e) {
+      console.error(e)
+      addToast('שגיאה בהורדה', 'error')
+      return false
+    }
+  }
+
+  return { download, canDownload: !!pdfDoc }
 }
 
 /**
