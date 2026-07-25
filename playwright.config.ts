@@ -42,9 +42,14 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run preview -- --port 4173 --strictPort',
-    url: 'http://127.0.0.1:4173',
+    // Bind IPv4 explicitly: on runners where `localhost` resolves to ::1
+    // first, the default binding is IPv6-only and the 127.0.0.1 health check
+    // never succeeds — the server "starts" but Playwright times out.
+    command: 'npx vite preview --port 4173 --strictPort --host 127.0.0.1',
+    url: 'http://127.0.0.1:4173/',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    stdout: 'pipe',
+    stderr: 'pipe',
   },
 })
