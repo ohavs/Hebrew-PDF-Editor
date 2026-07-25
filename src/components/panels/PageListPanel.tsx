@@ -140,15 +140,15 @@ export const PageListPanel: React.FC<{ onNavigate?: () => void }> = ({ onNavigat
                 touchAction: 'manipulation',
               }}
             >
-              {/* Thumbnail — tap navigates to the page */}
+              {/* Thumbnail — tap opens the full-screen preview */}
               <button
-                onClick={() => { setCurrentPage(naturalIdx); onNavigate?.() }}
-                aria-label={`עבור לעמוד ${i + 1}`}
+                onClick={() => setPreviewIdx(naturalIdx)}
+                aria-label={`הצג עמוד ${i + 1} במסך מלא`}
                 style={{
                   display: 'block', width: '100%', padding: 0, border: 'none',
                   background: 'white', borderRadius: 9, overflow: 'hidden',
                   aspectRatio: `1 / ${ratio}`,
-                  cursor: 'pointer', minHeight: 0,
+                  cursor: 'zoom-in', minHeight: 0,
                   boxShadow: '0 1px 4px rgba(0,0,0,0.14)',
                 }}
               >
@@ -176,25 +176,6 @@ export const PageListPanel: React.FC<{ onNavigate?: () => void }> = ({ onNavigat
                   <circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/>
                 </svg>
               </div>
-
-              {/* Preview (magnify) */}
-              <button
-                onClick={e => { e.stopPropagation(); setPreviewIdx(naturalIdx) }}
-                aria-label={`תצוגה מקדימה של עמוד ${i + 1}`}
-                title="תצוגה מקדימה"
-                style={{
-                  position: 'absolute', top: 10, insetInlineEnd: 10,
-                  width: 30, height: 30, borderRadius: 8, border: 'none',
-                  background: 'rgba(20,20,20,0.62)', color: 'white',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'zoom-in', minHeight: 0, padding: 0,
-                  backdropFilter: 'blur(3px)',
-                }}
-              >
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                  <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
-                </svg>
-              </button>
 
               {/* Page number + state badges */}
               <div style={{
@@ -252,8 +233,19 @@ export const PageListPanel: React.FC<{ onNavigate?: () => void }> = ({ onNavigat
         <PagePreviewModal
           pdfDoc={pdfDoc}
           pageIndex={previewIdx}
-          displayNum={Math.max(0, pageOrder.indexOf(previewIdx)) + 1}
+          pageOrder={pageOrder}
           rotation={pageInfos[previewIdx]?.rotation || 0}
+          onStep={delta => {
+            const pos = pageOrder.indexOf(previewIdx)
+            const next = pageOrder[pos + delta]
+            if (next !== undefined) setPreviewIdx(next)
+          }}
+          onRotate={() => rotatePage(previewIdx, 90)}
+          onGoToPage={onNavigate ? () => {
+            setCurrentPage(previewIdx)
+            setPreviewIdx(null)
+            onNavigate()
+          } : undefined}
           onClose={() => setPreviewIdx(null)}
         />
       )}
@@ -315,61 +307,174 @@ const PageThumbLazy: React.FC<{ pdfDoc: any; pageIndex: number; rotation: number
   )
 }
 
-/** Large page preview — opened by the magnify button on a card. */
+/**
+ * Full-screen page preview. The page is fitted to the viewport (no inner
+ * scrolling), pages can be flipped without closing, and closing returns
+ * straight back to the organize grid exactly where it was.
+ */
 const PagePreviewModal: React.FC<{
-  pdfDoc: any; pageIndex: number; displayNum: number; rotation: number; onClose: () => void
-}> = ({ pdfDoc, pageIndex, displayNum, rotation, onClose }) => {
+  pdfDoc: any
+  pageIndex: number
+  pageOrder: number[]
+  rotation: number
+  onStep: (delta: number) => void
+  onRotate: () => void
+  onGoToPage?: () => void
+  onClose: () => void
+}> = ({ pdfDoc, pageIndex, pageOrder, rotation, onStep, onRotate, onGoToPage, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { renderThumbnail } = usePDF()
+  const [ready, setReady] = useState(false)
 
+  const pos = pageOrder.indexOf(pageIndex)
+  const hasPrev = pos > 0
+  const hasNext = pos >= 0 && pos < pageOrder.length - 1
+
+  // Render at a resolution matched to the screen so the fitted page is sharp
   useEffect(() => {
-    if (!canvasRef.current) return
-    const width = Math.min(window.innerWidth - 48, 620)
-    renderThumbnail(pdfDoc, pageIndex, canvasRef.current, width, rotation)
+    const canvas = canvasRef.current
+    if (!canvas) return
+    setReady(false)
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    const width = Math.round(Math.min(window.innerWidth, 900) * dpr)
+    let cancelled = false
+    renderThumbnail(pdfDoc, pageIndex, canvas, width, rotation).then(() => {
+      if (!cancelled) setReady(true)
+    })
+    return () => { cancelled = true }
   }, [pdfDoc, pageIndex, rotation, renderThumbnail])
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      // RTL: ArrowLeft advances, ArrowRight goes back
+      if (e.key === 'ArrowLeft' && hasNext) onStep(1)
+      if (e.key === 'ArrowRight' && hasPrev) onStep(-1)
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, onStep, hasPrev, hasNext])
 
   return (
     <div
-      onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 900,
-        background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        padding: 20, cursor: 'zoom-out',
+        background: 'rgba(12,12,14,0.95)',
+        display: 'flex', flexDirection: 'column',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        direction: 'rtl',
       }}
+      onClick={onClose}
     >
-      <div style={{
-        color: 'white', fontSize: 14, fontWeight: 700, marginBottom: 12,
-        display: 'flex', alignItems: 'center', gap: 10,
-      }}>
-        עמוד {displayNum}
+      {/* Top bar */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          flexShrink: 0, height: 56, display: 'flex', alignItems: 'center',
+          gap: 10, padding: '0 14px', color: 'white',
+        }}
+      >
         <button
           onClick={onClose}
-          aria-label="סגור"
+          aria-label="חזרה לארגון הדפים"
           style={{
-            width: 32, height: 32, borderRadius: 9, border: 'none',
-            background: 'rgba(255,255,255,0.15)', color: 'white', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+            height: 38, padding: '0 14px', borderRadius: 10, border: 'none',
+            background: 'rgba(255,255,255,0.14)', color: 'white',
+            cursor: 'pointer', fontSize: 13.5, fontWeight: 600, fontFamily: 'inherit',
+            minHeight: 0,
+          }}
+        >
+          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+          חזרה
+        </button>
+
+        <div style={{ flex: 1, textAlign: 'center', fontSize: 14, fontWeight: 700 }}>
+          עמוד {pos + 1} מתוך {pageOrder.length}
+        </div>
+
+        <button
+          onClick={onRotate}
+          aria-label="סובב עמוד"
+          title="סובב עמוד"
+          style={{
+            width: 38, height: 38, borderRadius: 10, border: 'none',
+            background: 'rgba(255,255,255,0.14)', color: 'white', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             minHeight: 0, padding: 0,
           }}
         >
-          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M4 9a8 8 0 1 1-2 5" />
+          </svg>
         </button>
+
+        {onGoToPage && (
+          <button
+            onClick={onGoToPage}
+            style={{
+              height: 38, padding: '0 14px', borderRadius: 10, border: 'none',
+              background: 'var(--color-mint)', color: '#0f172a', cursor: 'pointer',
+              fontSize: 13, fontWeight: 700, fontFamily: 'inherit', minHeight: 0,
+            }}
+          >
+            עבור לעמוד
+          </button>
+        )}
       </div>
-      <div style={{
-        maxHeight: 'calc(100dvh - 120px)', overflow: 'auto',
-        borderRadius: 8, boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
-        background: 'white',
-      }}>
-        <canvas ref={canvasRef} style={{ display: 'block', maxWidth: '100%' }} />
+
+      {/* Page — fitted to the remaining space, never needs scrolling */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          flex: 1, minHeight: 0, display: 'flex',
+          alignItems: 'center', justifyContent: 'center',
+          padding: '0 clamp(8px, 3vw, 28px) 12px', position: 'relative',
+        }}
+      >
+        <PreviewNavButton side="start" disabled={!hasPrev} onClick={() => onStep(-1)} />
+        <canvas
+          ref={canvasRef}
+          style={{
+            maxWidth: '100%', maxHeight: '100%',
+            objectFit: 'contain',
+            borderRadius: 6, background: 'white',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.55)',
+            opacity: ready ? 1 : 0,
+            transition: `opacity 160ms ${EASE}`,
+          }}
+        />
+        <PreviewNavButton side="end" disabled={!hasNext} onClick={() => onStep(1)} />
       </div>
     </div>
   )
 }
+
+/** Prev/next arrow pinned to the side of the preview. */
+const PreviewNavButton: React.FC<{ side: 'start' | 'end'; disabled: boolean; onClick: () => void }> =
+  ({ side, disabled, onClick }) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={side === 'start' ? 'העמוד הקודם' : 'העמוד הבא'}
+      style={{
+        position: 'absolute', top: '50%', transform: 'translateY(-50%)',
+        [side === 'start' ? 'insetInlineStart' : 'insetInlineEnd']: 6,
+        width: 44, height: 44, borderRadius: '50%', border: 'none',
+        background: 'rgba(255,255,255,0.16)', color: 'white',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0 : 1, pointerEvents: disabled ? 'none' : 'auto',
+        transition: 'opacity 160ms ease', minHeight: 0, padding: 0,
+        backdropFilter: 'blur(4px)', zIndex: 2,
+      } as React.CSSProperties}
+    >
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round"
+          d={side === 'start' ? 'M15 5l-7 7 7 7' : 'M9 5l7 7-7 7'} />
+      </svg>
+    </button>
+  )

@@ -157,28 +157,40 @@ export const PDFViewer: React.FC = () => {
   // ── Lazy rendering + current-page sync from scroll ────────────────────────
   const scrollSetPage = useRef<number | null>(null)
   const ratiosRef = useRef<Map<number, number>>(new Map())
+  // Pages currently intersecting the viewport. The rendered set is derived
+  // from this each time, so it SHRINKS as well as grows — an ever-growing set
+  // kept every visited page's full-resolution canvas alive (~12MB per A4 page
+  // at mobile DPR), which crashed the tab on long documents.
+  const intersectingRef = useRef<Set<number>>(new Set())
 
   useEffect(() => {
     if (!containerRef.current || !pdfDoc) return
     const container = containerRef.current
+    intersectingRef.current.clear()
+    ratiosRef.current.clear()
 
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         const match = entry.target.id.match(/^page-(\d+)$/)
-        if (match) ratiosRef.current.set(parseInt(match[1]), entry.isIntersecting ? entry.intersectionRatio : 0)
+        if (!match) return
+        const idx = parseInt(match[1])
+        ratiosRef.current.set(idx, entry.isIntersecting ? entry.intersectionRatio : 0)
+        if (entry.isIntersecting) intersectingRef.current.add(idx)
+        else intersectingRef.current.delete(idx)
       })
 
+      // Render what's on screen plus one page of buffer on each side
+      const next = new Set<number>()
+      intersectingRef.current.forEach(idx => {
+        next.add(idx)
+        if (idx > 0) next.add(idx - 1)
+        if (idx < pageCount - 1) next.add(idx + 1)
+      })
+      // Never end up with nothing rendered (e.g. mid-layout with no entries yet)
+      if (next.size === 0) next.add(usePDFStore.getState().currentPage)
+
       setVisiblePages(prev => {
-        const next = new Set(prev)
-        entries.forEach(entry => {
-          const match = entry.target.id.match(/^page-(\d+)$/)
-          if (match && entry.isIntersecting) {
-            const idx = parseInt(match[1])
-            next.add(idx)
-            if (idx > 0) next.add(idx - 1)
-            if (idx < pageCount - 1) next.add(idx + 1)
-          }
-        })
+        if (prev.size === next.size && [...next].every(i => prev.has(i))) return prev
         return next
       })
 

@@ -27,7 +27,11 @@ async function buildThumbnail(pdfDoc: any): Promise<string> {
   }
 }
 
-/** Persist the current editing state into IndexedDB. */
+/**
+ * Persist the current editing state into IndexedDB.
+ * Reports pruning and storage-full conditions so the user is never silently
+ * left without the autosave they think they have.
+ */
 export async function persistCurrentSession(thumbnail?: string): Promise<void> {
   const pdf = usePDFStore.getState()
   const ann = useAnnotationsStore.getState()
@@ -55,7 +59,22 @@ export async function persistCurrentSession(thumbnail?: string): Promise<void> {
     createdAt: existing?.createdAt ?? Date.now(),
     updatedAt: Date.now(),
   }
-  await saveSession(session)
+  try {
+    const { pruned } = await saveSession(session)
+    if (pruned.length) {
+      useUIStore.getState().addToast(
+        pruned.length === 1
+          ? `אין מקום אחסון — העבודה השמורה "${pruned[0]}" נמחקה`
+          : `אין מקום אחסון — ${pruned.length} עבודות שמורות ישנות נמחקו`,
+        'warning')
+    }
+  } catch (e: any) {
+    if (e?.name === 'StorageFullError') {
+      useUIStore.getState().addToast(
+        'אחסון הדפדפן מלא — השמירה האוטומטית מושבתת. הורד את הקובץ כדי לא לאבד את העבודה.',
+        'error')
+    }
+  }
 }
 
 export function useSessions() {

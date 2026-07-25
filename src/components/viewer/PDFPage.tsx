@@ -41,8 +41,25 @@ export const PDFPage: React.FC<Props> = ({ pageIndex, isVisible }) => {
     doRender()
   }, [pdfDoc, pageIndex, zoom, rotation, isVisible])
 
+  // Release the bitmap when the page scrolls out of the render window.
+  // Setting width/height to 0 is what actually frees the backing store —
+  // dropping the React node alone would keep it alive until GC, and long
+  // documents accumulated every visited page at full resolution.
+  useEffect(() => {
+    if (isVisible) return
+    epochRef.current++ // invalidate any render still in flight
+    const canvas = canvasRef.current
+    if (canvas && canvas.width > 0) {
+      canvas.width = 0
+      canvas.height = 0
+    }
+    setRenderedOnce(false)
+  }, [isVisible])
+
   if (!pdfDoc) return null
 
+  // The wrapper keeps its full size even when unrendered, so scroll height
+  // and scroll position stay stable as pages recycle.
   return (
     <div
       id={`page-${pageIndex}`}

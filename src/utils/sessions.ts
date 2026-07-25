@@ -64,11 +64,73 @@ export function sessionIdForName(name: string): string {
   return 'sess_' + name.replace(/[^a-zA-Z0-9֐-׿]/g, '_').slice(0, 60)
 }
 
-export async function saveSession(session: PdfSession): Promise<void> {
+/** Keep saved work bounded — every session holds the full PDF bytes. */
+const MAX_SESSIONS = 12
+const MAX_TOTAL_BYTES = 250 * 1024 * 1024
+
+export class StorageFullError extends Error {
+  constructor() { super('storage full'); this.name = 'StorageFullError' }
+}
+
+/**
+ * Drop the oldest sessions until both the count and the total byte budget
+ * fit, never touching `keepId` (the document being worked on right now).
+ * Returns the names that were removed so the UI can say what happened.
+ */
+async function pruneSessions(keepId: string): Promise<string[]> {
+  const metas = await listSessions() // newest first
+  const removed: string[] = []
+  let total = metas.reduce((n, m) => n + (m.fileSize || 0), 0)
+
+  for (let i = metas.length - 1; i >= 0; i--) {
+    const m = metas[i]
+    const overCount = metas.length - removed.length > MAX_SESSIONS
+    const overBytes = total > MAX_TOTAL_BYTES
+    if (!overCount && !overBytes) break
+    if (m.id === keepId) continue
+    await deleteSession(m.id)
+    removed.push(m.name)
+    total -= m.fileSize || 0
+  }
+  return removed
+}
+
+/**
+ * Persist a session. Prunes old work first so the quota isn't hit, and
+ * retries once after an emergency prune if the browser still refuses —
+ * a silent write failure used to mean the user simply lost their work.
+ */
+export async function saveSession(session: PdfSession): Promise<{ pruned: string[] }> {
+  let pruned: string[] = []
+  try {
+    pruned = await pruneSessions(session.id)
+  } catch (e) {
+    console.warn('pruneSessions failed', e)
+  }
+
   try {
     await tx('readwrite', store => store.put(session))
-  } catch (e) {
-    console.warn('saveSession failed', e)
+    return { pruned }
+  } catch (e: any) {
+    const quota = e?.name === 'QuotaExceededError' ||
+      /quota|storage/i.test(String(e?.message || e))
+    if (!quota) {
+      console.error('saveSession failed', e)
+      throw e
+    }
+    // Emergency: drop everything except the current document, then retry once
+    console.warn('storage quota hit — clearing older sessions')
+    try {
+      const metas = await listSessions()
+      for (const m of metas) {
+        if (m.id !== session.id) { await deleteSession(m.id); pruned.push(m.name) }
+      }
+      await tx('readwrite', store => store.put(session))
+      return { pruned }
+    } catch (retryErr) {
+      console.error('saveSession failed after prune', retryErr)
+      throw new StorageFullError()
+    }
   }
 }
 
