@@ -50,6 +50,7 @@ export const QuickTools: React.FC = () => {
   // PDF, and merge (which manages its own multi-file list)
   const needsFile = activeTool !== 'from-image' && activeTool !== 'from-word' && activeTool !== 'merge'
   const showPanel = activeTool && (!needsFile || pdfDoc)
+  const activeToolMeta = TOOL_META.find(t => t.id === activeTool) || null
 
   const handleFile = async (file: File) => {
     await loadPDF(file)
@@ -152,6 +153,33 @@ export const QuickTools: React.FC = () => {
           </div>
         )}
 
+        {/* Selected tool — stays visible while waiting for a file, so it's
+            always clear which tool you're in */}
+        {activeToolMeta && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            background: 'var(--color-accent)', color: 'var(--color-on-accent)',
+            borderRadius: 18, padding: '14px 16px', marginBottom: 14,
+          }}>
+            <span style={{ fontSize: 26, flexShrink: 0 }}>{activeToolMeta.emoji}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>{activeToolMeta.label}</div>
+              <div style={{ fontSize: 12, opacity: 0.75 }}>{activeToolMeta.desc}</div>
+            </div>
+            <button
+              onClick={() => setActiveTool(null)}
+              style={{
+                flexShrink: 0, padding: '7px 12px', borderRadius: 10, border: 'none',
+                background: 'rgba(128,128,128,0.28)', color: 'inherit',
+                fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
+                minHeight: 0,
+              }}
+            >
+              החלף כלי
+            </button>
+          </div>
+        )}
+
         {/* Step 1: choose a file (when a tool needs one) */}
         {(!pdfDoc && (activeTool === null || needsFile)) && (
           <div
@@ -169,7 +197,9 @@ export const QuickTools: React.FC = () => {
             }}
           >
             <div style={{ fontSize: 34, marginBottom: 8 }}>📄</div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>בחר קובץ PDF</div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>
+              {activeToolMeta ? `בחר קובץ כדי להשתמש ב${activeToolMeta.label}` : 'בחר קובץ PDF'}
+            </div>
             <div style={{ fontSize: 12.5, color: 'var(--color-text-muted)', marginTop: 4 }}>
               או גרור לכאן · הקבצים נשארים אצלך במכשיר
             </div>
@@ -199,30 +229,47 @@ export const QuickTools: React.FC = () => {
         ) : (
           /* Tool grid */
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
-            {TOOL_META.map(t => (
-              <button
-                key={t.id}
-                onClick={() => setActiveTool(t.id)}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6,
-                  padding: '16px 14px', borderRadius: 16,
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-surface)',
-                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'start',
-                  transition: `transform 140ms ${EASE}, border-color 140ms ease`,
-                  WebkitTapHighlightColor: 'transparent',
-                  minHeight: 0,
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-accent)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)' }}
-                onTouchStart={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)' }}
-                onTouchEnd={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
-              >
-                <span style={{ fontSize: 26 }}>{t.emoji}</span>
-                <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--color-text)' }}>{t.label}</span>
-                <span style={{ fontSize: 11.5, color: 'var(--color-text-muted)', lineHeight: 1.4 }}>{t.desc}</span>
-              </button>
-            ))}
+            {TOOL_META.map(t => {
+              const isActive = t.id === activeTool
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveTool(t.id)}
+                  aria-pressed={isActive}
+                  style={{
+                    position: 'relative',
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6,
+                    padding: '16px 14px', borderRadius: 16,
+                    border: `2px solid ${isActive ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                    background: isActive ? 'var(--color-mint)' : 'var(--color-surface)',
+                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'start',
+                    transition: `transform 140ms ${EASE}, border-color 140ms ease, background 140ms ease`,
+                    WebkitTapHighlightColor: 'transparent',
+                    minHeight: 0,
+                  }}
+                  onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-accent)' }}
+                  onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)' }}
+                  onTouchStart={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)' }}
+                  onTouchEnd={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
+                >
+                  {isActive && (
+                    <span style={{
+                      position: 'absolute', top: 10, insetInlineEnd: 10,
+                      width: 20, height: 20, borderRadius: '50%',
+                      background: 'var(--color-accent)', color: 'var(--color-on-accent)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3.2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                  )}
+                  <span style={{ fontSize: 26 }}>{t.emoji}</span>
+                  <span style={{ fontSize: 14.5, fontWeight: 700, color: isActive ? 'var(--color-ink-black)' : 'var(--color-text)' }}>{t.label}</span>
+                  <span style={{ fontSize: 11.5, color: 'var(--color-text-muted)', lineHeight: 1.4 }}>{t.desc}</span>
+                </button>
+              )
+            })}
           </div>
         )}
       </div>

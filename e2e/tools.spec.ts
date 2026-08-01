@@ -51,20 +51,62 @@ test.describe('PDF tools', () => {
       { name: 'a.pdf', mimeType: 'application/pdf', buffer: await makePdf(2) },
       { name: 'b.pdf', mimeType: 'application/pdf', buffer: await makePdf(3) },
     ])
-    await page.waitForTimeout(600)
-    await expect(page.getByText('a.pdf')).toBeVisible()
+    await page.waitForTimeout(2500)
 
-    // The list survives switching tools
+    // Every page of every source becomes its own card
+    await expect(page.locator('[data-merge-page]')).toHaveCount(5)
+
+    // The selection survives switching tools
     await page.getByRole('button', { name: /פיצול/ }).first().click()
     await page.waitForTimeout(300)
     await page.getByRole('button', { name: /^מיזוג/ }).first().click()
-    await page.waitForTimeout(300)
-    await expect(page.getByText('a.pdf')).toBeVisible()
+    await page.waitForTimeout(2000)
+    await expect(page.locator('[data-merge-page]')).toHaveCount(5)
 
-    await page.getByRole('button', { name: 'מזג והורד' }).click()
+    await page.getByRole('button', { name: /מזג .* עמודים והורד/ }).click()
     const doc = await loadDownloaded(await confirmDownload(page))
     expect(doc.getPageCount()).toBe(5)
     expect(errors).toEqual([])
+  })
+
+  test('merge: pages can be reordered and removed before merging', async ({ page }) => {
+    await page.goto('/#/tools/merge', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(500)
+    await page.locator('input[type="file"][accept=".pdf"]').last().setInputFiles([
+      { name: 'a.pdf', mimeType: 'application/pdf', buffer: await makePdf(2) },
+      { name: 'b.pdf', mimeType: 'application/pdf', buffer: await makePdf(2) },
+    ])
+    await page.waitForTimeout(2500)
+    const cards = page.locator('[data-merge-page]')
+    await expect(cards).toHaveCount(4)
+
+    // Drag the first page onto the third position
+    const handle = await cards.nth(0).getByLabel('גרור לשינוי סדר').boundingBox()
+    const target = await cards.nth(2).boundingBox()
+    await page.mouse.move(handle!.x + handle!.width / 2, handle!.y + handle!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(target!.x + target!.width / 2, target!.y + target!.height / 2, { steps: 12 })
+    await page.mouse.up()
+    await page.waitForTimeout(600)
+    await expect(cards).toHaveCount(4)
+
+    // Dropping a page excludes it from the merge
+    await cards.nth(0).getByLabel('הסר עמוד').click()
+    await page.waitForTimeout(400)
+    await expect(cards).toHaveCount(3)
+
+    await page.getByRole('button', { name: /מזג .* עמודים והורד/ }).click()
+    const doc = await loadDownloaded(await confirmDownload(page))
+    expect(doc.getPageCount()).toBe(3)
+  })
+
+  test('the selected tool stays visible before a file is chosen', async ({ page }) => {
+    await page.goto('/#/tools/organize', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(700)
+    // No document yet: the chosen tool must still be identifiable
+    await expect(page.getByText('סובב, סדר, מחק ושכפל דפים').first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'החלף כלי' })).toBeVisible()
+    await expect(page.getByText(/בחר קובץ כדי להשתמש ב/)).toBeVisible()
   })
 
   test('watermark: live layer applies once and bakes into every page', async ({ page }) => {

@@ -30,6 +30,8 @@ interface UIState {
   searchActiveIdx: number
   /** Merge tool file list — lives in the store so switching tools keeps it */
   mergeItems: Array<{ id: string; kind: 'current' } | { id: string; kind: 'file'; file: File }>
+  /** Page-level merge order as "<itemId>:<pageIndex>" keys */
+  mergePageOrder: string[]
   confirmDialog: {
     open: boolean
     title: string
@@ -98,6 +100,7 @@ interface UIState {
   setSearchMatches: (m: UIState['searchMatches']) => void
   setSearchActiveIdx: (i: number) => void
   setMergeItems: (items: UIState['mergeItems']) => void
+  setMergePageOrder: (keys: string[]) => void
   confirm: (opts: { title: string; message?: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean }) => Promise<boolean>
   resolveConfirm: (v: boolean) => void
   /** Ask the user for a text value (e.g. a file name). Resolves null on cancel. */
@@ -144,6 +147,7 @@ export const useUIStore = create<UIState>()((set) => ({
   searchMatches: [],
   searchActiveIdx: 0,
   mergeItems: [],
+  mergePageOrder: [],
   confirmDialog: {
     open: false, title: '', message: '', confirmLabel: 'אישור', cancelLabel: 'ביטול',
     danger: false, resolve: null,
@@ -216,6 +220,7 @@ export const useUIStore = create<UIState>()((set) => ({
   setSearchMatches: (m) => set({ searchMatches: m, searchActiveIdx: 0 }),
   setSearchActiveIdx: (i) => set({ searchActiveIdx: i }),
   setMergeItems: (items) => set({ mergeItems: items }),
+  setMergePageOrder: (keys) => set({ mergePageOrder: keys }),
   confirm: (opts) => new Promise<boolean>((resolve) => {
     set({
       confirmDialog: {
