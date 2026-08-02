@@ -75,3 +75,29 @@ test.describe('viewer', () => {
     expect(Number(shown)).toBeGreaterThan(1)
   })
 })
+
+test.describe('two-page view', () => {
+  test('shows a spread that fits the window', async ({ page }) => {
+    await page.goto('/#/editor', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(500)
+    await upload(page, 'spread.pdf', await makePdf(6), 'application/pdf')
+    await page.waitForTimeout(3000)
+
+    const toggle = page.getByRole('button', { name: 'שני דפים' })
+    test.skip(await toggle.count() === 0, 'two-page is a desktop-only control')
+    await toggle.click()
+    await page.waitForTimeout(1500)
+
+    // Pages 1 and 2 sit side by side — same row, different columns
+    const first = await page.locator('#page-0').boundingBox()
+    const second = await page.locator('#page-1').boundingBox()
+    expect(Math.abs(first!.y - second!.y)).toBeLessThan(4)
+    expect(Math.abs(first!.x - second!.x)).toBeGreaterThan(first!.width / 2)
+
+    // ...and the spread fits: fitting one page's width used to leave the
+    // second one hanging off the side
+    const overflow = await page.locator('.pdf-scroll-container').evaluate(
+      el => el.scrollWidth - el.clientWidth)
+    expect(overflow).toBeLessThanOrEqual(2)
+  })
+})

@@ -5,6 +5,7 @@ import { useDropzone } from 'react-dropzone'
 import { usePDF } from '../../hooks/usePDF'
 import { useSessions } from '../../hooks/useSessions'
 import { listSessions, type SessionMeta } from '../../utils/sessions'
+import { SPREAD_GAP } from '../../utils/fitZoom'
 
 export const PDFViewer: React.FC = () => {
   const { pdfDoc, pageCount, currentPage, setCurrentPage, zoom, setZoom, viewMode, pageOrder, isLoading, loadingProgress } = usePDFStore()
@@ -23,13 +24,18 @@ export const PDFViewer: React.FC = () => {
       const rotation = ((page.rotate || 0) % 360 + 360) % 360
       const naturalW = page.getViewport({ scale: 1, rotation }).width
       const cw = containerRef.current?.clientWidth || window.innerWidth
-      const fit = Math.max(0.25, Math.min((cw - 16) / naturalW, 1.5))
+      // A spread is two pages plus the gap between them
+      const perSpread = usePDFStore.getState().viewMode === 'two-page' ? 2 : 1
+      const available = cw - 16 - (perSpread - 1) * SPREAD_GAP
+      const fit = Math.max(0.25, Math.min(available / (naturalW * perSpread), 1.5))
       fitZoomRef.current = fit
       setZoom(fit)
     } catch { /* keep current zoom */ }
   }
 
-  useEffect(() => { fitToWidth() }, [pdfDoc]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Refit on load and whenever the spread changes — switching to two-page
+  // otherwise left the second page hanging off the side of the screen
+  useEffect(() => { fitToWidth() }, [pdfDoc, viewMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-fit when the device rotates (large width change, not keyboard show/hide)
   useEffect(() => {

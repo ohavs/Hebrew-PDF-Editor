@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { usePDFStore, useAnnotationsStore, useUIStore } from '../../store'
 import { embedAnnotationsIntoPdf, downloadBlob } from '../../utils/pdfExport'
 import { askFileName } from '../ui/PromptDialog'
+import { computeFitZoom } from '../../utils/fitZoom'
 
 export const TopToolbar: React.FC = () => {
   const { pdfDoc, pdfBytes, fileName, zoom, setZoom, currentPage, pageCount, setCurrentPage,
@@ -117,20 +118,9 @@ export const TopToolbar: React.FC = () => {
             value=""
             onChange={e => {
               const v = e.target.value
-              if (v === 'fit-width') {
-                const container = document.querySelector('.flex-1.overflow-auto') as HTMLElement
-                if (container) {
-                  const w = container.clientWidth - 80
-                  const page = usePDFStore.getState().pageInfos[0]
-                  if (page?.width > 0) setZoom(w / page.width)
-                }
-              } else if (v === 'fit-page') {
-                const container = document.querySelector('.flex-1.overflow-auto') as HTMLElement
-                if (container) {
-                  const h = container.clientHeight - 64
-                  const page = usePDFStore.getState().pageInfos[0]
-                  if (page?.height > 0) setZoom(h / page.height)
-                }
+              if (v === 'fit-width' || v === 'fit-page') {
+                const fit = computeFitZoom(v === 'fit-width' ? 'width' : 'page')
+                if (fit) setZoom(fit)
               } else {
                 setZoom(parseFloat(v))
               }
@@ -199,7 +189,13 @@ export const TopToolbar: React.FC = () => {
             <TopBtn
               key={mode}
               title={mode === 'continuous' ? 'גלילה רציפה' : 'שני דפים'}
-              onClick={() => setViewMode(mode)}
+              onClick={() => {
+                if (mode === viewMode) return
+                setViewMode(mode)
+                // Refit, or the second page of the spread lands off-screen
+                const fit = computeFitZoom('width')
+                if (fit) setZoom(fit)
+              }}
               active={viewMode === mode}
             >
               {mode === 'continuous' ? <PageScrollIcon /> : <PageTwoIcon />}
