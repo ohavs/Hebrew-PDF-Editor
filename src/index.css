@@ -574,8 +574,12 @@ html, body {
   .pdf-page-wrapper { box-shadow: none; margin: 0; page-break-after: always; }
 }
 
-/* Focus ring */
-*:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+/* Focus ring.
+   !important because several controls set `outline: none` as an inline style
+   to kill the mouse-click ring, and an inline style beats this rule — which
+   left the whole top toolbar with no visible focus at all for keyboard users.
+   :focus-visible never fires on a mouse click, so the ring is not needed. */
+*:focus-visible { outline: 2px solid var(--color-accent) !important; outline-offset: 2px; }
 
 /* Chip/badge */
 .chip {

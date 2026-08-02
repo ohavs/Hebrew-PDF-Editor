@@ -22,7 +22,7 @@ export const MobilePagesSheet: React.FC<Props> = ({ open, onClose }) => {
         background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)',
         WebkitBackdropFilter: 'blur(4px)',
       }} />
-      <div className="mobile-only no-print" style={{
+      <div className="mobile-only no-print" role="dialog" aria-modal="true" aria-label="דפים" style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 510,
         background: 'var(--color-surface)',
         borderRadius: '24px 24px 0 0',

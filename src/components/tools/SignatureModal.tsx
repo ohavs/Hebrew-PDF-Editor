@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
+import { useEscapeKey } from '../../hooks/useEscapeKey'
 import { useAnnotationsStore, usePDFStore, useUIStore } from '../../store'
 import type { SignatureAnnotation } from '../../store/types'
 import SignatureCanvas from 'react-signature-canvas'
@@ -22,6 +23,8 @@ export const SignatureModal: React.FC<Props> = ({ onClose }) => {
   const [showSaveInput, setShowSaveInput] = useState(false)
   const drawWrapRef = useRef<HTMLDivElement>(null)
   const [canvasW, setCanvasW] = useState(476)
+
+  useEscapeKey(onClose)
 
   // Fit the signing canvas to the modal width (was fixed 476px — a third
   // of the surface was clipped and unreachable on phones)
@@ -123,14 +126,14 @@ export const SignatureModal: React.FC<Props> = ({ onClose }) => {
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-content" style={{ width: 520, maxWidth: '96vw', padding: 0, overflow: 'hidden' }}>
+      <div className="modal-content" role="dialog" aria-modal="true" aria-label="חתימה" style={{ width: 520, maxWidth: '96vw', padding: 0, overflow: 'hidden' }}>
         {/* Header */}
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           padding: '18px 20px 14px', borderBottom: '1px solid var(--color-border)',
         }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>חתימה</h2>
-          <button onClick={onClose} style={{
+          <button onClick={onClose} aria-label="סגור" style={{
             width: 28, height: 28, border: 'none', borderRadius: 7,
             background: 'var(--color-surface-2)', cursor: 'pointer', fontSize: 16,
             display: 'flex', alignItems: 'center', justifyContent: 'center',

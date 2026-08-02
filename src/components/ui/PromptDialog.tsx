@@ -43,6 +43,9 @@ export const PromptDialog: React.FC = () => {
       style={{ zIndex: 2000 }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         onClick={e => e.stopPropagation()}
         style={{
           background: 'var(--color-surface)',

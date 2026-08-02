@@ -17,7 +17,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
   componentDidCatch(error: unknown) {
     console.error('Fatal render error', error)
     // Best effort — save whatever the user was working on
-    persistCurrentSession().catch(() => {})
+    persistCurrentSession().catch(e => console.error('crash autosave failed', e))
   }
 
   render() {

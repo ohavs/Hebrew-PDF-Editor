@@ -27,6 +27,9 @@ export const PDFToolsMobileSheet: React.FC = () => {
       />
       <div
         className="mobile-only"
+        role="dialog"
+        aria-modal="true"
+        aria-label="כלי PDF"
         style={{
           position: 'fixed', bottom: 'var(--kb-height, 0px)', left: 0, right: 0,
           maxHeight: '82vh', minHeight: '55vh', zIndex: 490,

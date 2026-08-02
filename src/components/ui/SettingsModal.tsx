@@ -1,5 +1,6 @@
 import React from 'react'
 import { useUIStore } from '../../store'
+import { useEscapeKey } from '../../hooks/useEscapeKey'
 
 interface Props { onClose: () => void }
 
@@ -7,12 +8,14 @@ export const SettingsModal: React.FC<Props> = ({ onClose }) => {
   const { darkMode, toggleDarkMode, authorName, setAuthorName,
           autoSaveInterval, setAutoSaveInterval, dateFormat, setDateFormat } = useUIStore()
 
+  useEscapeKey(onClose)
+
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-content" style={{ width: 400, maxWidth: '95vw' }}>
+      <div className="modal-content" role="dialog" aria-modal="true" aria-label="הגדרות" style={{ width: 400, maxWidth: '95vw' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>הגדרות</h2>
-          <button className="btn-icon" onClick={onClose} style={{ fontSize: 20 }}>×</button>
+          <button className="btn-icon" aria-label="סגור" onClick={onClose} style={{ fontSize: 20 }}>×</button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

@@ -63,7 +63,7 @@ export const MobileToolsSheet: React.FC<Props> = ({ open, onClose }) => {
       }} />
 
       {/* Sheet */}
-      <div style={{
+      <div role="dialog" aria-modal="true" aria-label="כלים" style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 510,
         background: 'var(--color-surface)',
         borderRadius: '24px 24px 0 0',
@@ -79,7 +79,7 @@ export const MobileToolsSheet: React.FC<Props> = ({ open, onClose }) => {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px 12px', flexShrink: 0 }}>
           <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--color-ink-black)' }}>כלים</span>
-          <button onClick={onClose} style={{
+          <button onClick={onClose} aria-label="סגור" style={{
             width: 30, height: 30, borderRadius: 8, border: 'none',
             background: 'var(--color-surface-2)', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',

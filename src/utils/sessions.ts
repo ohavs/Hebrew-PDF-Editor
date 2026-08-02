@@ -137,7 +137,8 @@ export async function saveSession(session: PdfSession): Promise<{ pruned: string
 export async function getSession(id: string): Promise<PdfSession | undefined> {
   try {
     return await tx('readonly', store => store.get(id))
-  } catch {
+  } catch (e) {
+    console.warn('getSession failed', e)
     return undefined
   }
 }
@@ -157,7 +158,8 @@ export async function listSessions(): Promise<SessionMeta[]> {
     return all
       .map(({ pdfBytes, annotations, formFields, pageInfos, pageOrder, ...meta }) => meta)
       .sort((a, b) => b.updatedAt - a.updatedAt)
-  } catch {
+  } catch (e) {
+    console.warn('listSessions failed', e)
     return []
   }
 }

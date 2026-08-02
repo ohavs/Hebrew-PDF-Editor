@@ -89,6 +89,7 @@ export const AnnotationsPanel: React.FC = () => {
                 </div>
                 <button
                   className="btn-icon"
+                  aria-label="מחק הערה"
                   style={{ width: 24, height: 24, color: 'var(--color-danger)', flexShrink: 0 }}
                   onClick={e => { e.stopPropagation(); deleteAnnotation(ann.id) }}
                 >

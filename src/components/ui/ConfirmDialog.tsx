@@ -26,6 +26,9 @@ export const ConfirmDialog: React.FC = () => {
       style={{ zIndex: 2000 }}
     >
       <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-label={title}
         onClick={e => e.stopPropagation()}
         style={{
           background: 'var(--color-surface)',

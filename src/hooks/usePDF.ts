@@ -41,6 +41,13 @@ const renderTasks = new WeakMap<HTMLCanvasElement, any>()
 // render.
 const renderChains = new WeakMap<HTMLCanvasElement, Promise<unknown>>()
 
+/** Run `job` only once whatever else is drawing on this canvas is done. */
+function queueOnCanvas<T>(canvas: HTMLCanvasElement, job: () => Promise<T>): Promise<T> {
+  const chain = (renderChains.get(canvas) ?? Promise.resolve()).then(job, job)
+  renderChains.set(canvas, chain.catch(() => {}))
+  return chain
+}
+
 const IS_COARSE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
 // iOS Safari fails silently above ~16.7M canvas pixels
 const MAX_CANVAS_AREA = 16_000_000
@@ -206,9 +213,7 @@ export function usePDF() {
 
     // Queue behind whatever is already drawing on this canvas, whether it
     // finished, failed or was cancelled
-    const chain = (renderChains.get(canvas) ?? Promise.resolve()).then(run, run)
-    renderChains.set(canvas, chain.catch(() => {}))
-    return chain
+    return queueOnCanvas(canvas, run)
   }, [])
 
   const renderThumbnail = useCallback(async (
@@ -218,22 +223,29 @@ export function usePDF() {
     thumbWidth: number = 150,
     rotation: number = 0
   ) => {
-    try {
-      const page = await pdfDoc.getPage(pageIndex + 1)
-      const totalRotation = (((page.rotate || 0) + rotation) % 360 + 360) % 360
-      const viewport = page.getViewport({ scale: 1, rotation: totalRotation })
-      const scale = thumbWidth / viewport.width
-      const scaledViewport = page.getViewport({ scale, rotation: totalRotation })
+    // Same serialization as the page canvases: rotating or reordering pages
+    // re-renders a thumbnail that may still be drawing, and a second render
+    // on one canvas leaves it permanently blank.
+    return queueOnCanvas(canvas, async () => {
+      try {
+        const page = await pdfDoc.getPage(pageIndex + 1)
+        const totalRotation = (((page.rotate || 0) + rotation) % 360 + 360) % 360
+        const viewport = page.getViewport({ scale: 1, rotation: totalRotation })
+        const scale = thumbWidth / viewport.width
+        const scaledViewport = page.getViewport({ scale, rotation: totalRotation })
 
-      // Bitmap size only — CSS sizing belongs to the caller's layout.
-      // (Forcing pixel width/height here clipped thumbnails inside sized boxes.)
-      canvas.width = scaledViewport.width
-      canvas.height = scaledViewport.height
+        // Bitmap size only — CSS sizing belongs to the caller's layout.
+        // (Forcing pixel width/height here clipped thumbnails inside sized boxes.)
+        canvas.width = scaledViewport.width
+        canvas.height = scaledViewport.height
 
-      const ctx = canvas.getContext('2d')!
-      await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise
-      page.cleanup()
-    } catch { /* ignore */ }
+        const ctx = canvas.getContext('2d')!
+        await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise
+        page.cleanup()
+      } catch (e: any) {
+        if (e?.name !== 'RenderingCancelledException') console.warn('thumbnail render failed', e)
+      }
+    })
   }, [])
 
   return { loadPDF, renderPage, renderThumbnail }
