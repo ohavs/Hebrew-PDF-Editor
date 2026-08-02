@@ -54,6 +54,20 @@ export async function openToolWithPdf(page: Page, tool: string, pages = 3) {
   await page.waitForTimeout(2500)
 }
 
+/**
+ * Pick a tool from inside the tools panel. The list is collapsed by default,
+ * so it has to be expanded first.
+ */
+export async function selectToolInPanel(page: Page, label: string | RegExp) {
+  const toggle = page.getByRole('button', { name: /הצג את כל הכלים|סגור את רשימת הכלים/ })
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+    await toggle.click()
+    await page.waitForTimeout(350)
+  }
+  await page.getByRole('button', { name: label }).first().click()
+  await page.waitForTimeout(400)
+}
+
 /** Confirm the file-name dialog and return the triggered download. */
 export async function confirmDownload(page: Page) {
   await page.waitForTimeout(500)

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { PDFDocument, PDFName } from 'pdf-lib'
 import { readFileSync } from 'fs'
-import { makePdf, makeDocx, upload, openToolWithPdf, confirmDownload, trackErrors } from './fixtures'
+import { makePdf, makeDocx, upload, openToolWithPdf, confirmDownload, trackErrors, selectToolInPanel } from './fixtures'
 
 async function loadDownloaded(download: Awaited<ReturnType<typeof confirmDownload>>) {
   const path = await download.path()
@@ -57,9 +57,8 @@ test.describe('PDF tools', () => {
     await expect(page.locator('[data-merge-page]')).toHaveCount(5)
 
     // The selection survives switching tools
-    await page.getByRole('button', { name: /פיצול/ }).first().click()
-    await page.waitForTimeout(300)
-    await page.getByRole('button', { name: /^מיזוג/ }).first().click()
+    await selectToolInPanel(page, /פיצול/)
+    await selectToolInPanel(page, /^מיזוג/)
     await page.waitForTimeout(2000)
     await expect(page.locator('[data-merge-page]')).toHaveCount(5)
 
@@ -98,6 +97,25 @@ test.describe('PDF tools', () => {
     await page.getByRole('button', { name: /מזג .* עמודים והורד/ }).click()
     const doc = await loadDownloaded(await confirmDownload(page))
     expect(doc.getPageCount()).toBe(3)
+  })
+
+  test('the tool list starts collapsed and expands on demand', async ({ page }) => {
+    await openToolWithPdf(page, 'organize', 2)
+
+    const toggle = page.getByRole('button', { name: 'הצג את כל הכלים' })
+    await expect(toggle).toBeVisible()
+    // Collapsed: the other tools are not reachable
+    await expect(page.getByRole('button', { name: /^סימן מים/ })).toBeHidden()
+
+    await toggle.click()
+    await page.waitForTimeout(400)
+    await expect(page.getByRole('button', { name: /^סימן מים/ })).toBeVisible()
+
+    // Picking a tool switches to it and collapses the list again
+    await page.getByRole('button', { name: /^סימן מים/ }).first().click()
+    await page.waitForTimeout(400)
+    await expect(page.getByRole('button', { name: 'הוסף סימן מים' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^סימן מים/ })).toBeHidden()
   })
 
   test('the selected tool stays visible before a file is chosen', async ({ page }) => {

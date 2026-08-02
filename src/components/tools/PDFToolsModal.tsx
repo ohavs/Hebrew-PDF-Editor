@@ -47,6 +47,10 @@ const CATEGORIES: Category[] = [
 
 export const PDFToolsContent: React.FC<{ onClose: () => void; initialCategory?: CategoryId }> = ({ onClose, initialCategory }) => {
   const [active, setActive] = useState<CategoryId>(initialCategory || 'organize')
+  // The full tool list is a lot of vertical space to keep on screen, so it
+  // collapses to a single row naming the current tool.
+  const [listOpen, setListOpen] = useState(false)
+  const activeCat = CATEGORIES.find(c => c.id === active)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -56,7 +60,7 @@ export const PDFToolsContent: React.FC<{ onClose: () => void; initialCategory?: 
         padding: '10px 12px', borderBottom: '1px solid var(--color-border)', flexShrink: 0,
       }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-ink-black)' }}>כלי PDF</span>
-        <button onClick={onClose} style={{
+        <button onClick={onClose} aria-label="סגור" style={{
           width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer',
           background: 'var(--color-surface-2)', color: 'var(--color-text)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -67,33 +71,92 @@ export const PDFToolsContent: React.FC<{ onClose: () => void; initialCategory?: 
         </button>
       </div>
 
-      {/* Category pills — wrap so every tool is always visible (a hidden
-          horizontal scroll was unusable with a mouse) */}
+      {/* Current tool — tap to reveal the full list */}
+      <button
+        onClick={() => setListOpen(o => !o)}
+        aria-expanded={listOpen}
+        aria-label={listOpen ? 'סגור את רשימת הכלים' : 'הצג את כל הכלים'}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+          padding: '10px 12px', border: 'none', cursor: 'pointer',
+          background: 'var(--color-surface)', color: 'var(--color-text)',
+          fontFamily: 'inherit', textAlign: 'start', flexShrink: 0,
+          borderBottom: '1px solid var(--color-border)',
+          WebkitTapHighlightColor: 'transparent', minHeight: 0,
+        }}
+      >
+        <span style={{
+          width: 28, height: 28, borderRadius: 9, flexShrink: 0,
+          background: 'var(--color-accent)', color: 'var(--color-on-accent)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {activeCat?.icon}
+        </span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: 'block', fontSize: 13, fontWeight: 700 }}>{activeCat?.label}</span>
+          <span style={{
+            display: 'block', fontSize: 10.5, color: 'var(--color-text-muted)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {listOpen ? 'בחר כלי מהרשימה' : activeCat?.desc}
+          </span>
+        </span>
+        <svg
+          width="16" height="16" fill="none" stroke="var(--color-text-muted)" strokeWidth="2.4" viewBox="0 0 24 24"
+          style={{
+            flexShrink: 0,
+            transform: listOpen ? 'rotate(180deg)' : 'none',
+            transition: `transform 240ms ${EASE}`,
+          }}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Full tool list — collapsed by default. The 0fr→1fr grid trick
+          animates to the content's natural height without measuring it. */}
       <div style={{
-        display: 'flex', flexWrap: 'wrap', gap: 6, padding: '8px 10px',
-        borderBottom: '1px solid var(--color-border)', flexShrink: 0,
+        display: 'grid',
+        gridTemplateRows: listOpen ? '1fr' : '0fr',
+        transition: `grid-template-rows 260ms ${EASE}`,
+        flexShrink: 0,
+        borderBottom: listOpen ? '1px solid var(--color-border)' : 'none',
       }}>
-        {CATEGORIES.map(cat => {
-          const isActive = active === cat.id
-          return (
-            <button
-              key={cat.id}
-              onClick={() => setActive(cat.id)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                padding: '5px 10px', borderRadius: 20, border: 'none', cursor: 'pointer',
-                background: isActive ? 'var(--color-accent)' : 'var(--color-surface-2)',
-                color: isActive ? 'var(--color-on-accent)' : 'var(--color-text-muted)',
-                fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
-                flexShrink: 0, transition: 'background 150ms ease-out, color 150ms ease-out',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <span style={{ opacity: isActive ? 1 : 0.6 }}>{cat.icon}</span>
-              {cat.label}
-            </button>
-          )
-        })}
+        {/* A zero-height grid row still leaves its children with a real box,
+            so screen readers and pointer hits could reach the hidden pills.
+            visibility takes them out entirely, delayed so the close animation
+            still plays. */}
+        <div style={{
+          overflow: 'hidden',
+          visibility: listOpen ? 'visible' : 'hidden',
+          transition: `visibility 0s linear ${listOpen ? '0s' : '260ms'}`,
+        }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '8px 10px' }}>
+            {CATEGORIES.map(cat => {
+              const isActive = active === cat.id
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => { setActive(cat.id); setListOpen(false) }}
+                  aria-pressed={isActive}
+                  tabIndex={listOpen ? 0 : -1}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '5px 10px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                    background: isActive ? 'var(--color-accent)' : 'var(--color-surface-2)',
+                    color: isActive ? 'var(--color-on-accent)' : 'var(--color-text-muted)',
+                    fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
+                    flexShrink: 0, transition: 'background 150ms ease-out, color 150ms ease-out',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span style={{ opacity: isActive ? 1 : 0.6 }}>{cat.icon}</span>
+                  {cat.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Content area */}
