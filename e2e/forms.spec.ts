@@ -25,7 +25,8 @@ test.describe('PDF forms', () => {
     await expect(checkbox).toHaveAttribute('aria-checked', 'true')
     await page.waitForTimeout(400)
 
-    await page.getByRole('button', { name: 'יצוא כ...' }).click()
+    // The export control differs between the desktop toolbar and the phone header
+    await page.getByRole('button', { name: /^(יצוא כ\.\.\.|שמור ושתף)$/ }).first().click()
     const download = await confirmDownload(page)
     const out = await PDFDocument.load(readFileSync((await download.path())!))
 
@@ -51,6 +52,8 @@ test.describe('PDF forms', () => {
     await page.getByRole('button', { name: /form\.pdf/ }).first().click()
     await page.waitForTimeout(3000)
 
-    await expect(page.getByLabel('applicant.name')).toHaveValue('בדיקה')
+    // The overlay only mounts once the page has finished rendering, which
+    // takes noticeably longer on the phone-sized project
+    await expect(page.getByLabel('applicant.name')).toHaveValue('בדיקה', { timeout: 30_000 })
   })
 })

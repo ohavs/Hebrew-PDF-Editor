@@ -33,6 +33,13 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(
 // Track the in-flight pdf.js render per canvas so a newer render can cancel
 // the older one instead of throwing "same canvas during multiple render()".
 const renderTasks = new WeakMap<HTMLCanvasElement, any>()
+// ...and a per-canvas promise chain, because cancelling isn't enough on its
+// own: two calls could both get past the cancel check while awaiting getPage,
+// and pdf.js then refuses to draw twice on one canvas. That error left the
+// page stuck under its skeleton forever — resuming a session on a phone hit
+// it every time, since the fit-to-width zoom lands right on top of the first
+// render.
+const renderChains = new WeakMap<HTMLCanvasElement, Promise<unknown>>()
 
 const IS_COARSE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
 // iOS Safari fails silently above ~16.7M canvas pixels
@@ -132,71 +139,76 @@ export function usePDF() {
     }
   }, [])
 
-  const renderPage = useCallback(async (
+  const renderPage = useCallback((
     pdfDoc: any,
     pageIndex: number,
     canvas: HTMLCanvasElement,
     zoom: number,
     rotation: number = 0
   ) => {
-    try {
-      // Cancel any in-flight render on this canvas first
-      const prev = renderTasks.get(canvas)
-      if (prev) {
-        prev.cancel()
-        try { await prev.promise } catch { /* RenderingCancelledException */ }
+    // Cut the current render short right away — synchronously, before any
+    // await, so a burst of zoom changes doesn't queue full renders
+    try { renderTasks.get(canvas)?.cancel() } catch { /* already settled */ }
+
+    const run = async () => {
+      try {
+        const page = await pdfDoc.getPage(pageIndex + 1)
+        // Compose with the page's intrinsic /Rotate instead of overriding it
+        const totalRotation = (((page.rotate || 0) + rotation) % 360 + 360) % 360
+        const dpr = window.devicePixelRatio || 1
+
+        // Supersampling factor for crisp path-based glyphs, capped so phone
+        // canvases stay within safe memory limits (iOS silently fails above
+        // ~16.7M pixels and blanks the page).
+        let outputScale = Math.min(dpr * 2, IS_COARSE ? 2.5 : 4)
+        const naturalViewport = page.getViewport({ scale: 1, rotation: totalRotation })
+        const naturalW = naturalViewport.width
+        const naturalH = naturalViewport.height
+        const areaAtScale = (s: number) => naturalW * zoom * s * naturalH * zoom * s
+        while (outputScale > 1 && areaAtScale(outputScale) > MAX_CANVAS_AREA) {
+          outputScale = Math.max(1, outputScale - 0.5)
+        }
+
+        const viewport = page.getViewport({ scale: zoom * outputScale, rotation: totalRotation })
+
+        // Round to integer CSS pixels to prevent subpixel blurring
+        const cssW = Math.round(viewport.width / outputScale)
+        const cssH = Math.round(viewport.height / outputScale)
+
+        // Backing store only — display size is owned by the component's CSS
+        canvas.width = Math.round(cssW * outputScale)
+        canvas.height = Math.round(cssH * outputScale)
+
+        const ctx = canvas.getContext('2d', { alpha: false })!
+        ctx.imageSmoothingEnabled = false
+
+        const task = page.render({
+          canvasContext: ctx,
+          viewport,
+          background: 'white',
+        })
+        renderTasks.set(canvas, task)
+        await task.promise
+        renderTasks.delete(canvas)
+        page.cleanup()
+
+        return {
+          width: cssW,
+          height: cssH,
+          naturalWidth: naturalW,
+          naturalHeight: naturalH,
+        }
+      } catch (e: any) {
+        if (e?.name !== 'RenderingCancelledException') console.error('renderPage failed', e)
+        return null
       }
-
-      const page = await pdfDoc.getPage(pageIndex + 1)
-      // Compose with the page's intrinsic /Rotate instead of overriding it
-      const totalRotation = (((page.rotate || 0) + rotation) % 360 + 360) % 360
-      const dpr = window.devicePixelRatio || 1
-
-      // Supersampling factor for crisp path-based glyphs, capped so phone
-      // canvases stay within safe memory limits (iOS silently fails above
-      // ~16.7M pixels and blanks the page).
-      let outputScale = Math.min(dpr * 2, IS_COARSE ? 2.5 : 4)
-      const naturalViewport = page.getViewport({ scale: 1, rotation: totalRotation })
-      const naturalW = naturalViewport.width
-      const naturalH = naturalViewport.height
-      const areaAtScale = (s: number) => naturalW * zoom * s * naturalH * zoom * s
-      while (outputScale > 1 && areaAtScale(outputScale) > MAX_CANVAS_AREA) {
-        outputScale = Math.max(1, outputScale - 0.5)
-      }
-
-      const viewport = page.getViewport({ scale: zoom * outputScale, rotation: totalRotation })
-
-      // Round to integer CSS pixels to prevent subpixel blurring
-      const cssW = Math.round(viewport.width / outputScale)
-      const cssH = Math.round(viewport.height / outputScale)
-
-      // Backing store only — display size is owned by the component's CSS
-      canvas.width = Math.round(cssW * outputScale)
-      canvas.height = Math.round(cssH * outputScale)
-
-      const ctx = canvas.getContext('2d', { alpha: false })!
-      ctx.imageSmoothingEnabled = false
-
-      const task = page.render({
-        canvasContext: ctx,
-        viewport,
-        background: 'white',
-      })
-      renderTasks.set(canvas, task)
-      await task.promise
-      renderTasks.delete(canvas)
-      page.cleanup()
-
-      return {
-        width: cssW,
-        height: cssH,
-        naturalWidth: naturalW,
-        naturalHeight: naturalH,
-      }
-    } catch (e: any) {
-      if (e?.name !== 'RenderingCancelledException') console.error('renderPage failed', e)
-      return null
     }
+
+    // Queue behind whatever is already drawing on this canvas, whether it
+    // finished, failed or was cancelled
+    const chain = (renderChains.get(canvas) ?? Promise.resolve()).then(run, run)
+    renderChains.set(canvas, chain.catch(() => {}))
+    return chain
   }, [])
 
   const renderThumbnail = useCallback(async (
