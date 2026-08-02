@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib'
+import { PDFDocument, StandardFonts, rgb, degrees, PDFName, PDFDict } from 'pdf-lib'
 import type { Annotation, FormField, PageInfo, Rect, Point } from '../store/types'
 import { rasterizeTextBox, rasterizeStamp, rasterizeStickyCard, rasterizePlainText } from './textRaster'
 
@@ -256,18 +256,40 @@ export async function embedAnnotationsIntoPdf(
 
   // Form field values (rasterized → Hebrew-safe)
   for (const field of formFields) {
-    if (!field.value || typeof field.value !== 'string') continue
     const pageIdx = field.pageIndex
     if (pageIdx < 0 || pageIdx >= pages.length) continue
     const page = pages[pageIdx]
     const { width: W, height: H } = page.getSize()
     const map = pageMapper(totalRotation(pageIdx), W, H)
     try {
-      const raster = rasterizePlainText(String(field.value), 12, '#000000', field.rect.width)
-      if (raster) {
+      if (field.type === 'checkbox' || field.type === 'radio') {
+        if (field.value !== true) continue
+        // A tick sized to the box, centred — the widget it replaces is gone
+        const side = Math.min(field.rect.width, field.rect.height)
+        const raster = rasterizePlainText(field.type === 'radio' ? '●' : '✓', side * 0.8, '#000000', side * 2)
+        if (!raster) continue
         const img = await embedDataUrl(pdfDoc, raster.dataUrl)
         const displayRect: Rect = {
-          x: field.rect.x + 4,
+          x: field.rect.x + (field.rect.width - raster.width) / 2,
+          y: field.rect.y + (field.rect.height - raster.height) / 2,
+          width: raster.width, height: raster.height,
+        }
+        const place = map.imagePlacement(displayRect)
+        page.drawImage(img, { ...place, rotate: degrees(place.rotate) })
+        continue
+      }
+
+      if (!field.value || typeof field.value !== 'string') continue
+      const text = String(field.value)
+      const raster = rasterizePlainText(text, 12, '#000000', field.rect.width - 8)
+      if (raster) {
+        const img = await embedDataUrl(pdfDoc, raster.dataUrl)
+        // Hebrew reads from the right edge of the box, like the form does
+        const rtl = /[֐-׿]/.test(text)
+        const displayRect: Rect = {
+          x: rtl
+            ? field.rect.x + field.rect.width - 4 - raster.width
+            : field.rect.x + 4,
           y: field.rect.y + (field.rect.height - raster.height) / 2,
           width: raster.width, height: raster.height,
         }
@@ -275,6 +297,25 @@ export async function embedAnnotationsIntoPdf(
         page.drawImage(img, { ...place, rotate: degrees(place.rotate) })
       }
     } catch (e) { console.error('form field export failed', e) }
+  }
+
+  // The values above are page content, and a viewer paints a widget's own
+  // appearance stream on top of that — an empty text field would simply
+  // cover what was typed. Flatten by dropping the widgets and the AcroForm.
+  if (formFields.some(f => f.pdfFieldRef)) {
+    try {
+      pdfDoc.catalog.delete(PDFName.of('AcroForm'))
+      for (const page of pages) {
+        const annots = page.node.Annots()
+        if (!annots) continue
+        for (let i = annots.size() - 1; i >= 0; i--) {
+          const entry = page.node.context.lookup(annots.get(i))
+          if (entry instanceof PDFDict && String(entry.get(PDFName.of('Subtype'))) === '/Widget') {
+            annots.remove(i)
+          }
+        }
+      }
+    } catch (e) { console.error('form flatten failed', e) }
   }
 
   // Live decorations — watermark + page numbers on every page

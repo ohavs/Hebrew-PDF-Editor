@@ -3,12 +3,32 @@ import * as pdfjsLib from 'pdfjs-dist'
 import { usePDFStore } from '../store'
 import { useAnnotationsStore } from '../store'
 import { useUIStore } from '../store'
+import { detectFormFields } from '../utils/formFields'
 
-// Set worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
-  import.meta.url
-).toString()
+// Set worker.
+//
+// pdf.js v5 calls Map.prototype.getOrInsertComputed, which Safari and
+// slightly-older Chrome don't have. main.tsx patches the page's realm, but
+// the worker is a separate one — parsing a document with an AcroForm or
+// standard fonts hits the missing method there and every page render fails
+// to an endless skeleton. So the worker script is loaded through a tiny
+// module that installs the polyfill first (the same blob-wrapper trick
+// pdf.js itself uses for cross-origin workers).
+const workerUrl = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString()
+const workerBootstrap = `
+for (const p of [Map.prototype, WeakMap.prototype]) {
+  if (!p.getOrInsertComputed) {
+    p.getOrInsertComputed = function (k, cb) { if (!this.has(k)) this.set(k, cb(k)); return this.get(k) }
+  }
+  if (!p.getOrInsert) {
+    p.getOrInsert = function (k, v) { if (!this.has(k)) this.set(k, v); return this.get(k) }
+  }
+}
+await import(${JSON.stringify(workerUrl)});
+`
+pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(
+  new Blob([workerBootstrap], { type: 'text/javascript' })
+)
 
 // Track the in-flight pdf.js render per canvas so a newer render can cancel
 // the older one instead of throwing "same canvas during multiple render()".
@@ -87,6 +107,19 @@ export function usePDF() {
       addRecentFile(name, fileSize)
       setIsLoading(false)
       addToast(`נטען: ${name}`, 'success')
+
+      // Scan for AcroForm widgets in the background — it walks every page,
+      // and the document is already usable without it. Anything restored
+      // from storage wins, so a half-filled form isn't wiped on reopen.
+      if (!opts?.preserveAnnotations && !useAnnotationsStore.getState().formFields.length) {
+        detectFormFields(pdfDoc).then(fields => {
+          if (!fields.length) return
+          if (usePDFStore.getState().pdfDoc !== pdfDoc) return // a newer document won
+          if (useAnnotationsStore.getState().formFields.length) return
+          useAnnotationsStore.getState().importFormFields(fields)
+          addToast(`זוהה טופס עם ${fields.length} שדות — אפשר למלא אותו ישירות`, 'success')
+        }).catch(e => console.warn('form detection failed', e))
+      }
       return pdfDoc
     } catch (err: any) {
       console.error('loadPDF failed', err)

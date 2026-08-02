@@ -13,6 +13,22 @@ export async function makePdf(pages = 3): Promise<Buffer> {
   return Buffer.from(await doc.save())
 }
 
+/** A one-page PDF carrying a real AcroForm: a text field and a checkbox. */
+export async function makeFormPdf(): Promise<Buffer> {
+  const doc = await PDFDocument.create()
+  const font = await doc.embedFont(StandardFonts.Helvetica)
+  const page = doc.addPage([595, 842])
+  page.drawText('FORM', { x: 60, y: 780, size: 24, font })
+
+  const form = doc.getForm()
+  const name = form.createTextField('applicant.name')
+  name.addToPage(page, { x: 60, y: 700, width: 300, height: 26 })
+  const agree = form.createCheckBox('applicant.agree')
+  agree.addToPage(page, { x: 60, y: 650, width: 20, height: 20 })
+
+  return Buffer.from(await doc.save())
+}
+
 /** A minimal but valid .docx containing the given paragraphs. */
 export function makeDocx(paragraphs: string[]): Buffer {
   const body = paragraphs

@@ -531,22 +531,31 @@ export const useAnnotationsStore = create<AnnotationsState>()(subscribeWithSelec
   clearHistory: () => set({ past: [], future: [] }),
   getPageAnnotations: (pageIndex) => get().annotations.filter(a => a.pageIndex === pageIndex),
 
+  // Every form mutation marks the document dirty — autosave only persists
+  // when that flag is set, so without it a filled-in form was lost on reload.
   addFormField: (field) => {
     const id = uuidv4()
     set((s) => ({ formFields: [...s.formFields, { ...field, id }] }))
+    usePDFStore.getState().setHasUnsavedChanges(true)
     return id
   },
   updateFormField: (id, changes) => {
     set((s) => ({ formFields: s.formFields.map(f => f.id === id ? { ...f, ...changes } : f) }))
+    usePDFStore.getState().setHasUnsavedChanges(true)
   },
   deleteFormField: (id) => {
     set((s) => ({ formFields: s.formFields.filter(f => f.id !== id) }))
+    usePDFStore.getState().setHasUnsavedChanges(true)
   },
   getPageFormFields: (pageIndex) => get().formFields.filter(f => f.pageIndex === pageIndex),
   clearFormData: () => {
     set((s) => ({ formFields: s.formFields.map(f => ({ ...f, value: f.type === 'checkbox' ? false : '' })) }))
+    usePDFStore.getState().setHasUnsavedChanges(true)
   },
-  importFormFields: (fields) => set({ formFields: fields }),
+  importFormFields: (fields) => {
+    set({ formFields: fields })
+    usePDFStore.getState().setHasUnsavedChanges(true)
+  },
 
   loadFromStorage: (fileName) => {
     try {
