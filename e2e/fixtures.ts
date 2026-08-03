@@ -29,6 +29,20 @@ export async function makeFormPdf(): Promise<Buffer> {
   return Buffer.from(await doc.save())
 }
 
+/** A one-page PDF laying text out as a 3-column grid. */
+export async function makeTablePdf(rows: string[][]): Promise<Buffer> {
+  const doc = await PDFDocument.create()
+  const font = await doc.embedFont(StandardFonts.Helvetica)
+  const page = doc.addPage([595, 842])
+  const xs = [60, 240, 420]
+  rows.forEach((row, r) => {
+    row.forEach((cell, c) => {
+      page.drawText(cell, { x: xs[c], y: 760 - r * 30, size: 12, font })
+    })
+  })
+  return Buffer.from(await doc.save())
+}
+
 /** A minimal but valid .docx containing the given paragraphs. */
 export function makeDocx(paragraphs: string[]): Buffer {
   const body = paragraphs

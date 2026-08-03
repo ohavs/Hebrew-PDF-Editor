@@ -22,6 +22,7 @@ export const TOOL_META: Array<{ id: CategoryId; label: string; desc: string; emo
   { id: 'from-image', label: 'תמונה ל-PDF', desc: 'צור PDF מתמונות',            emoji: '📷' },
   { id: 'to-word',    label: 'PDF לוורד',   desc: 'ייצא את הטקסט כ-DOCX',       emoji: '📝' },
   { id: 'from-word',  label: 'וורד ל-PDF',  desc: 'המר מסמך DOCX ל-PDF',        emoji: '📄' },
+  { id: 'to-excel',   label: 'PDF לאקסל',   desc: 'ייצא טבלאות כ-XLSX',         emoji: '📊' },
   { id: 'page-numbers', label: 'מספור עמודים', desc: 'הוסף מספרי עמודים',       emoji: '🔢' },
 ]
 

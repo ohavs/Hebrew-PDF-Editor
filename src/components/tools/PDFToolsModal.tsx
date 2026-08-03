@@ -15,6 +15,7 @@ import { ToImagePanel } from './panels/ToImagePanel'
 import { FromImagePanel } from './panels/FromImagePanel'
 import { ToWordPanel } from './panels/ToWordPanel'
 import { FromWordPanel } from './panels/FromWordPanel'
+import { ToExcelPanel } from './panels/ToExcelPanel'
 import { PageNumbersPanel } from './panels/PageNumbersPanel'
 
 export type { CategoryId } from './categories'
@@ -221,6 +222,7 @@ const ToolPanel: React.FC<{ category: CategoryId }> = ({ category }) => {
     case 'from-image': return <FromImagePanel />
     case 'to-word': return <ToWordPanel />
     case 'from-word': return <FromWordPanel />
+    case 'to-excel': return <ToExcelPanel />
     case 'page-numbers': return <PageNumbersPanel />
   }
 }
