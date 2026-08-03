@@ -29,6 +29,19 @@ export async function makeFormPdf(): Promise<Buffer> {
   return Buffer.from(await doc.save())
 }
 
+/** A PDF whose pages carry the given lines — for diffing two revisions. */
+export async function makeTextPdf(pages: string[][]): Promise<Buffer> {
+  const doc = await PDFDocument.create()
+  const font = await doc.embedFont(StandardFonts.Helvetica)
+  for (const lines of pages) {
+    const page = doc.addPage([595, 842])
+    lines.forEach((line, i) => {
+      page.drawText(line, { x: 60, y: 760 - i * 28, size: 14, font })
+    })
+  }
+  return Buffer.from(await doc.save())
+}
+
 /** A one-page PDF laying text out as a 3-column grid. */
 export async function makeTablePdf(rows: string[][]): Promise<Buffer> {
   const doc = await PDFDocument.create()

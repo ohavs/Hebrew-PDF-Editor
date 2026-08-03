@@ -23,6 +23,7 @@ export const TOOL_META: Array<{ id: CategoryId; label: string; desc: string; emo
   { id: 'to-word',    label: 'PDF לוורד',   desc: 'ייצא את הטקסט כ-DOCX',       emoji: '📝' },
   { id: 'from-word',  label: 'וורד ל-PDF',  desc: 'המר מסמך DOCX ל-PDF',        emoji: '📄' },
   { id: 'to-excel',   label: 'PDF לאקסל',   desc: 'ייצא טבלאות כ-XLSX',         emoji: '📊' },
+  { id: 'compare',    label: 'השוואת גרסאות', desc: 'מצא מה השתנה מול קובץ אחר', emoji: '🔍' },
   { id: 'page-numbers', label: 'מספור עמודים', desc: 'הוסף מספרי עמודים',       emoji: '🔢' },
 ]
 
