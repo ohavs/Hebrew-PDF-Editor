@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useUIStore } from '../../store'
 import { PropertiesPanel } from './PropertiesPanel'
+import { startPointerDrag } from '../../utils/pointerDrag'
 import type { ToolType } from '../../store/types'
 
 // Tools with real, adjustable properties. Others (eraser, underline,
@@ -8,16 +9,41 @@ import type { ToolType } from '../../store/types'
 // the canvas with useless content.
 const TOOLS_WITH_PROPS: ToolType[] = ['text', 'draw', 'highlight', 'underline', 'strikethrough', 'shapes', 'stamp', 'signature']
 
+/** Past this many pixels of downward drag, let go and it closes. */
+const DISMISS_DISTANCE = 90
+
 export const MobilePropertiesDrawer: React.FC = () => {
   const { activeTool } = useUIStore()
   const [isOpen, setIsOpen] = useState(false)
+  const drawerRef = useRef<HTMLDivElement>(null)
 
   const hasProps = TOOLS_WITH_PROPS.includes(activeTool)
 
-  // Auto-open when picking a tool that has settings; close otherwise
-  useEffect(() => {
-    setIsOpen(hasProps)
-  }, [activeTool]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Picking a tool no longer throws its settings over the page — the settings
+  // button opens them when they are actually wanted. Switching tools does
+  // close whatever was open, since it belonged to the previous tool.
+  useEffect(() => { setIsOpen(false) }, [activeTool])
+
+  /** Drag the sheet down to dismiss, the way every mobile sheet behaves. */
+  const startDismissDrag = (e: React.PointerEvent) => {
+    const el = drawerRef.current
+    if (!el) return
+    e.preventDefault()
+    el.style.transition = 'none'
+    startPointerDrag(e, {
+      onMove: (_dx, dy) => {
+        // Rubber-band upward instead of letting the sheet fly off the top
+        const offset = dy > 0 ? dy : dy / 4
+        el.style.transform = `translateY(${offset}px)`
+      },
+      onEnd: () => {
+        el.style.transition = ''
+        const shifted = new DOMMatrixReadOnly(getComputedStyle(el).transform).m42
+        el.style.transform = ''
+        if (shifted > DISMISS_DISTANCE) setIsOpen(false)
+      },
+    })
+  }
 
   return (
     <>
@@ -31,12 +57,24 @@ export const MobilePropertiesDrawer: React.FC = () => {
       )}
 
       {/* Drawer */}
-      <div className={`mobile-props-drawer mobile-only${isOpen ? '' : ' hidden'}`}>
-        <div className="mobile-props-handle" onClick={() => setIsOpen(false)} />
+      <div
+        ref={drawerRef}
+        className={`mobile-props-drawer mobile-only${isOpen ? '' : ' hidden'}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="הגדרות כלי"
+      >
+        <div
+          className="mobile-props-grip"
+          onPointerDown={startDismissDrag}
+          onClick={() => setIsOpen(false)}
+        >
+          <div className="mobile-props-handle" />
+        </div>
         <PropertiesPanel />
       </div>
 
-      {/* Floating reopen button — above the bottom nav, only for tools with settings */}
+      {/* Floating settings button — above the bottom nav, only for tools with settings */}
       {!isOpen && hasProps && (
         <button
           className="mobile-only"

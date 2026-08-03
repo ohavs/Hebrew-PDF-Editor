@@ -32,6 +32,13 @@ export const TopToolbar: React.FC = () => {
 
   const handlePrint = () => window.print()
 
+  // Straight to the home page when the editor was opened directly (a shared
+  // link, a PWA launch) — history.back() there would leave the app
+  const goBack = () => {
+    if (window.history.length > 1) navigate(-1)
+    else navigate('/')
+  }
+
   const handleZoomSubmit = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       const v = parseFloat(zoomInput)
@@ -74,7 +81,10 @@ export const TopToolbar: React.FC = () => {
         borderBottom: '1px solid var(--color-border)',
       }}
     >
-      {/* Home button */}
+      {/* Back one step, then home */}
+      <TopBtn title="חזור" onClick={goBack}>
+        <BackIcon />
+      </TopBtn>
       <TopBtn title="דף ראשי" onClick={() => navigate('/')}>
         <HomeIcon />
       </TopBtn>
@@ -101,7 +111,7 @@ export const TopToolbar: React.FC = () => {
           <TopBtn title="בטל (Ctrl+Z)" onClick={() => useAnnotationsStore.getState().undo()} disabled={!past.length}>
             <UndoIcon />
           </TopBtn>
-          <TopBtn title="חזור (Ctrl+Y)" onClick={() => useAnnotationsStore.getState().redo()} disabled={!future.length}>
+          <TopBtn title="בצע שוב (Ctrl+Y)" onClick={() => useAnnotationsStore.getState().redo()} disabled={!future.length}>
             <RedoIcon />
           </TopBtn>
           <div className="toolbar-sep" style={{ background: 'var(--color-border)' }} />
@@ -276,6 +286,7 @@ const TopBtn: React.FC<{ title?: string; onClick?: () => void; disabled?: boolea
   )
 
 // Icons
+const BackIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
 const HomeIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
 const ExportIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
 const PrintIcon = () => <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>

@@ -42,6 +42,21 @@ test.describe('accessibility', () => {
     expect(parseFloat(outline!.width)).toBeGreaterThan(0)
   })
 
+  test('the editor offers a back step next to home', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(500)
+    await page.goto('/#/editor', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(700)
+
+    const back = page.getByRole('button', { name: 'חזור', exact: true })
+    await expect(back).toBeVisible()
+    await expect(page.getByRole('button', { name: /דף (הבית|ראשי)/ })).toBeVisible()
+
+    await back.click()
+    await page.waitForTimeout(600)
+    await expect(page).not.toHaveURL(/#\/editor/)
+  })
+
   test('dialogs announce themselves and close on Escape', async ({ page }) => {
     await page.goto('/#/editor', { waitUntil: 'networkidle' })
     await page.waitForTimeout(700)

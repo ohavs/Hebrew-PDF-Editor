@@ -123,7 +123,6 @@ test.describe('PDF tools', () => {
     await page.waitForTimeout(700)
     // No document yet: the chosen tool must still be identifiable
     await expect(page.getByText('סובב, סדר, מחק ושכפל דפים').first()).toBeVisible()
-    await expect(page.getByRole('button', { name: 'החלף כלי' })).toBeVisible()
     await expect(page.getByText(/בחר קובץ כדי להשתמש ב/)).toBeVisible()
   })
 

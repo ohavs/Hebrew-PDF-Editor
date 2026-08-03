@@ -113,7 +113,10 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, naturalWidth, natu
         textDecoration: textUnderline ? 'underline' : 'none',
         color: textColor, align: textAlign, direction: textDirection
       }
-      addAnnotation(tb)
+      // Select it as it appears: the box focuses itself when it mounts
+      // selected, so the keyboard comes up and you can just type. Without
+      // this you got an empty dashed box and had to hunt for a double-tap.
+      selectAnnotation(addAnnotation(tb))
       return
     }
 

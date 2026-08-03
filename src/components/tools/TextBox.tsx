@@ -104,6 +104,10 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
     e.stopPropagation()
     e.preventDefault()
 
+    // Tapping a box that is already selected means "edit it" — the phone
+    // convention. Requiring a double-tap inside 300ms was close to
+    // unusable with a finger.
+    const wasSelected = selectedId === annotation.id
     selectAnnotation(annotation.id)
     hasMoved.current = false
     const start = { x: annotation.rect.x, y: annotation.rect.y }
@@ -119,15 +123,13 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
       },
       onEnd: (moved) => {
         if (moved) return
-        // Tap / double-tap detection
         const now = Date.now()
-        if (now - lastTapRef.current < 300) {
-          enterEditMode(tapPoint)
-        }
+        // Second tap on a selected box, or a quick double-tap on any box
+        if (wasSelected || now - lastTapRef.current < 300) enterEditMode(tapPoint)
         lastTapRef.current = now
       },
     })
-  }, [annotation.id, annotation.rect, isInteractive, isEditing, zoom, selectAnnotation, updateAnnotation, enterEditMode, pushHistory])
+  }, [annotation.id, annotation.rect, isInteractive, isEditing, zoom, selectedId, selectAnnotation, updateAnnotation, enterEditMode, pushHistory])
 
   const handleDblClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()

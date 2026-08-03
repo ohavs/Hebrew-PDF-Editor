@@ -520,9 +520,15 @@ html, body {
   .mobile-only { display: none !important; }
 }
 
-/* PDF pages container */
+/* PDF pages container.
+   min-content matters once the page is zoomed past the viewport: a centred
+   flex item that overflows its container spills equally on both sides, and
+   the leading side becomes unreachable — you could zoom in but never scroll
+   to the edge of the page. Sizing the container to its content instead means
+   the overflow all lands inside the scroller, where it can be reached. */
 .pdf-pages-container {
   padding: 24px 0;
+  min-width: min-content;
 }
 
 /* PDF page group */
@@ -559,13 +565,21 @@ html, body {
   transform: translateY(100%);
   pointer-events: none;
 }
+/* Grab area around the handle — a 4px bar is far too small a touch target
+   to drag the sheet by. touch-action: none so the drag reaches our handler
+   instead of scrolling the sheet's own overflow. */
+.mobile-props-grip {
+  padding: 8px 0 6px;
+  cursor: grab;
+  touch-action: none;
+}
 .mobile-props-handle {
-  width: 36px;
-  height: 4px;
+  width: 44px;
+  height: 5px;
   background: var(--color-border);
-  border-radius: 2px;
-  margin: 10px auto 0;
-  cursor: pointer;
+  border-radius: 3px;
+  margin: 0 auto;
+  pointer-events: none;
 }
 
 /* Print */

@@ -168,17 +168,8 @@ export const QuickTools: React.FC = () => {
               <div style={{ fontSize: 15, fontWeight: 700 }}>{activeToolMeta.label}</div>
               <div style={{ fontSize: 12, opacity: 0.75 }}>{activeToolMeta.desc}</div>
             </div>
-            <button
-              onClick={() => setActiveTool(null)}
-              style={{
-                flexShrink: 0, padding: '7px 12px', borderRadius: 10, border: 'none',
-                background: 'rgba(128,128,128,0.28)', color: 'inherit',
-                fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
-                minHeight: 0,
-              }}
-            >
-              החלף כלי
-            </button>
+            {/* No switch button here — the panel below opens the full tool
+                list, so a second way to do it only ate space */}
           </div>
         )}
 
