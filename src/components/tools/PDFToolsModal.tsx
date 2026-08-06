@@ -18,6 +18,7 @@ import { FromWordPanel } from './panels/FromWordPanel'
 import { ToExcelPanel } from './panels/ToExcelPanel'
 import { PageNumbersPanel } from './panels/PageNumbersPanel'
 import { ComparePanel } from './panels/ComparePanel'
+import { UnlockPanel } from './panels/UnlockPanel'
 
 export type { CategoryId } from './categories'
 
@@ -226,5 +227,6 @@ const ToolPanel: React.FC<{ category: CategoryId }> = ({ category }) => {
     case 'to-excel': return <ToExcelPanel />
     case 'page-numbers': return <PageNumbersPanel />
     case 'compare': return <ComparePanel />
+    case 'unlock': return <UnlockPanel />
   }
 }
