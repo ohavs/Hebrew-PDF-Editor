@@ -151,14 +151,14 @@ export const PDFToolsContent: React.FC<{ onClose: () => void; initialCategory?: 
 /** Sticky "download the document" bar, visible in every tool. */
 const DownloadFooter: React.FC = () => {
   const { pdfDoc, fileName, pageCount } = usePDFStore()
-  const { download } = useDownloadDocument()
+  const { download, share } = useDownloadDocument()
   const [busy, setBusy] = useState(false)
 
   if (!pdfDoc) return null
 
-  const run = async () => {
+  const run = async (action: () => Promise<boolean>) => {
     setBusy(true)
-    try { await download() } finally { setBusy(false) }
+    try { await action() } finally { setBusy(false) }
   }
 
   return (
@@ -180,8 +180,28 @@ const DownloadFooter: React.FC = () => {
           {pageCount} עמודים · כולל כל העריכות והשכבות
         </div>
       </div>
+      {/* Share sits beside the download rather than behind it — the arrow
+          promises a file on the device, and it now keeps that promise */}
       <button
-        onClick={run}
+        onClick={() => run(share)}
+        disabled={busy}
+        aria-label="שתף"
+        title="שתף"
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          width: 40, height: 40, borderRadius: 12, border: '1px solid var(--color-border)',
+          background: 'var(--color-surface-2)', color: 'var(--color-text)',
+          cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1,
+          WebkitTapHighlightColor: 'transparent', padding: 0, minHeight: 0,
+        }}
+      >
+        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+          <path strokeLinecap="round" d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+        </svg>
+      </button>
+      <button
+        onClick={() => run(download)}
         disabled={busy}
         style={{
           display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,

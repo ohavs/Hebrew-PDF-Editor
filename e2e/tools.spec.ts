@@ -99,6 +99,40 @@ test.describe('PDF tools', () => {
     expect(doc.getPageCount()).toBe(3)
   })
 
+  test('the page preview arrows point the RTL way and stay visible', async ({ page }) => {
+    await openToolWithPdf(page, 'organize', 3)
+    await page.locator('[data-page-cell]').nth(1).locator('canvas').click()
+    await page.waitForTimeout(1500)
+
+    const prev = page.getByRole('button', { name: 'העמוד הקודם' })
+    const next = page.getByRole('button', { name: 'העמוד הבא' })
+    await expect(prev).toBeVisible()
+    await expect(next).toBeVisible()
+
+    const geometry = await page.evaluate(() => {
+      const byLabel = (l: string) =>
+        document.querySelector(`button[aria-label="${l}"]`) as HTMLElement
+      const read = (el: HTMLElement) => ({
+        x: el.getBoundingClientRect().x,
+        // The chevron's path tells which way it points: "l7" turns right,
+        // "l-7" turns left
+        points: (el.querySelector('path')?.getAttribute('d') || '').includes('l7 7') ? 'right' : 'left',
+        background: getComputedStyle(el).backgroundColor,
+      })
+      return { prev: read(byLabel('העמוד הקודם')), next: read(byLabel('העמוד הבא')) }
+    })
+
+    // Hebrew reads right to left: previous sits on the right and points right
+    expect(geometry.prev.x).toBeGreaterThan(geometry.next.x)
+    expect(geometry.prev.points).toBe('right')
+    expect(geometry.next.points).toBe('left')
+
+    // ...on a disc dark enough to show over a white page
+    const rgb = geometry.prev.background.match(/[\d.]+/g)!.map(Number)
+    expect((rgb[0] + rgb[1] + rgb[2]) / 3).toBeLessThan(120)
+    expect(rgb[3] ?? 1).toBeGreaterThan(0.5)
+  })
+
   test('the tool list starts collapsed and expands on demand', async ({ page }) => {
     await openToolWithPdf(page, 'organize', 2)
 

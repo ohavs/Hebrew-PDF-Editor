@@ -1,7 +1,7 @@
 import { PDFDocument, degrees } from 'pdf-lib'
 import { usePDFStore, useAnnotationsStore, useUIStore } from '../store'
 import { usePDF } from './usePDF'
-import { embedAnnotationsIntoPdf, shareOrDownload } from '../utils/pdfExport'
+import { embedAnnotationsIntoPdf, shareOrDownload, downloadBlob } from '../utils/pdfExport'
 import { askFileName } from '../components/ui/PromptDialog'
 
 /**
@@ -28,17 +28,21 @@ export function useEditedBytes() {
 }
 
 /**
- * Download the finished document from anywhere — every tool panel gets this,
- * so finishing a task never requires a detour through the editor.
- * Bakes annotations, page order, rotations and live decorations, asks for a
- * file name, then shares (mobile) or downloads.
+ * Finish the document from anywhere — every tool panel gets this, so
+ * completing a task never requires a detour through the editor. Bakes
+ * annotations, page order, rotations and live decorations, then asks for a
+ * file name.
+ *
+ * Download and share are separate on purpose: a button labelled "download"
+ * that opened the system share sheet instead was the single most confusing
+ * thing in the editor.
  */
 export function useDownloadDocument() {
   const { fileName, pdfDoc } = usePDFStore()
   const { addToast } = useUIStore()
   const getEdited = useEditedBytes()
 
-  const download = async (opts?: { suffix?: string }): Promise<boolean> => {
+  const finish = async (mode: 'download' | 'share', opts?: { suffix?: string }): Promise<boolean> => {
     if (!pdfDoc) return false
     const base = fileName.replace(/\.pdf$/i, '')
     const suggested = `${base}${opts?.suffix ?? '-ערוך'}.pdf`
@@ -46,17 +50,26 @@ export function useDownloadDocument() {
     if (!outName) return false
     try {
       const bytes = await getEdited({ withDecorations: true })
-      const outcome = await shareOrDownload(bytes, outName)
-      addToast(outcome === 'shared' ? 'הקובץ מוכן לשיתוף' : 'הקובץ ירד בהצלחה', 'success')
+      if (mode === 'share') {
+        const outcome = await shareOrDownload(bytes, outName)
+        addToast(outcome === 'shared' ? 'הקובץ מוכן לשיתוף' : 'הקובץ ירד בהצלחה', 'success')
+      } else {
+        downloadBlob(bytes, outName)
+        addToast('הקובץ ירד בהצלחה', 'success')
+      }
       return true
     } catch (e) {
       console.error(e)
-      addToast('שגיאה בהורדה', 'error')
+      addToast(mode === 'share' ? 'שגיאה בשיתוף' : 'שגיאה בהורדה', 'error')
       return false
     }
   }
 
-  return { download, canDownload: !!pdfDoc }
+  return {
+    download: (opts?: { suffix?: string }) => finish('download', opts),
+    share: (opts?: { suffix?: string }) => finish('share', opts),
+    canDownload: !!pdfDoc,
+  }
 }
 
 /**

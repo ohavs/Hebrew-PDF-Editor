@@ -463,18 +463,24 @@ const PreviewNavButton: React.FC<{ side: 'start' | 'end'; disabled: boolean; onC
       style={{
         position: 'absolute', top: '50%', transform: 'translateY(-50%)',
         [side === 'start' ? 'insetInlineStart' : 'insetInlineEnd']: 6,
-        width: 44, height: 44, borderRadius: '50%', border: 'none',
-        background: 'rgba(255,255,255,0.16)', color: 'white',
+        width: 46, height: 46, borderRadius: '50%',
+        // Solid dark disc: a translucent white one disappeared completely
+        // over a white page, which is most of what gets previewed
+        background: 'rgba(15,23,42,0.72)', color: '#fff',
+        border: '1px solid rgba(255,255,255,0.35)',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.45)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0 : 1, pointerEvents: disabled ? 'none' : 'auto',
         transition: 'opacity 160ms ease', minHeight: 0, padding: 0,
-        backdropFilter: 'blur(4px)', zIndex: 2,
+        zIndex: 2,
       } as React.CSSProperties}
     >
-      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4" viewBox="0 0 24 24">
+      {/* insetInlineStart puts "previous" on the RIGHT in Hebrew, so it is
+          the one that points right — the two used to be swapped */}
+      <svg width="21" height="21" fill="none" stroke="currentColor" strokeWidth="2.4" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round"
-          d={side === 'start' ? 'M15 5l-7 7 7 7' : 'M9 5l7 7-7 7'} />
+          d={side === 'start' ? 'M9 5l7 7-7 7' : 'M15 5l-7 7 7 7'} />
       </svg>
     </button>
   )

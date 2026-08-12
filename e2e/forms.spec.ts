@@ -25,8 +25,8 @@ test.describe('PDF forms', () => {
     await expect(checkbox).toHaveAttribute('aria-checked', 'true')
     await page.waitForTimeout(400)
 
-    // The export control differs between the desktop toolbar and the phone header
-    await page.getByRole('button', { name: /^(יצוא כ\.\.\.|שמור ושתף)$/ }).first().click()
+    // Desktop exports from the toolbar; the phone header has its own download
+    await page.getByRole('button', { name: /^(יצוא כ\.\.\.|הורד)$/ }).first().click()
     const download = await confirmDownload(page)
     const out = await PDFDocument.load(readFileSync((await download.path())!))
 

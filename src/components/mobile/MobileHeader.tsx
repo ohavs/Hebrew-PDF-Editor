@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePDFStore, useAnnotationsStore, useUIStore } from '../../store'
-import { embedAnnotationsIntoPdf, shareOrDownload } from '../../utils/pdfExport'
+import { embedAnnotationsIntoPdf, shareOrDownload, downloadBlob } from '../../utils/pdfExport'
 import { usePWAInstall } from '../../hooks/usePWAInstall'
 import { askFileName } from '../ui/PromptDialog'
 
@@ -26,7 +26,12 @@ export const MobileHeader: React.FC = () => {
   const dismissed = localStorage.getItem('pwaInstallDismissed') === '1'
   const showInstallBtn = !dismissed && !isInStandalone()
 
-  const save = async () => {
+  /**
+   * Download and share are separate actions with separate icons: the one
+   * button used to carry a download arrow and open the system share sheet,
+   * which is not what a download arrow promises.
+   */
+  const finish = async (mode: 'download' | 'share') => {
     if (!pdfBytes) return
     const outName = await askFileName(fileName.replace(/\.pdf$/i, '') + '-ערוך.pdf', '.pdf')
     if (!outName) return
@@ -36,11 +41,16 @@ export const MobileHeader: React.FC = () => {
       const formFields = useAnnotationsStore.getState().formFields
       const { watermark, pageNumbers } = usePDFStore.getState()
       const result = await embedAnnotationsIntoPdf(pdfBytes, annotations, formFields, pageInfos, pageOrder, { watermark, pageNumbers })
-      const outcome = await shareOrDownload(result, outName)
-      addToast(outcome === 'shared' ? 'הקובץ מוכן לשיתוף' : 'הורד בהצלחה', 'success')
+      if (mode === 'share') {
+        const outcome = await shareOrDownload(result, outName)
+        addToast(outcome === 'shared' ? 'הקובץ מוכן לשיתוף' : 'הורד בהצלחה', 'success')
+      } else {
+        downloadBlob(result, outName)
+        addToast('הורד בהצלחה', 'success')
+      }
     } catch (e) {
       console.error(e)
-      addToast('שגיאה בשמירה', 'error')
+      addToast(mode === 'share' ? 'שגיאה בשיתוף' : 'שגיאה בהורדה', 'error')
     } finally {
       setSaving(false)
     }
@@ -120,9 +130,9 @@ export const MobileHeader: React.FC = () => {
           </svg>
         </HeaderBtn>
 
-        {/* Save / Share */}
+        {/* Download — the arrow means the file lands on the device */}
         {pdfDoc && (
-          <HeaderBtn ariaLabel="שמור ושתף" onClick={save} disabled={saving}>
+          <HeaderBtn ariaLabel="הורד" onClick={() => finish('download')} disabled={saving}>
             {saving ? (
               <svg className="spinner" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
@@ -132,6 +142,16 @@ export const MobileHeader: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
             )}
+          </HeaderBtn>
+        )}
+
+        {/* Share — opens the system sheet */}
+        {pdfDoc && (
+          <HeaderBtn ariaLabel="שתף" onClick={() => finish('share')} disabled={saving}>
+            <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+              <path strokeLinecap="round" d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+            </svg>
           </HeaderBtn>
         )}
 
