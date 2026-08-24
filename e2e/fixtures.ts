@@ -84,6 +84,12 @@ export function makeDocx(paragraphs: string[]): Buffer {
   }))
 }
 
+/**
+ * A 64x64 solid PNG as a data URL. Deliberately not a few pixels wide:
+ * Playwright cannot settle boundingBox() on a 4px element.
+ */
+export const RED_SQUARE_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAYklEQVR4nO3PMQ0AIADAMEAM/gUhBhEcDcmqYJtn7/GzpQNeNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaBdDKIBqK+eVxEAAAAASUVORK5CYII='
+
 /** Upload a generated file into the first file input on the page. */
 export async function upload(page: Page, name: string, buffer: Buffer, mimeType: string, selector = 'input[type="file"]') {
   await page.locator(selector).first().setInputFiles({ name, mimeType, buffer })

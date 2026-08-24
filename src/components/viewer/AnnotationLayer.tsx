@@ -5,6 +5,7 @@ import { DrawingCanvas } from '../tools/DrawingCanvas'
 import { TextBox } from '../tools/TextBox'
 import { StampOverlay } from '../tools/StampOverlay'
 import { SignatureOverlay } from '../tools/SignatureOverlay'
+import { ImageOverlay } from '../tools/ImageOverlay'
 import { ShapeOverlay } from '../tools/ShapeOverlay'
 import { StickyNote } from '../tools/StickyNote'
 
@@ -338,6 +339,7 @@ export const AnnotationLayer: React.FC<Props> = ({ pageIndex, naturalWidth, natu
         }
         if (ann.type === 'stamp') return <StampOverlay key={ann.id} annotation={ann as StampAnnotation} zoom={zoom} />
         if (ann.type === 'signature') return <SignatureOverlay key={ann.id} annotation={ann as any} zoom={zoom} />
+        if (ann.type === 'image') return <ImageOverlay key={ann.id} annotation={ann as any} zoom={zoom} />
         if (ann.type === 'shape') return <ShapeOverlay key={ann.id} annotation={ann as ShapeAnnotation} zoom={zoom} />
         if (ann.type === 'sticky') return <StickyNote key={ann.id} annotation={ann as StickyAnnotation} zoom={zoom} />
         return null

@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import { useUIStore, usePDFStore } from '../../store'
+import { useInsertImage } from '../../hooks/useInsertImage'
 import type { ToolType } from '../../store/types'
 
 const EASE = 'cubic-bezier(0.23,1,0.32,1)'
@@ -18,6 +19,7 @@ const GROUPS: ToolDef[][] = [
     { id: 'draw', label: 'ציור', icon: <DrawIcon /> },
     { id: 'eraser', label: 'מחק', icon: <EraserIcon /> },
     { id: 'shapes', label: 'צורות', icon: <ShapesIcon /> },
+    { id: 'image', label: 'תמונה', icon: <ImageToolIcon /> },
     { id: 'redact', label: 'כיסוי', icon: <RedactIcon /> },
     { id: 'stamp', label: 'חותמת', icon: <StampIcon /> },
   ],
@@ -31,10 +33,19 @@ const GROUPS: ToolDef[][] = [
 export const HorizontalToolbar: React.FC = () => {
   const { activeTool, setTool, setToolboxOpen, toolboxOpen } = useUIStore()
   const { pdfDoc } = usePDFStore()
+  const { insertImageFiles } = useInsertImage()
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   const handleTool = (id: ToolType) => {
     if (id === 'toolbox') {
       setToolboxOpen(!toolboxOpen)
+      return
+    }
+    // The picture tool is an action, not a mode: it opens the file picker and
+    // then leaves you in select mode with the new picture already grabbed
+    if (id === 'image') {
+      setTool('select')
+      imageInputRef.current?.click()
       return
     }
     setTool(id)
@@ -65,6 +76,18 @@ export const HorizontalToolbar: React.FC = () => {
         }
       }}
     >
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        style={{ display: 'none' }}
+        onChange={e => {
+          const files = Array.from(e.target.files || [])
+          e.target.value = '' // let the same file be chosen again
+          insertImageFiles(files)
+        }}
+      />
       {GROUPS.map((group, gi) => (
         <React.Fragment key={gi}>
           {gi > 0 && (
@@ -144,6 +167,7 @@ export const HorizontalToolbar: React.FC = () => {
 // Mobile bottom toolbar — replaced by MobileBottomNav
 
 // Icons
+function ImageToolIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path strokeLinecap="round" strokeLinejoin="round" d="M21 15l-5-5L5 21"/></svg> }
 function SelectIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 3l7 19 3-7 7-3L3 3z"/></svg>
 }

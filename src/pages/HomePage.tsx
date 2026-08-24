@@ -135,9 +135,32 @@ export const HomePage: React.FC = () => {
           </div>
 
           <button
-            onClick={() => navigate('/editor')}
+            onClick={() => navigate('/create')}
             style={{
               marginTop: 12,
+              width: '100%',
+              background: 'var(--color-mint)',
+              border: '1.5px solid transparent',
+              color: C.ink,
+              borderRadius: 14,
+              padding: '13px 20px',
+              fontSize: 14.5,
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: `transform 150ms ${ease}`,
+              WebkitTapHighlightColor: 'transparent',
+            }}
+            onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.99)' }}
+            onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
+          >
+            ✨ צור PDF חדש
+          </button>
+
+          <button
+            onClick={() => navigate('/editor')}
+            style={{
+              marginTop: 10,
               width: '100%',
               background: 'transparent',
               border: `1.5px solid var(--color-border)`,

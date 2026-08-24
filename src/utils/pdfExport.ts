@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, degrees, PDFName, PDFDict } from 'pdf-lib'
-import type { Annotation, FormField, PageInfo, Rect, Point } from '../store/types'
+import type { Annotation, FormField, ImageAnnotation, PageInfo, Rect, Point } from '../store/types'
 import { rasterizeTextBox, rasterizeStamp, rasterizeStickyCard, rasterizePlainText } from './textRaster'
 
 export interface ExportDecorations {
@@ -38,6 +38,45 @@ function rasterizeWatermark(text: string, fontSize: number): { dataUrl: string; 
   ctx.textBaseline = 'middle'
   ctx.fillText(text, 0, 0)
   return { dataUrl: canvas.toDataURL('image/png'), side: 800 }
+}
+
+/**
+ * Draw a picture rotated (and rounded) onto a canvas sized to its rotated
+ * bounding box, so the caller only has to place an upright rectangle.
+ */
+async function rasterizeImageObject(ann: ImageAnnotation): Promise<{ dataUrl: string; width: number; height: number }> {
+  const img = await loadImage(ann.imageData)
+  const S = 2 // supersample so rotated edges stay clean
+  const rad = (ann.rotation * Math.PI) / 180
+  const w = ann.rect.width
+  const h = ann.rect.height
+  const bw = Math.abs(w * Math.cos(rad)) + Math.abs(h * Math.sin(rad))
+  const bh = Math.abs(w * Math.sin(rad)) + Math.abs(h * Math.cos(rad))
+
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.ceil(bw * S))
+  canvas.height = Math.max(1, Math.ceil(bh * S))
+  const ctx = canvas.getContext('2d')!
+  ctx.scale(S, S)
+  ctx.translate(bw / 2, bh / 2)
+  ctx.rotate(rad)
+  if (ann.cornerRadius > 0) {
+    const r = Math.min(ann.cornerRadius, w / 2, h / 2)
+    ctx.beginPath()
+    ctx.roundRect(-w / 2, -h / 2, w, h, r)
+    ctx.clip()
+  }
+  ctx.drawImage(img, -w / 2, -h / 2, w, h)
+  return { dataUrl: canvas.toDataURL('image/png'), width: bw, height: bh }
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('image decode failed'))
+    img.src = src
+  })
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -140,7 +179,16 @@ export async function embedAnnotationsIntoPdf(
         const raster = rasterizeTextBox(ann)
         if (raster) {
           const img = await embedDataUrl(pdfDoc, raster.dataUrl)
-          const place = map.imagePlacement({ ...ann.rect, width: raster.width, height: raster.height })
+          // A rotated box was drawn into the bounding box of its rotated form,
+          // so it hangs off the corner — centre it on the box instead
+          const displayRect: Rect = raster.rotated
+            ? {
+                x: ann.rect.x + ann.rect.width / 2 - raster.width / 2,
+                y: ann.rect.y + ann.rect.height / 2 - raster.height / 2,
+                width: raster.width, height: raster.height,
+              }
+            : { ...ann.rect, width: raster.width, height: raster.height }
+          const place = map.imagePlacement(displayRect)
           page.drawImage(img, { ...place, rotate: degrees(place.rotate) })
         }
       } else if (ann.type === 'highlight' || ann.type === 'underline' || ann.type === 'strikethrough') {
@@ -233,6 +281,27 @@ export async function embedAnnotationsIntoPdf(
         }
         const place = map.imagePlacement(displayRect)
         page.drawImage(img, { ...place, rotate: degrees(place.rotate) })
+      } else if (ann.type === 'image') {
+        // Unrotated, square-cornered pictures go in at full quality; the rest
+        // are drawn through a canvas first, because compounding an object
+        // rotation with the page's own rotation in pdf-lib's anchor model is
+        // a source of subtle placement bugs.
+        if (!ann.rotation && !ann.cornerRadius) {
+          const img = await embedDataUrl(pdfDoc, ann.imageData)
+          const place = map.imagePlacement(ann.rect)
+          page.drawImage(img, { ...place, rotate: degrees(place.rotate), opacity: ann.opacity })
+        } else {
+          const raster = await rasterizeImageObject(ann)
+          const img = await embedDataUrl(pdfDoc, raster.dataUrl)
+          const cx = ann.rect.x + ann.rect.width / 2
+          const cy = ann.rect.y + ann.rect.height / 2
+          const displayRect: Rect = {
+            x: cx - raster.width / 2, y: cy - raster.height / 2,
+            width: raster.width, height: raster.height,
+          }
+          const place = map.imagePlacement(displayRect)
+          page.drawImage(img, { ...place, rotate: degrees(place.rotate), opacity: ann.opacity })
+        }
       } else if (ann.type === 'signature') {
         const img = await embedDataUrl(pdfDoc, ann.imageData)
         const place = map.imagePlacement(ann.rect)

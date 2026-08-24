@@ -34,51 +34,107 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number
   return out
 }
 
-/** Render a text box annotation to an image matching its on-screen look. */
-export function rasterizeTextBox(ann: TextBoxAnnotation): RasterResult | null {
-  const text = ann.content?.trim()
-  if (!text) return null
+/** Defaults for the optional layout fields, in one place. */
+export function textBoxStyle(ann: TextBoxAnnotation) {
+  return {
+    lineHeightFactor: ann.lineHeight ?? 1.4,
+    letterSpacing: ann.letterSpacing ?? 0,
+    background: ann.backgroundColor && ann.backgroundColor !== 'transparent' ? ann.backgroundColor : null,
+    padding: ann.padding ?? 7,
+    borderColor: ann.borderColor ?? '#000000',
+    borderWidth: ann.borderWidth ?? 0,
+    borderRadius: ann.borderRadius ?? 0,
+    rotation: ann.rotation ?? 0,
+    opacity: ann.opacity ?? 1,
+  }
+}
 
-  const padX = 7, padY = 4 // match TextBox inner padding
-  const lineHeight = ann.fontSize * 1.4
-  const canvas = document.createElement('canvas')
-  const ctx = canvas.getContext('2d')!
+/**
+ * Render a text box to an image matching its on-screen look.
+ *
+ * A rotated box is drawn into the axis-aligned box of its rotated form, the
+ * same trick stamps use, so the exporter only ever places an upright
+ * rectangle — `rotated` tells it to centre rather than corner-anchor.
+ */
+export function rasterizeTextBox(ann: TextBoxAnnotation): (RasterResult & { rotated: boolean }) | null {
+  const text = ann.content?.trim()
+  const style = textBoxStyle(ann)
+  if (!text && !style.background && !style.borderWidth) return null
+
+  const pad = style.padding
+  const padY = Math.max(2, pad * 0.6) // the vertical inset has always been tighter
+  const lineHeight = ann.fontSize * style.lineHeightFactor
+  const measure = document.createElement('canvas').getContext('2d')!
   const fontStr = `${ann.fontStyle === 'italic' ? 'italic ' : ''}${ann.fontWeight === 'bold' ? '700' : '400'} ${ann.fontSize * SCALE}px '${ann.fontFamily}', 'Heebo', sans-serif`
 
-  ctx.font = fontStr
-  const maxTextWidth = (ann.rect.width - padX * 2) * SCALE
-  const lines = wrapLines(ctx, ann.content, maxTextWidth)
-  const height = Math.max(ann.rect.height, lines.length * lineHeight + padY * 2)
+  measure.font = fontStr
+  if (style.letterSpacing) measure.letterSpacing = `${style.letterSpacing * SCALE}px`
+  const maxTextWidth = (ann.rect.width - pad * 2) * SCALE
+  const lines = text ? wrapLines(measure, ann.content, maxTextWidth) : []
+  const boxW = ann.rect.width
+  const boxH = Math.max(ann.rect.height, lines.length * lineHeight + padY * 2)
 
-  canvas.width = Math.ceil(ann.rect.width * SCALE)
-  canvas.height = Math.ceil(height * SCALE)
+  const rad = (style.rotation * Math.PI) / 180
+  const aabbW = style.rotation ? Math.abs(boxW * Math.cos(rad)) + Math.abs(boxH * Math.sin(rad)) : boxW
+  const aabbH = style.rotation ? Math.abs(boxW * Math.sin(rad)) + Math.abs(boxH * Math.cos(rad)) : boxH
+
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.ceil(aabbW * SCALE)
+  canvas.height = Math.ceil(aabbH * SCALE)
+  const ctx = canvas.getContext('2d')!
+  ctx.scale(SCALE, SCALE)
+  ctx.globalAlpha = style.opacity
+  // Work in the box's own frame: origin at its top-left, rotated about centre
+  ctx.translate(aabbW / 2, aabbH / 2)
+  if (style.rotation) ctx.rotate(rad)
+  ctx.translate(-boxW / 2, -boxH / 2)
+
+  if (style.background || style.borderWidth) {
+    ctx.beginPath()
+    if (style.borderRadius > 0) {
+      ctx.roundRect(0, 0, boxW, boxH, Math.min(style.borderRadius, boxW / 2, boxH / 2))
+    } else {
+      ctx.rect(0, 0, boxW, boxH)
+    }
+    if (style.background) { ctx.fillStyle = style.background; ctx.fill() }
+    if (style.borderWidth > 0) {
+      ctx.strokeStyle = style.borderColor
+      ctx.lineWidth = style.borderWidth
+      ctx.stroke()
+    }
+  }
+
+  if (!lines.length) {
+    return { dataUrl: canvas.toDataURL('image/png'), width: aabbW, height: aabbH, rotated: !!style.rotation }
+  }
 
   const isRTL = ann.direction === 'rtl' ||
-    (ann.direction === 'auto' && /[֐-׿؀-ۿ]/.test(text))
+    (ann.direction === 'auto' && /[֐-׿؀-ۿ]/.test(text!))
 
-  ctx.font = fontStr
+  ctx.font = fontStr.replace(`${ann.fontSize * SCALE}px`, `${ann.fontSize}px`)
+  if (style.letterSpacing) ctx.letterSpacing = `${style.letterSpacing}px`
   ctx.fillStyle = ann.color
   ctx.textBaseline = 'alphabetic'
   ctx.direction = isRTL ? 'rtl' : 'ltr'
 
   const align = ann.align === 'justify' ? (isRTL ? 'right' : 'left') : ann.align
   let anchorX: number
-  if (align === 'center') { ctx.textAlign = 'center'; anchorX = canvas.width / 2 }
-  else if (align === 'left') { ctx.textAlign = 'left'; anchorX = padX * SCALE }
-  else { ctx.textAlign = 'right'; anchorX = canvas.width - padX * SCALE }
+  if (align === 'center') { ctx.textAlign = 'center'; anchorX = boxW / 2 }
+  else if (align === 'left') { ctx.textAlign = 'left'; anchorX = pad }
+  else { ctx.textAlign = 'right'; anchorX = boxW - pad }
 
   lines.forEach((line, i) => {
-    const baselineY = (padY + (i + 1) * lineHeight - lineHeight * 0.28) * SCALE
+    const baselineY = padY + (i + 1) * lineHeight - lineHeight * 0.28
     ctx.fillText(line, anchorX, baselineY)
     if (ann.textDecoration === 'underline' && line) {
       const w = ctx.measureText(line).width
       const x0 = ctx.textAlign === 'center' ? anchorX - w / 2
         : ctx.textAlign === 'right' ? anchorX - w : anchorX
-      ctx.fillRect(x0, baselineY + 2 * SCALE, w, Math.max(1, ann.fontSize * SCALE * 0.06))
+      ctx.fillRect(x0, baselineY + 2, w, Math.max(0.5, ann.fontSize * 0.06))
     }
   })
 
-  return { dataUrl: canvas.toDataURL('image/png'), width: ann.rect.width, height }
+  return { dataUrl: canvas.toDataURL('image/png'), width: aabbW, height: aabbH, rotated: !!style.rotation }
 }
 
 /**

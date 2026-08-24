@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useAnnotationsStore, usePDFStore, useUIStore } from '../store'
 import { embedAnnotationsIntoPdf, downloadBlob } from '../utils/pdfExport'
 import { askFileName } from '../components/ui/PromptDialog'
@@ -20,6 +20,8 @@ async function saveDocument() {
 }
 
 export function useKeyboard() {
+  // One history entry per burst of arrow presses, not one per press
+  const nudgeRepeat = useRef(false)
   const { undo, redo } = useAnnotationsStore()
   const { setZoom, zoom, setCurrentPage, currentPage, pageCount } = usePDFStore()
   const { setTool } = useUIStore()
@@ -61,6 +63,25 @@ export function useKeyboard() {
             e.preventDefault()
             useUIStore.getState().setSearchOpen(true)
             break
+          case 'd': {
+            const sel = useAnnotationsStore.getState().selectedId
+            if (!sel) break
+            e.preventDefault()
+            useAnnotationsStore.getState().pushHistory()
+            useAnnotationsStore.getState().duplicateAnnotation(sel)
+            break
+          }
+          case ']': case '[': {
+            const sel = useAnnotationsStore.getState().selectedId
+            if (!sel) break
+            e.preventDefault()
+            useAnnotationsStore.getState().pushHistory()
+            useAnnotationsStore.getState().reorderAnnotation(
+              sel,
+              e.key === ']' ? (e.shiftKey ? 'front' : 'forward') : (e.shiftKey ? 'back' : 'backward'),
+            )
+            break
+          }
           case 'p':
             e.preventDefault()
             window.print()
@@ -70,6 +91,21 @@ export function useKeyboard() {
       }
 
       if (isInput) return
+
+      // With an object selected, the arrows belong to it — nudging by a point,
+      // or ten with Shift, is how every layout tool behaves
+      const selected = useAnnotationsStore.getState().selectedId
+      if (selected && e.key.startsWith('Arrow')) {
+        e.preventDefault()
+        const step = e.shiftKey ? 10 : 1
+        const { nudgeAnnotation, pushHistory } = useAnnotationsStore.getState()
+        if (!nudgeRepeat.current) { pushHistory(); nudgeRepeat.current = true }
+        if (e.key === 'ArrowRight') nudgeAnnotation(selected, step, 0)
+        else if (e.key === 'ArrowLeft') nudgeAnnotation(selected, -step, 0)
+        else if (e.key === 'ArrowDown') nudgeAnnotation(selected, 0, step)
+        else if (e.key === 'ArrowUp') nudgeAnnotation(selected, 0, -step)
+        return
+      }
 
       switch (e.key) {
         case 'ArrowRight':
@@ -118,7 +154,14 @@ export function useKeyboard() {
       }
     }
 
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key.startsWith('Arrow')) nudgeRepeat.current = false
+    }
     window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', handler)
+      window.removeEventListener('keyup', onKeyUp)
+    }
   }, [zoom, currentPage, pageCount, undo, redo, setZoom, setCurrentPage, setTool])
 }

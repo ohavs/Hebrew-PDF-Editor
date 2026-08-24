@@ -7,7 +7,7 @@ import { useSessions } from '../../hooks/useSessions'
 import { listSessions, type SessionMeta } from '../../utils/sessions'
 import { SPREAD_GAP } from '../../utils/fitZoom'
 
-export const PDFViewer: React.FC = () => {
+export const PDFViewer: React.FC<{ emptyState?: React.ReactNode; footer?: React.ReactNode }> = ({ emptyState, footer }) => {
   const { pdfDoc, pageCount, currentPage, setCurrentPage, zoom, setZoom, viewMode, pageOrder, isLoading, loadingProgress } = usePDFStore()
   const { activeTool, showDropOverlay, setShowDropOverlay } = useUIStore()
   const { loadPDF } = usePDF()
@@ -330,7 +330,7 @@ export const PDFViewer: React.FC = () => {
         <div style={{
           position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>
-          <EmptyState />
+          {emptyState ?? <EmptyState />}
         </div>
       )}
 
@@ -345,6 +345,7 @@ export const PDFViewer: React.FC = () => {
         }}
       >
         {renderPages()}
+        {pdfDoc && footer}
       </div>
     </div>
   )

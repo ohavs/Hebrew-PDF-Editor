@@ -7,6 +7,8 @@ import { MobilePropertiesDrawer } from './components/panels/MobilePropertiesDraw
 import { LeftPanel } from './components/panels/LeftPanel'
 import { RightPanel } from './components/panels/RightPanel'
 import { PDFViewer } from './components/viewer/PDFViewer'
+import { NewDocumentPanel } from './components/create/NewDocumentPanel'
+import { AddPageBar } from './components/create/AddPageBar'
 import { ToastContainer } from './components/ui/Toast'
 import { SearchBar } from './components/ui/SearchBar'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
@@ -16,6 +18,7 @@ import { PDFToolsMobileSheet } from './components/tools/PDFToolsMobileSheet'
 import { MobileHeader } from './components/mobile/MobileHeader'
 import { MobileBottomNav } from './components/mobile/MobileBottomNav'
 import { useKeyboard } from './hooks/useKeyboard'
+import { usePasteAndDrop } from './hooks/usePasteAndDrop'
 import { useSessionAutosave, useSessions } from './hooks/useSessions'
 import { usePDF } from './hooks/usePDF'
 import './index.css'
@@ -25,9 +28,13 @@ export default function App() {
   const { loadPDF } = usePDF()
   const { resumeSession } = useSessions()
   const location = useLocation()
+  // The authoring area is the same editor; it just starts from blank pages
+  // instead of a file, so every tool and every export path applies unchanged.
+  const isCreateMode = location.pathname === '/create'
 
   useKeyboard()
   useSessionAutosave()
+  usePasteAndDrop()
 
   // Resume a saved session when navigated from the homepage
   useEffect(() => {
@@ -107,7 +114,10 @@ export default function App() {
         <LeftPanel />
 
         {/* PDF Viewer canvas */}
-        <PDFViewer />
+        <PDFViewer
+          emptyState={isCreateMode ? <NewDocumentPanel /> : undefined}
+          footer={isCreateMode ? <AddPageBar /> : undefined}
+        />
 
         {/* Right panel (properties) */}
         <RightPanel />

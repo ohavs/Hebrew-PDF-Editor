@@ -1,6 +1,7 @@
 import React from 'react'
 import { useUIStore } from '../../store'
 import { PropertiesPanel } from './PropertiesPanel'
+import { ObjectActions } from './ObjectActions'
 
 export const RightPanel: React.FC = () => {
   const { rightPanelOpen, setRightPanelOpen } = useUIStore()
@@ -20,6 +21,7 @@ export const RightPanel: React.FC = () => {
     >
       {rightPanelOpen && (
         <div style={{ width: 280, height: '100%', overflowY: 'auto' }}>
+          <ObjectActions />
           <PropertiesPanel />
         </div>
       )}

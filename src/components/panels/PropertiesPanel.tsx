@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useUIStore, usePDFStore, useAnnotationsStore } from '../../store'
+import { textBoxStyle } from '../../utils/textRaster'
 import { HEBREW_FONTS, FONT_SIZES } from '../../utils/textUtils'
 import { SignatureModal } from '../tools/SignatureModal'
 import { StampPanel } from '../tools/StampPanel'
@@ -46,6 +47,10 @@ const TextProperties: React.FC = () => {
   const curColor = selectedBox?.color ?? textColor
   const curAlign = (selectedBox?.align ?? textAlign) as 'right'|'center'|'left'|'justify'
   const curDir = (selectedBox?.direction ?? textDirection) as 'auto'|'rtl'|'ltr'
+  // Layout extras live on the box only — they describe one object, not a
+  // drawing mode, so there is nothing to remember between boxes
+  const box = selectedBox as any
+  const style = box ? textBoxStyle(box) : null
 
   const update = (patch: Record<string, unknown>) => {
     if (selectedBox) updateAnnotation(selectedBox.id, patch as any)
@@ -116,6 +121,74 @@ const TextProperties: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {style && (
+        <>
+          <div style={{ height: 1, background: 'var(--color-border)', margin: '2px 0' }} />
+
+          <div>
+            <label className="label">גובה שורה: {style.lineHeightFactor.toFixed(2)}</label>
+            <input type="range" min="0.8" max="3" step="0.05" value={style.lineHeightFactor}
+              onChange={e => update({ lineHeight: +e.target.value })} style={{ width: '100%' }} />
+          </div>
+
+          <div>
+            <label className="label">ריווח אותיות: {style.letterSpacing}px</label>
+            <input type="range" min="-2" max="12" step="0.5" value={style.letterSpacing}
+              onChange={e => update({ letterSpacing: +e.target.value })} style={{ width: '100%' }} />
+          </div>
+
+          <div>
+            <label className="label">ריפוד: {style.padding}px</label>
+            <input type="range" min="0" max="40" step="1" value={style.padding}
+              onChange={e => update({ padding: +e.target.value })} style={{ width: '100%' }} />
+          </div>
+
+          <div>
+            <label className="label">רקע התיבה</label>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <StyleBtn active={!style.background} onClick={() => update({ backgroundColor: 'transparent' })} title="ללא רקע">∅</StyleBtn>
+              {['#fef08a', '#dbeafe', '#dcfce7', '#fee2e2', '#ffffff', '#0f172a'].map(c => (
+                <div key={c} className={`color-swatch ${style.background === c ? 'selected' : ''}`}
+                  style={{ background: c }} onClick={() => update({ backgroundColor: c })} />
+              ))}
+              <input type="color" aria-label="צבע רקע לתיבה"
+                value={style.background ?? '#ffffff'}
+                onChange={e => update({ backgroundColor: e.target.value })}
+                style={{ width: 28, height: 28, padding: 1, border: '1px solid var(--color-border)', borderRadius: 4, cursor: 'pointer' }} />
+            </div>
+          </div>
+
+          <div>
+            <label className="label">מסגרת: {style.borderWidth}px</label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input type="range" min="0" max="8" step="0.5" value={style.borderWidth}
+                onChange={e => update({ borderWidth: +e.target.value })} style={{ flex: 1 }} />
+              <input type="color" aria-label="צבע מסגרת" value={style.borderColor}
+                onChange={e => update({ borderColor: e.target.value })}
+                style={{ width: 28, height: 28, padding: 1, border: '1px solid var(--color-border)', borderRadius: 4, cursor: 'pointer' }} />
+            </div>
+          </div>
+
+          <div>
+            <label className="label">עיגול פינות: {style.borderRadius}px</label>
+            <input type="range" min="0" max="40" step="1" value={style.borderRadius}
+              onChange={e => update({ borderRadius: +e.target.value })} style={{ width: '100%' }} />
+          </div>
+
+          <div>
+            <label className="label">סיבוב: {Math.round(style.rotation)}°</label>
+            <input type="range" min="-180" max="180" step="1" value={style.rotation}
+              onChange={e => update({ rotation: +e.target.value })} style={{ width: '100%' }} />
+          </div>
+
+          <div>
+            <label className="label">שקיפות: {Math.round(style.opacity * 100)}%</label>
+            <input type="range" min="0.1" max="1" step="0.05" value={style.opacity}
+              onChange={e => update({ opacity: +e.target.value })} style={{ width: '100%' }} />
+          </div>
+        </>
+      )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useUIStore } from '../../store'
+import { useUIStore, useAnnotationsStore } from '../../store'
 import { PropertiesPanel } from './PropertiesPanel'
+import { ObjectActions } from './ObjectActions'
 import { startPointerDrag } from '../../utils/pointerDrag'
 import type { ToolType } from '../../store/types'
 
@@ -14,10 +15,13 @@ const DISMISS_DISTANCE = 90
 
 export const MobilePropertiesDrawer: React.FC = () => {
   const { activeTool } = useUIStore()
+  const { selectedId } = useAnnotationsStore()
   const [isOpen, setIsOpen] = useState(false)
   const drawerRef = useRef<HTMLDivElement>(null)
 
-  const hasProps = TOOLS_WITH_PROPS.includes(activeTool)
+  // Also reachable with a plain object selected in select mode, or the layer
+  // and duplicate actions would be desktop-only
+  const hasProps = TOOLS_WITH_PROPS.includes(activeTool) || !!selectedId
 
   // Picking a tool no longer throws its settings over the page — the settings
   // button opens them when they are actually wanted. Switching tools does
@@ -71,6 +75,7 @@ export const MobilePropertiesDrawer: React.FC = () => {
         >
           <div className="mobile-props-handle" />
         </div>
+        <ObjectActions />
         <PropertiesPanel />
       </div>
 

@@ -3,6 +3,7 @@ import { useAnnotationsStore, useUIStore } from '../../store'
 import type { TextBoxAnnotation } from '../../store/types'
 import { getFirstCharDirection } from '../../utils/textUtils'
 import { startPointerDrag } from '../../utils/pointerDrag'
+import { textBoxStyle } from '../../utils/textRaster'
 
 interface Props { annotation: TextBoxAnnotation; zoom: number }
 
@@ -179,6 +180,7 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
     : annotation.direction
 
   const handleSize = IS_COARSE ? 28 : 14
+  const style = textBoxStyle(annotation)
 
   return (
     <div
@@ -189,11 +191,19 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
         width: annotation.rect.width,
         minHeight: annotation.rect.height,
         border,
-        background: isSelected ? 'rgba(128,128,128,0.03)' : 'transparent',
+        // The box's own border and fill sit underneath the selection chrome
+        boxSizing: 'border-box',
+        outline: style.borderWidth
+          ? `${style.borderWidth}px solid ${style.borderColor}`
+          : undefined,
+        outlineOffset: -style.borderWidth,
+        transform: style.rotation ? `rotate(${style.rotation}deg)` : undefined,
+        opacity: style.opacity,
+        background: style.background ?? (isSelected ? 'rgba(128,128,128,0.03)' : 'transparent'),
         cursor: isInteractive ? (isEditing ? 'text' : 'move') : 'default',
         zIndex: isSelected ? 35 : 30,
         userSelect: 'none',
-        borderRadius: 3,
+        borderRadius: style.borderRadius || 3,
         transition: 'border-color 120ms cubic-bezier(0.23,1,0.32,1), background 120ms ease',
         boxShadow: isSelected ? '0 0 0 3px rgba(128,128,128,0.12)' : 'none',
         pointerEvents: 'all',
@@ -219,7 +229,9 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
         onClick={e => e.stopPropagation()}
         style={{
           outline: 'none',
-          padding: '4px 7px',
+          padding: `${Math.max(2, style.padding * 0.6)}px ${style.padding}px`,
+          lineHeight: style.lineHeightFactor,
+          letterSpacing: style.letterSpacing ? `${style.letterSpacing}px` : undefined,
           fontFamily: `'${annotation.fontFamily}', 'Heebo', sans-serif`,
           fontSize: annotation.fontSize,
           fontWeight: annotation.fontWeight,

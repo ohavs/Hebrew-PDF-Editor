@@ -455,6 +455,12 @@ interface AnnotationsState {
   updateAnnotation: (id: string, changes: Partial<Annotation>) => void
   deleteAnnotation: (id: string) => void
   deleteAllOnPage: (pageIndex: number) => void
+  /** Stacking: annotations paint in array order, so this is a reorder. */
+  reorderAnnotation: (id: string, to: 'front' | 'back' | 'forward' | 'backward') => void
+  /** Copy an object slightly offset from the original, and select the copy. */
+  duplicateAnnotation: (id: string) => string | null
+  /** Move an object by a delta in natural page units. */
+  nudgeAnnotation: (id: string, dx: number, dy: number) => void
   selectAnnotation: (id: string | null) => void
   undo: () => void
   redo: () => void
@@ -496,6 +502,56 @@ export const useAnnotationsStore = create<AnnotationsState>()(subscribeWithSelec
   },
   deleteAnnotation: (id) => {
     set((s) => ({ annotations: s.annotations.filter(a => a.id !== id), selectedId: s.selectedId === id ? null : s.selectedId }))
+    usePDFStore.getState().setHasUnsavedChanges(true)
+  },
+
+  reorderAnnotation: (id, to) => {
+    set((s) => {
+      const list = [...s.annotations]
+      const from = list.findIndex(a => a.id === id)
+      if (from < 0) return {}
+      // Only objects sharing the page compete for stacking, so a step moves
+      // past the next one ON THIS PAGE, not the next one in the array
+      const page = list[from].pageIndex
+      const samePage = list.map((a, i) => ({ a, i })).filter(x => x.a.pageIndex === page)
+      const pos = samePage.findIndex(x => x.i === from)
+      let targetIndex: number
+      if (to === 'front') targetIndex = samePage[samePage.length - 1].i
+      else if (to === 'back') targetIndex = samePage[0].i
+      else if (to === 'forward') targetIndex = samePage[Math.min(pos + 1, samePage.length - 1)].i
+      else targetIndex = samePage[Math.max(pos - 1, 0)].i
+      if (targetIndex === from) return {}
+      const [moved] = list.splice(from, 1)
+      list.splice(targetIndex, 0, moved)
+      return { annotations: list, future: [] }
+    })
+    usePDFStore.getState().setHasUnsavedChanges(true)
+  },
+
+  duplicateAnnotation: (id) => {
+    const original = get().annotations.find(a => a.id === id)
+    if (!original) return null
+    const copy: any = { ...original, id: uuidv4(), createdAt: Date.now() }
+    if ('rect' in copy && copy.rect) copy.rect = { ...copy.rect, x: copy.rect.x + 14, y: copy.rect.y + 14 }
+    if ('position' in copy && copy.position) copy.position = { x: copy.position.x + 14, y: copy.position.y + 14 }
+    if ('points' in copy && Array.isArray(copy.points)) copy.points = copy.points.map((p: any) => ({ x: p.x + 14, y: p.y + 14 }))
+    set((s) => ({ annotations: [...s.annotations, copy], selectedId: copy.id, future: [] }))
+    usePDFStore.getState().setHasUnsavedChanges(true)
+    return copy.id
+  },
+
+  nudgeAnnotation: (id, dx, dy) => {
+    set((s) => ({
+      annotations: s.annotations.map(a => {
+        if (a.id !== id) return a
+        const next: any = { ...a }
+        if (next.rect) next.rect = { ...next.rect, x: next.rect.x + dx, y: next.rect.y + dy }
+        else if (next.position) next.position = { x: next.position.x + dx, y: next.position.y + dy }
+        else if (Array.isArray(next.points)) next.points = next.points.map((p: any) => ({ x: p.x + dx, y: p.y + dy }))
+        return next
+      }),
+      future: [],
+    }))
     usePDFStore.getState().setHasUnsavedChanges(true)
   },
   deleteAllOnPage: (pageIndex) => {

@@ -51,6 +51,7 @@ createRoot(document.getElementById('root')!).render(
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/editor" element={<App />} />
+          <Route path="/create" element={<App />} />
           <Route path="/tools" element={<QuickTools />} />
           <Route path="/tools/:tool" element={<QuickTools />} />
           {/* Legacy converter URLs → the unified tools hub */}
