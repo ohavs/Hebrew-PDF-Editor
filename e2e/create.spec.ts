@@ -31,6 +31,26 @@ async function dropImageOnPage(page: import('@playwright/test').Page, dataUrl: s
   await page.waitForTimeout(1200)
 }
 
+/**
+ * Reveal the object/text controls. On a phone they live in a drawer that only
+ * opens on request — deliberately, so picking a tool does not cover the page.
+ */
+async function closePropertiesPanel(page: import('@playwright/test').Page) {
+  const grip = page.locator('.mobile-props-grip')
+  if (await grip.count() && await grip.isVisible()) {
+    await grip.click()
+    await page.waitForTimeout(500)
+  }
+}
+
+async function openPropertiesPanel(page: import('@playwright/test').Page) {
+  const drawerButton = page.getByRole('button', { name: 'הגדרות כלי' })
+  if (await drawerButton.count()) {
+    await drawerButton.first().click()
+    await page.waitForTimeout(600)
+  }
+}
+
 test.describe('PDF authoring', () => {
   test('creates a blank document you can immediately edit', async ({ page }) => {
     const errors = trackErrors(page)
@@ -38,7 +58,7 @@ test.describe('PDF authoring', () => {
 
     // Real pages, rendered, with the whole editor around them
     await expect(page.locator('#page-0 canvas.pdf-canvas')).toBeVisible()
-    await expect(page.getByText('3', { exact: false }).first()).toBeVisible()
+    await expect(page.locator('#page-2')).toBeVisible()
 
     // ...and the result is a genuine PDF with the pages that were asked for
     await page.getByRole('button', { name: /^(יצוא כ\.\.\.|הורד)$/ }).first().click()
@@ -108,8 +128,10 @@ test.describe('PDF authoring', () => {
     await page.keyboard.type('כותרת מעוצבת')
     await page.waitForTimeout(400)
 
-    // The extra controls appear for a selected box
-    await expect(page.getByText(/גובה שורה/).first()).toBeVisible()
+    // The extra controls appear for a selected box. Both the desktop panel
+    // and the phone drawer are in the DOM — only one of them has a box.
+    await openPropertiesPanel(page)
+    await expect(page.getByText(/גובה שורה/).filter({ visible: true }).first()).toBeVisible()
 
     // Give it a background and a rotation
     await page.evaluate(() => {
@@ -133,7 +155,9 @@ test.describe('PDF authoring', () => {
     })
     expect(transform).not.toBe('none')
 
-    // ...and the document still exports cleanly with the text baked in
+    // ...and the document still exports cleanly with the text baked in.
+    // The drawer covers the header on a phone, so put it away first.
+    await closePropertiesPanel(page)
     await page.getByRole('button', { name: /^(יצוא כ\.\.\.|הורד)$/ }).first().click()
     const download = await confirmDownload(page)
     const out = await PDFDocument.load(readFileSync((await download.path())!))
@@ -169,6 +193,7 @@ test.describe('PDF authoring', () => {
     await expect(page.locator('[data-image-object]')).toHaveCount(1)
 
     // Duplicate: the copy is offset, and it is the one now selected
+    await openPropertiesPanel(page)
     await page.getByRole('button', { name: /שכפל/ }).click()
     await page.waitForTimeout(500)
     await expect(page.locator('[data-image-object]')).toHaveCount(2)
