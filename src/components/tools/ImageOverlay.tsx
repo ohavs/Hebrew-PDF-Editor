@@ -2,6 +2,7 @@ import React from 'react'
 import { useAnnotationsStore, useUIStore } from '../../store'
 import type { ImageAnnotation } from '../../store/types'
 import { startPointerDrag } from '../../utils/pointerDrag'
+import { useSnapDrag } from '../../hooks/useSnapDrag'
 
 interface Props { annotation: ImageAnnotation; zoom: number }
 
@@ -18,6 +19,7 @@ type Corner = 'nw' | 'ne' | 'se' | 'sw'
 export const ImageOverlay: React.FC<Props> = ({ annotation, zoom }) => {
   const { updateAnnotation, deleteAnnotation, selectAnnotation, selectedId, pushHistory } = useAnnotationsStore()
   const { activeTool } = useUIStore()
+  const { snapRect, clearGuides } = useSnapDrag()
   const isSelected = selectedId === annotation.id
   const canInteract = activeTool === 'select' || activeTool === 'image'
 
@@ -33,12 +35,14 @@ export const ImageOverlay: React.FC<Props> = ({ annotation, zoom }) => {
     const start = { x, y }
     let pushed = false
     startPointerDrag(e, {
-      onMove: (dx, dy) => {
+      onMove: (dx, dy, ev) => {
         if (!pushed) { pushed = true; pushHistory() }
-        updateAnnotation(annotation.id, {
-          rect: { ...annotation.rect, x: start.x + dx / zoom, y: start.y + dy / zoom },
-        })
+        const proposed = { ...annotation.rect, x: start.x + dx / zoom, y: start.y + dy / zoom }
+        // Alt drags free, the way it does in every layout tool
+        const snapped = snapRect(annotation.id, annotation.pageIndex, proposed, zoom, ev.altKey)
+        updateAnnotation(annotation.id, { rect: snapped })
       },
+      onEnd: () => clearGuides(),
     })
   }
 

@@ -4,6 +4,7 @@ import { usePDFStore, useUIStore } from '../../store'
 import { AnnotationLayer } from './AnnotationLayer'
 import { DecorationsLayer } from './DecorationsLayer'
 import { FormFieldsLayer } from './FormFieldsLayer'
+import { GuidesLayer } from './GuidesLayer'
 
 interface Props {
   pageIndex: number
@@ -78,6 +79,14 @@ export const PDFPage: React.FC<Props> = ({ pageIndex, isVisible }) => {
       {renderedOnce && <FormFieldsLayer pageIndex={pageIndex} zoom={zoom} />}
       {renderedOnce && (
         <DecorationsLayer
+          pageIndex={pageIndex}
+          naturalWidth={naturalW}
+          naturalHeight={naturalH}
+          zoom={zoom}
+        />
+      )}
+      {renderedOnce && (
+        <GuidesLayer
           pageIndex={pageIndex}
           naturalWidth={naturalW}
           naturalHeight={naturalH}

@@ -3,6 +3,7 @@ import { useAnnotationsStore, useUIStore } from '../../store'
 import type { TextBoxAnnotation } from '../../store/types'
 import { getFirstCharDirection } from '../../utils/textUtils'
 import { startPointerDrag } from '../../utils/pointerDrag'
+import { useSnapDrag } from '../../hooks/useSnapDrag'
 import { textBoxStyle } from '../../utils/textRaster'
 
 interface Props { annotation: TextBoxAnnotation; zoom: number }
@@ -11,6 +12,7 @@ const IS_COARSE = typeof window !== 'undefined' && window.matchMedia?.('(pointer
 
 export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
   const { updateAnnotation, deleteAnnotation, selectAnnotation, selectedId, pushHistory } = useAnnotationsStore()
+  const { snapRect, clearGuides } = useSnapDrag()
   const { activeTool } = useUIStore()
   const isSelected = selectedId === annotation.id
   const contentRef = useRef<HTMLDivElement>(null)
@@ -115,14 +117,16 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
     const tapPoint = { x: e.clientX, y: e.clientY }
 
     startPointerDrag(e, {
-      onMove: (dx, dy) => {
+      onMove: (dx, dy, ev) => {
         if (!hasMoved.current) pushHistory()
         hasMoved.current = true
-        updateAnnotation(annotation.id, {
-          rect: { ...annotation.rect, x: start.x + dx / zoom, y: start.y + dy / zoom }
-        })
+        const proposed = { ...annotation.rect, x: start.x + dx / zoom, y: start.y + dy / zoom }
+        // Alt drags free, the way it does in every layout tool
+        const snapped = snapRect(annotation.id, annotation.pageIndex, proposed, zoom, ev.altKey)
+        updateAnnotation(annotation.id, { rect: snapped })
       },
       onEnd: (moved) => {
+        clearGuides()
         if (moved) return
         const now = Date.now()
         // Second tap on a selected box, or a quick double-tap on any box

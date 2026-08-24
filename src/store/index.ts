@@ -6,6 +6,7 @@ import type {
   PageInfo, HistoryEntry, AlignType, ShapeType, HighlightColor
 } from './types'
 import { ensureAnnotationFonts } from '../utils/textUtils'
+import type { Guide } from '../utils/snapping'
 
 const MAX_HISTORY = 50
 const MAX_RECENT = 10
@@ -96,6 +97,10 @@ interface UIState {
   setToolboxOpen: (v: boolean) => void
   setToolboxCategory: (cat: string) => void
   setSettingsOpen: (v: boolean) => void
+  /** Alignment lines to draw while an object is being dragged. */
+  alignGuides: Guide[]
+  alignGuidesPage: number
+  setAlignGuides: (guides: Guide[], pageIndex: number) => void
   setSearchOpen: (v: boolean) => void
   setSearchMatches: (m: UIState['searchMatches']) => void
   setSearchActiveIdx: (i: number) => void
@@ -143,6 +148,8 @@ export const useUIStore = create<UIState>()((set) => ({
   toolboxOpen: false,
   toolboxCategory: 'organize',
   settingsOpen: false,
+  alignGuides: [],
+  alignGuidesPage: -1,
   searchOpen: false,
   searchMatches: [],
   searchActiveIdx: 0,
@@ -216,6 +223,7 @@ export const useUIStore = create<UIState>()((set) => ({
   setToolboxOpen: (v) => set({ toolboxOpen: v }),
   setToolboxCategory: (cat) => set({ toolboxCategory: cat }),
   setSettingsOpen: (v) => set({ settingsOpen: v }),
+  setAlignGuides: (guides, pageIndex) => set({ alignGuides: guides, alignGuidesPage: pageIndex }),
   setSearchOpen: (v) => set(v ? { searchOpen: true } : { searchOpen: false, searchMatches: [], searchActiveIdx: 0 }),
   setSearchMatches: (m) => set({ searchMatches: m, searchActiveIdx: 0 }),
   setSearchActiveIdx: (i) => set({ searchActiveIdx: i }),

@@ -186,6 +186,38 @@ test.describe('PDF authoring', () => {
     expect(errors).toEqual([])
   })
 
+  test('dragging snaps to the page centre and shows the guide', async ({ page }) => {
+    const errors = trackErrors(page)
+    await newDocument(page)
+    await dropImageOnPage(page, RED_SQUARE_PNG)
+    const object = page.locator('[data-image-object]')
+    await expect(object).toHaveCount(1)
+
+    // Park it well away from the middle, then drag back to just-off-centre
+    const pageBox = (await page.locator('#page-0').boundingBox())!
+    const centreX = pageBox.x + pageBox.width / 2
+    const start = (await object.boundingBox())!
+    await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(pageBox.x + 80, pageBox.y + 300, { steps: 8 })
+    // A few pixels short of the centre line — inside the snapping slack
+    await page.mouse.move(centreX + 4, pageBox.y + 300, { steps: 8 })
+    await page.waitForTimeout(200)
+
+    // The guide is drawn while the drag is live
+    await expect(page.locator('[data-align-guide="x"]')).toBeVisible()
+    await page.mouse.up()
+    await page.waitForTimeout(400)
+
+    // ...and the object really landed centred, not 4px off
+    const dropped = (await object.boundingBox())!
+    expect(Math.abs((dropped.x + dropped.width / 2) - centreX)).toBeLessThan(1.5)
+    // The guide goes away once the gesture is over
+    await expect(page.locator('[data-align-guide]')).toHaveCount(0)
+
+    expect(errors).toEqual([])
+  })
+
   test('objects can be duplicated, restacked and nudged', async ({ page }) => {
     const errors = trackErrors(page)
     await newDocument(page)
