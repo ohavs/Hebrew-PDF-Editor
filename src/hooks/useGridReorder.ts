@@ -92,6 +92,21 @@ export function useGridReorder(onReorder: (from: number, to: number) => void): G
   return { start, dragIdx, targetIdx, delta, shiftFor, gridRef }
 }
 
+/**
+ * Move a set of items so they land as one block at `to`, keeping their
+ * relative order. Dragging a multi-selection has to behave this way, or the
+ * pages arrive scattered around the drop point.
+ */
+export function moveMany<T>(list: T[], moving: Set<T>, to: number): T[] {
+  const picked = list.filter(x => moving.has(x))
+  if (!picked.length) return list
+  const rest = list.filter(x => !moving.has(x))
+  // `to` indexes the original list; translate it to the gap in what remains
+  const removedBefore = list.slice(0, to).filter(x => moving.has(x)).length
+  const at = Math.max(0, Math.min(rest.length, to - removedBefore))
+  return [...rest.slice(0, at), ...picked, ...rest.slice(at)]
+}
+
 /** Move an item between positions, returning a new array. */
 export function moveItem<T>(list: T[], from: number, to: number): T[] {
   const next = [...list]

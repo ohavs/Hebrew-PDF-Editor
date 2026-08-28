@@ -99,6 +99,79 @@ test.describe('PDF tools', () => {
     expect(doc.getPageCount()).toBe(3)
   })
 
+  test('merge: an added file goes in after the page you choose', async ({ page }) => {
+    await page.goto('/#/tools/merge', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(500)
+    // A first file of 4 pages
+    await page.locator('input[type="file"][accept=".pdf"]').last().setInputFiles([
+      { name: 'base.pdf', mimeType: 'application/pdf', buffer: await makePdf(4) },
+    ])
+    await page.waitForTimeout(2500)
+    await expect(page.locator('[data-merge-page]')).toHaveCount(4)
+
+    // Put the next file's pages after page 1 rather than at the end
+    await page.getByRole('button', { name: 'אחרי עמוד' }).click()
+    await page.getByLabel('אחרי עמוד').fill('1')
+    await page.locator('input[type="file"][accept=".pdf"]').last().setInputFiles([
+      { name: 'extra.pdf', mimeType: 'application/pdf', buffer: await makePdf(2) },
+    ])
+    await page.waitForTimeout(2500)
+    await expect(page.locator('[data-merge-page]')).toHaveCount(6)
+
+    // Positions 2 and 3 are the newcomers, not positions 5 and 6
+    const labels = await page.locator('[data-merge-page]').allInnerTexts()
+    expect(labels[1]).toContain('extra.pdf')
+    expect(labels[2]).toContain('extra.pdf')
+    expect(labels[0]).toContain('base.pdf')
+    expect(labels[3]).toContain('base.pdf')
+
+    // ...and the newcomers arrive already selected, ready to move together
+    await expect(page.locator('[data-merge-page][data-selected="true"]')).toHaveCount(2)
+  })
+
+  test('merge: only the requested pages of a file are taken', async ({ page }) => {
+    await page.goto('/#/tools/merge', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(500)
+    await page.getByLabel('עמודים מהקובץ').fill('1, 3')
+    await page.locator('input[type="file"][accept=".pdf"]').last().setInputFiles([
+      { name: 'big.pdf', mimeType: 'application/pdf', buffer: await makePdf(5) },
+    ])
+    await page.waitForTimeout(2500)
+
+    await expect(page.locator('[data-merge-page]')).toHaveCount(2)
+    const doc = await loadDownloaded(await (async () => {
+      await page.getByRole('button', { name: /מזג .* עמודים והורד/ }).click()
+      return confirmDownload(page)
+    })())
+    expect(doc.getPageCount()).toBe(2)
+  })
+
+  test('merge: selected pages move as one block', async ({ page }) => {
+    await page.goto('/#/tools/merge', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(500)
+    await page.locator('input[type="file"][accept=".pdf"]').last().setInputFiles([
+      { name: 'a.pdf', mimeType: 'application/pdf', buffer: await makePdf(4) },
+    ])
+    await page.waitForTimeout(2500)
+    const cards = page.locator('[data-merge-page]')
+    await expect(cards).toHaveCount(4)
+
+    // Select the last two by clicking one and shift-clicking the other
+    await cards.nth(2).click()
+    await cards.nth(3).click({ modifiers: ['Shift'] })
+    await expect(page.locator('[data-merge-page][data-selected="true"]')).toHaveCount(2)
+
+    // Send them to the front in one action
+    await page.getByRole('button', { name: /להתחלה/ }).click()
+    await page.waitForTimeout(400)
+
+    const labels = await cards.allInnerTexts()
+    // Source pages 3 and 4 now lead, still in their original order
+    expect(labels[0]).toContain('· 3')
+    expect(labels[1]).toContain('· 4')
+    expect(labels[2]).toContain('· 1')
+  })
+
   test('the page preview arrows point the RTL way and stay visible', async ({ page }) => {
     await openToolWithPdf(page, 'organize', 3)
     await page.locator('[data-page-cell]').nth(1).locator('canvas').click()
