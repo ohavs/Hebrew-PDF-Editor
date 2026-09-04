@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts } from 'pdf-lib'
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { zipSync, strToU8 } from 'fflate'
 import type { Page } from '@playwright/test'
 
@@ -53,6 +53,19 @@ export async function makeTablePdf(rows: string[][]): Promise<Buffer> {
       page.drawText(cell, { x: xs[c], y: 760 - r * 30, size: 12, font })
     })
   })
+  return Buffer.from(await doc.save())
+}
+
+/**
+ * A PDF whose pages are solid, distinct colours — so a thumbnail can be
+ * identified by sampling it, which is how a stale preview gets caught.
+ */
+export async function makeColoredPdf(colors: Array<[number, number, number]>): Promise<Buffer> {
+  const doc = await PDFDocument.create()
+  for (const [r, g, b] of colors) {
+    const page = doc.addPage([595, 842])
+    page.drawRectangle({ x: 0, y: 0, width: 595, height: 842, color: rgb(r / 255, g / 255, b / 255) })
+  }
   return Buffer.from(await doc.save())
 }
 

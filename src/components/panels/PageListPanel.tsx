@@ -281,16 +281,19 @@ const CardBtn: React.FC<{ label: string; danger?: boolean; onClick: () => void; 
 const PageThumbLazy: React.FC<{ pdfDoc: any; pageIndex: number; rotation: number }> = ({ pdfDoc, pageIndex, rotation }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { renderThumbnail } = usePDF()
-  const renderedFor = useRef<string>('')
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const key = `${pageIndex}-${rotation}`
+    // The "already rendered" flag belongs to this effect run, not to the
+    // component. Keyed by page and rotation alone, it survived a rebuilt
+    // document — so after deleting a page the cards kept the previous
+    // document's pictures, which reads as though the wrong page was removed.
+    let rendered = false
     const observer = new IntersectionObserver(entries => {
       entries.forEach(entry => {
-        if (entry.isIntersecting && renderedFor.current !== key) {
-          renderedFor.current = key
+        if (entry.isIntersecting && !rendered) {
+          rendered = true
           renderThumbnail(pdfDoc, pageIndex, canvas, THUMB_RES, rotation)
         }
       })

@@ -45,11 +45,13 @@ export const LeftPanel: React.FC = () => {
         /* Normal mode: tabs */
         <>
           <div style={{ position: 'relative', display: 'flex', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
+            {/* insetInlineStart, not left: the tabs lay out right-to-left, so
+                a physical offset put the underline beneath the other tab */}
             <div style={{
-              position: 'absolute', bottom: 0, left: indicatorLeft,
+              position: 'absolute', bottom: 0, insetInlineStart: indicatorLeft,
               width: `${100 / TABS.length}%`, height: 2,
               background: 'var(--color-accent)', borderRadius: '2px 2px 0 0',
-              transition: `left 220ms ${EASE}`, pointerEvents: 'none',
+              transition: `inset-inline-start 220ms ${EASE}`, pointerEvents: 'none',
             }} />
             {TABS.map(tab => (
               <button

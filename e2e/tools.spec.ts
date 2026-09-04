@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { PDFDocument, PDFName } from 'pdf-lib'
 import { readFileSync } from 'fs'
-import { makePdf, makeDocx, upload, openToolWithPdf, confirmDownload, trackErrors, selectToolInPanel } from './fixtures'
+import { makePdf, makeColoredPdf, makeDocx, upload, openToolWithPdf, confirmDownload, trackErrors, selectToolInPanel } from './fixtures'
 
 async function loadDownloaded(download: Awaited<ReturnType<typeof confirmDownload>>) {
   const path = await download.path()
@@ -26,6 +26,46 @@ test.describe('PDF tools', () => {
     expect(errors).toEqual([])
   })
 
+
+  test('organize: deleting a page refreshes the previews', async ({ page }) => {
+    const errors = trackErrors(page)
+    await page.goto('/#/tools/organize', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(500)
+    // Red, green, blue pages — each thumbnail is identifiable by its colour
+    await upload(page, 'colors.pdf', await makeColoredPdf([
+      [220, 30, 30], [30, 180, 60], [40, 70, 220],
+    ]), 'application/pdf')
+    await page.waitForTimeout(3000)
+
+    /** The dominant colour of each card's thumbnail. */
+    const colours = () => page.evaluate(() =>
+      Array.from(document.querySelectorAll('[data-page-cell] canvas')).map(c => {
+        const canvas = c as HTMLCanvasElement
+        if (!canvas.width) return null
+        const ctx = canvas.getContext('2d')!
+        const { data } = ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1)
+        return [data[0], data[1], data[2]]
+      }))
+
+    const before = await colours()
+    expect(before[0]![0]).toBeGreaterThan(150)  // red page first
+    expect(before[1]![1]).toBeGreaterThan(120)  // green second
+
+    // Remove the first page
+    await page.locator('[data-page-cell]').first().getByLabel('מחק').click()
+    await page.getByRole('button', { name: 'מחק', exact: true }).last().click()
+    await page.waitForTimeout(3500)
+    await expect(page.locator('[data-page-cell]')).toHaveCount(2)
+
+    // The first card must now SHOW the green page. The render guard used to
+    // survive the rebuilt document, leaving the old red picture in place —
+    // which looked exactly like the wrong page had been deleted.
+    const after = await colours()
+    expect(after[0]![1]).toBeGreaterThan(120)
+    expect(after[0]![0]).toBeLessThan(120)
+    expect(errors).toEqual([])
+  })
+
   test('organize: drag reorder marks the moved page', async ({ page }) => {
     await openToolWithPdf(page, 'organize', 4)
     const cells = page.locator('[data-page-cell]')
@@ -39,6 +79,110 @@ test.describe('PDF tools', () => {
     await page.waitForTimeout(600)
 
     await expect(page.getByText('הועבר', { exact: false }).first()).toBeVisible()
+  })
+
+  test('the editor page rail deletes and reorders without leaving the editor', async ({ page, isMobile }) => {
+    test.skip(!!isMobile, 'the page rail is desktop chrome')
+    const errors = trackErrors(page)
+    await page.goto('/#/editor', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(500)
+    // Red, green, blue — so what each thumbnail shows can be checked
+    await upload(page, 'colors.pdf', await makeColoredPdf([
+      [220, 30, 30], [30, 180, 60], [40, 70, 220],
+    ]), 'application/pdf')
+    await page.waitForTimeout(3500)
+
+    const items = page.locator('[data-thumb-item]')
+    await expect(items).toHaveCount(3)
+
+    const colours = () => page.evaluate(() =>
+      Array.from(document.querySelectorAll('[data-thumb-item] canvas')).map(c => {
+        const canvas = c as HTMLCanvasElement
+        if (!canvas.width) return null
+        const ctx = canvas.getContext('2d')!
+        const { data } = ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1)
+        return [data[0], data[1], data[2]]
+      }))
+
+    // Right-click opens the actions for that page
+    await items.first().click({ button: 'right' })
+    await expect(page.getByRole('menu')).toBeVisible()
+
+    await page.getByRole('menuitem', { name: 'מחק עמוד' }).click()
+    await page.getByRole('button', { name: 'מחק', exact: true }).last().click()
+    await page.waitForTimeout(3500)
+
+    await expect(items).toHaveCount(2)
+    // The rail shows the pages that are actually left, not stale pictures
+    const after = await colours()
+    expect(after[0]![1]).toBeGreaterThan(120)
+    expect(after[0]![0]).toBeLessThan(120)
+
+    expect(errors).toEqual([])
+  })
+
+  test('the editor page rail reorders by dragging the grip', async ({ page, isMobile }) => {
+    test.skip(!!isMobile, 'the page rail is desktop chrome')
+    await page.goto('/#/editor', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(500)
+    await upload(page, 'colors.pdf', await makeColoredPdf([
+      [220, 30, 30], [30, 180, 60], [40, 70, 220],
+    ]), 'application/pdf')
+    await page.waitForTimeout(3500)
+
+    const items = page.locator('[data-thumb-item]')
+    const grip = await items.nth(0).getByLabel('גרור לשינוי סדר').boundingBox()
+    const target = await items.nth(2).boundingBox()
+    await page.mouse.move(grip!.x + grip!.width / 2, grip!.y + grip!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(target!.x + target!.width / 2, target!.y + target!.height / 2, { steps: 12 })
+    await page.mouse.up()
+    await page.waitForTimeout(800)
+
+    // The red page moved to the end of the rail
+    const last = await page.evaluate(() => {
+      const canvases = Array.from(document.querySelectorAll('[data-thumb-item] canvas')) as HTMLCanvasElement[]
+      const c = canvases[canvases.length - 1]
+      const { data } = c.getContext('2d')!.getImageData(Math.floor(c.width / 2), Math.floor(c.height / 2), 1, 1)
+      return [data[0], data[1], data[2]]
+    })
+    expect(last[0]).toBeGreaterThan(150)
+    expect(last[1]).toBeLessThan(120)
+  })
+
+  test('the panel tabs underline the tab that is actually active', async ({ page, isMobile }) => {
+    test.skip(!!isMobile, 'the side panel is desktop chrome')
+    await page.goto('/#/editor', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(500)
+    await upload(page, 'test.pdf', await makePdf(2), 'application/pdf')
+    await page.waitForTimeout(3000)
+
+    /** Horizontal centre of the active tab and of the underline. */
+    const centres = () => page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button'))
+        .filter(b => ['תמונות ממוזערות', 'הערות'].includes((b.textContent || '').trim()))
+      const active = buttons.find(b => getComputedStyle(b).color === getComputedStyle(document.documentElement)
+        .getPropertyValue('--color-accent').trim() || false)
+      const bar = buttons[0]?.parentElement?.querySelector('div') as HTMLElement
+      return {
+        tabs: buttons.map(b => ({ text: (b.textContent || '').trim(), x: b.getBoundingClientRect().x + b.getBoundingClientRect().width / 2 })),
+        bar: bar ? bar.getBoundingClientRect().x + bar.getBoundingClientRect().width / 2 : null,
+        activeText: active ? (active.textContent || '').trim() : null,
+      }
+    })
+
+    // Thumbnails is the default tab; the underline must sit under it. In RTL
+    // a physical `left` offset put it under the other tab entirely.
+    const shown = await centres()
+    const thumbs = shown.tabs.find(t => t.text === 'תמונות ממוזערות')!
+    expect(Math.abs(shown.bar! - thumbs.x)).toBeLessThan(20)
+
+    // ...and it follows when the other tab is picked
+    await page.getByRole('button', { name: 'הערות', exact: true }).click()
+    await page.waitForTimeout(500)
+    const after = await centres()
+    const notes = after.tabs.find(t => t.text === 'הערות')!
+    expect(Math.abs(after.bar! - notes.x)).toBeLessThan(20)
   })
 
   test('merge: works with no open document and produces one combined file', async ({ page }) => {

@@ -534,15 +534,16 @@ function chipStyle(danger = false): React.CSSProperties {
 const MergeThumb: React.FC<{ doc: any; pageIndex: number }> = ({ doc, pageIndex }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { renderThumbnail } = usePDF()
-  const done = useRef(false)
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
+    // Scoped to this effect run, so a different source or page always redraws
+    let rendered = false
     const observer = new IntersectionObserver(entries => {
       entries.forEach(entry => {
-        if (entry.isIntersecting && !done.current) {
-          done.current = true
+        if (entry.isIntersecting && !rendered) {
+          rendered = true
           renderThumbnail(doc, pageIndex, canvas, 200)
         }
       })
