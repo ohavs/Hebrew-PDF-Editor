@@ -101,6 +101,13 @@ interface UIState {
   alignGuides: Guide[]
   alignGuidesPage: number
   setAlignGuides: (guides: Guide[], pageIndex: number) => void
+  /**
+   * A text box that should open for typing as soon as it mounts. Used when a
+   * box is created to replace existing text: it arrives pre-filled, so the
+   * empty-box auto-focus does not apply, but editing is the whole point.
+   */
+  pendingEditId: string | null
+  setPendingEditId: (id: string | null) => void
   setSearchOpen: (v: boolean) => void
   setSearchMatches: (m: UIState['searchMatches']) => void
   setSearchActiveIdx: (i: number) => void
@@ -150,6 +157,7 @@ export const useUIStore = create<UIState>()((set) => ({
   settingsOpen: false,
   alignGuides: [],
   alignGuidesPage: -1,
+  pendingEditId: null,
   searchOpen: false,
   searchMatches: [],
   searchActiveIdx: 0,
@@ -224,6 +232,7 @@ export const useUIStore = create<UIState>()((set) => ({
   setToolboxCategory: (cat) => set({ toolboxCategory: cat }),
   setSettingsOpen: (v) => set({ settingsOpen: v }),
   setAlignGuides: (guides, pageIndex) => set({ alignGuides: guides, alignGuidesPage: pageIndex }),
+  setPendingEditId: (id) => set({ pendingEditId: id }),
   setSearchOpen: (v) => set(v ? { searchOpen: true } : { searchOpen: false, searchMatches: [], searchActiveIdx: 0 }),
   setSearchMatches: (m) => set({ searchMatches: m, searchActiveIdx: 0 }),
   setSearchActiveIdx: (i) => set({ searchActiveIdx: i }),

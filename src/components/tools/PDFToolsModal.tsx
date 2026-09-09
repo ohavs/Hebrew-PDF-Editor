@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { usePDFStore } from '../../store'
 import { useDownloadDocument } from '../../hooks/usePageOps'
 import { EASE, Spinner } from './toolsShared'
-import { CATEGORIES } from './categories'
+import { CATEGORIES, GROUP_LABELS } from './categories'
 import type { CategoryId } from './categories'
 import { OrganizePanel } from './panels/OrganizePanel'
 import { MergePanel } from './panels/MergePanel'
@@ -18,6 +18,7 @@ import { FromWordPanel } from './panels/FromWordPanel'
 import { ToExcelPanel } from './panels/ToExcelPanel'
 import { PageNumbersPanel } from './panels/PageNumbersPanel'
 import { ComparePanel } from './panels/ComparePanel'
+import { FlipbookPanel } from './panels/FlipbookPanel'
 import { UnlockPanel } from './panels/UnlockPanel'
 
 export type { CategoryId } from './categories'
@@ -108,8 +109,17 @@ export const PDFToolsContent: React.FC<{ onClose: () => void; initialCategory?: 
           visibility: listOpen ? 'visible' : 'hidden',
           transition: `visibility 0s linear ${listOpen ? '0s' : '260ms'}`,
         }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '8px 10px' }}>
-            {CATEGORIES.map(cat => {
+          <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(['pages', 'convert', 'document'] as const).map(group => (
+              <div key={group}>
+                <div style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+                  color: 'var(--color-text-muted)', marginBottom: 5,
+                }}>
+                  {GROUP_LABELS[group]}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {CATEGORIES.filter(c => c.group === group).map(cat => {
               const isActive = active === cat.id
               return (
                 <button
@@ -131,7 +141,10 @@ export const PDFToolsContent: React.FC<{ onClose: () => void; initialCategory?: 
                   {cat.label}
                 </button>
               )
-            })}
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -247,6 +260,7 @@ const ToolPanel: React.FC<{ category: CategoryId }> = ({ category }) => {
     case 'to-excel': return <ToExcelPanel />
     case 'page-numbers': return <PageNumbersPanel />
     case 'compare': return <ComparePanel />
+    case 'flipbook': return <FlipbookPanel />
     case 'unlock': return <UnlockPanel />
   }
 }

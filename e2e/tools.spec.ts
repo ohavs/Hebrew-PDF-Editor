@@ -1,7 +1,35 @@
 import { test, expect } from '@playwright/test'
 import { PDFDocument, PDFName } from 'pdf-lib'
 import { readFileSync } from 'fs'
+import { deflateSync } from 'zlib'
 import { makePdf, makeColoredPdf, makeDocx, upload, openToolWithPdf, confirmDownload, trackErrors, selectToolInPanel } from './fixtures'
+
+/** A 1x1 solid PNG of the given colour, built by hand. */
+function colorPng(r: number, g: number, b: number): Buffer {
+  const crc = (buf: Buffer) => {
+    let c = ~0
+    for (const byte of buf) {
+      c ^= byte
+      for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1))
+    }
+    return ~c >>> 0
+  }
+  const chunk = (type: string, data: Buffer) => {
+    const body = Buffer.concat([Buffer.from(type, 'latin1'), data])
+    const len = Buffer.alloc(4); len.writeUInt32BE(data.length)
+    const sum = Buffer.alloc(4); sum.writeUInt32BE(crc(body))
+    return Buffer.concat([len, body, sum])
+  }
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(1, 0); ihdr.writeUInt32BE(1, 4)
+  ihdr[8] = 8; ihdr[9] = 2 // 8-bit truecolour
+  const raw = Buffer.from([0, r, g, b]) // one row, no filter
+  const deflate = deflateSync(raw)
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr), chunk('IDAT', deflate), chunk('IEND', Buffer.alloc(0)),
+  ])
+}
 
 async function loadDownloaded(download: Awaited<ReturnType<typeof confirmDownload>>) {
   const path = await download.path()
@@ -79,6 +107,59 @@ test.describe('PDF tools', () => {
     await page.waitForTimeout(600)
 
     await expect(page.getByText('הועבר', { exact: false }).first()).toBeVisible()
+  })
+
+  test('existing text can be picked up and replaced', async ({ page }) => {
+    const errors = trackErrors(page)
+    await page.goto('/#/editor', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(500)
+    await upload(page, 'text.pdf', await makePdf(1), 'application/pdf')
+    await page.waitForTimeout(3500)
+
+    // The tool is in the desktop toolbar, and behind "עוד" on a phone
+    const toolButton = page.getByRole('button', { name: 'ערוך טקסט' })
+    if (!(await toolButton.first().isVisible().catch(() => false))) {
+      await page.getByRole('button', { name: 'עוד' }).first().click()
+      await page.waitForTimeout(500)
+    }
+    await toolButton.filter({ visible: true }).first().click()
+    await page.waitForTimeout(500)
+
+    // "PAGE 1" is drawn at x=180, y=420 from the bottom of a 595x842 page,
+    // so it sits a little above the middle in display coordinates
+    const box = (await page.locator('#page-0').boundingBox())!
+    const zoom = await page.evaluate(() => {
+      const el = document.querySelector('#page-0') as HTMLElement
+      return el.getBoundingClientRect().width / 595
+    })
+    const at = { x: box.x + 230 * zoom, y: box.y + (842 - 435) * zoom }
+
+    // Hovering shows exactly what would be replaced
+    await page.mouse.move(at.x, at.y)
+    await page.waitForTimeout(700)
+    await expect(page.locator('[data-text-edit-hover]')).toBeVisible()
+
+    await page.mouse.click(at.x, at.y)
+    await page.waitForTimeout(900)
+
+    // The line arrives as a real text box, pre-filled with what was there
+    const editable = page.locator('[contenteditable="true"]')
+    await expect(editable).toHaveCount(1)
+    await expect(editable).toContainText('PAGE 1')
+
+    // Replace it and check the change reaches the file
+    await page.keyboard.press('Control+a')
+    await page.keyboard.type('REPLACED')
+    await page.waitForTimeout(500)
+
+    await page.getByRole('button', { name: /^(יצוא כ\.\.\.|הורד)$/ }).first().click()
+    const download = await confirmDownload(page)
+    const out = await PDFDocument.load(readFileSync((await download.path())!))
+    // The replacement is drawn as artwork over the covered original
+    const xobjects = out.getPage(0).node.Resources()?.lookup(PDFName.of('XObject')) as any
+    expect(xobjects?.keys().length).toBeGreaterThanOrEqual(1)
+
+    expect(errors).toEqual([])
   })
 
   test('the editor page rail deletes and reorders without leaving the editor', async ({ page, isMobile }) => {
@@ -314,6 +395,52 @@ test.describe('PDF tools', () => {
     expect(labels[0]).toContain('· 3')
     expect(labels[1]).toContain('· 4')
     expect(labels[2]).toContain('· 1')
+  })
+
+  test('the tool list is grouped, with conversions together', async ({ page }) => {
+    await openToolWithPdf(page, 'organize', 2)
+    await page.getByRole('button', { name: 'הצג את כל הכלים' }).click()
+    await page.waitForTimeout(400)
+
+    for (const heading of ['עמודים', 'המרות', 'המסמך']) {
+      await expect(page.getByText(heading, { exact: true }).first()).toBeVisible()
+    }
+
+    // Every converter sits under "המרות", including the flipbook
+    const inConvert = await page.evaluate(() => {
+      const headings = Array.from(document.querySelectorAll('div'))
+        .filter(d => d.textContent?.trim() === 'המרות' && d.children.length === 0)
+      const group = headings[0]?.parentElement
+      return Array.from(group?.querySelectorAll('button') || []).map(b => b.textContent?.trim())
+    })
+    for (const tool of ['PDF לתמונה', 'תמונה ל-PDF', 'PDF לוורד', 'וורד ל-PDF', 'PDF לאקסל', 'פליפבוק ל-PDF']) {
+      expect(inConvert).toContain(tool)
+    }
+  })
+
+  test('flipbook pages become a PDF in natural page order', async ({ page }) => {
+    const errors = trackErrors(page)
+    await page.goto('/#/tools/flipbook', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(700)
+
+    // Deliberately out of lexicographic order: page10 would sort before page2
+    await page.locator('input[type="file"][accept="image/*"]').first().setInputFiles([
+      { name: 'page10.png', mimeType: 'image/png', buffer: colorPng(40, 70, 220) },
+      { name: 'page2.png', mimeType: 'image/png', buffer: colorPng(30, 180, 60) },
+      { name: 'page1.png', mimeType: 'image/png', buffer: colorPng(220, 30, 30) },
+    ])
+    await page.waitForTimeout(800)
+
+    // Listed 1, 2, 10 — not 1, 10, 2
+    const rows = await page.getByText(/^\d+\. page/).allInnerTexts()
+    expect(rows[0]).toContain('page1.png')
+    expect(rows[1]).toContain('page2.png')
+    expect(rows[2]).toContain('page10.png')
+
+    await page.getByRole('button', { name: 'צור PDF והורד' }).click()
+    const doc = await loadDownloaded(await confirmDownload(page))
+    expect(doc.getPageCount()).toBe(3)
+    expect(errors).toEqual([])
   })
 
   test('the page preview arrows point the RTL way and stay visible', async ({ page }) => {

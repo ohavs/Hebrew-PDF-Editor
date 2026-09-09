@@ -166,6 +166,15 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
     }
   }, [isSelected]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ...or when something asked for this box specifically, which is how a box
+  // replacing existing text opens: it is pre-filled, so the rule above misses it
+  const pendingEditId = useUIStore(s => s.pendingEditId)
+  useEffect(() => {
+    if (pendingEditId !== annotation.id) return
+    useUIStore.getState().setPendingEditId(null)
+    enterEditMode()
+  }, [pendingEditId, annotation.id, enterEditMode])
+
   // When deselected, stop editing mode
   useEffect(() => {
     if (!isSelected) setIsEditing(false)

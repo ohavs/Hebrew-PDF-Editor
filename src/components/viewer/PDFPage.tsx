@@ -5,6 +5,7 @@ import { AnnotationLayer } from './AnnotationLayer'
 import { DecorationsLayer } from './DecorationsLayer'
 import { FormFieldsLayer } from './FormFieldsLayer'
 import { GuidesLayer } from './GuidesLayer'
+import { TextEditLayer } from './TextEditLayer'
 
 interface Props {
   pageIndex: number
@@ -87,6 +88,14 @@ export const PDFPage: React.FC<Props> = ({ pageIndex, isVisible }) => {
       )}
       {renderedOnce && (
         <GuidesLayer
+          pageIndex={pageIndex}
+          naturalWidth={naturalW}
+          naturalHeight={naturalH}
+          zoom={zoom}
+        />
+      )}
+      {renderedOnce && (
+        <TextEditLayer
           pageIndex={pageIndex}
           naturalWidth={naturalW}
           naturalHeight={naturalH}

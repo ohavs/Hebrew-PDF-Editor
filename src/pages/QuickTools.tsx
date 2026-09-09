@@ -23,6 +23,7 @@ export const TOOL_META: Array<{ id: CategoryId; label: string; desc: string; emo
   { id: 'to-word',    label: 'PDF לוורד',   desc: 'ייצא את הטקסט כ-DOCX',       emoji: '📝' },
   { id: 'from-word',  label: 'וורד ל-PDF',  desc: 'המר מסמך DOCX ל-PDF',        emoji: '📄' },
   { id: 'to-excel',   label: 'PDF לאקסל',   desc: 'ייצא טבלאות כ-XLSX',         emoji: '📊' },
+  { id: 'flipbook',   label: 'פליפבוק ל-PDF', desc: 'הרכב PDF מעמודי פליפבוק',   emoji: '📖' },
   { id: 'compare',    label: 'השוואת גרסאות', desc: 'מצא מה השתנה מול קובץ אחר', emoji: '🔍' },
   { id: 'unlock',     label: 'הסרת הגנה',    desc: 'הסר סיסמה והגבלות מקובץ',    emoji: '🔓' },
   { id: 'page-numbers', label: 'מספור עמודים', desc: 'הוסף מספרי עמודים',       emoji: '🔢' },
@@ -51,7 +52,7 @@ export const QuickTools: React.FC = () => {
 
   // Tools that work without an open document: converters that create a new
   // PDF, and merge (which manages its own multi-file list)
-  const needsFile = !['from-image', 'from-word', 'merge', 'unlock'].includes(activeTool ?? '')
+  const needsFile = !['from-image', 'from-word', 'merge', 'unlock', 'flipbook'].includes(activeTool ?? '')
   const showPanel = activeTool && (!needsFile || pdfDoc)
   const activeToolMeta = TOOL_META.find(t => t.id === activeTool) || null
 

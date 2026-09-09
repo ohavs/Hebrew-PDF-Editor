@@ -1,7 +1,7 @@
 export type ToolType =
   | 'select' | 'text' | 'highlight' | 'underline' | 'strikethrough'
   | 'draw' | 'eraser' | 'shapes' | 'stamp' | 'redact'
-  | 'signature' | 'comment' | 'image' | 'toolbox'
+  | 'signature' | 'comment' | 'image' | 'edit-text' | 'toolbox'
 
 export type ShapeType = 'rect' | 'ellipse' | 'line' | 'arrow'
 export type ViewMode = 'continuous' | 'two-page'

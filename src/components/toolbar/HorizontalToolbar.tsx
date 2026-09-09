@@ -11,6 +11,7 @@ const GROUPS: ToolDef[][] = [
   [
     { id: 'select', label: 'בחר', icon: <SelectIcon /> },
     { id: 'text', label: 'טקסט', icon: <TextIcon /> },
+    { id: 'edit-text', label: 'ערוך טקסט', icon: <EditTextIcon /> },
     { id: 'highlight', label: 'הדגשה', icon: <HighlightIcon /> },
     { id: 'underline', label: 'קו תחתון', icon: <UnderlineIcon /> },
     { id: 'strikethrough', label: 'קו חוצה', icon: <StrikethroughIcon /> },
@@ -167,6 +168,7 @@ export const HorizontalToolbar: React.FC = () => {
 // Mobile bottom toolbar — replaced by MobileBottomNav
 
 // Icons
+function EditTextIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 7V5h12v2M10 5v12M8 17h4"/><path strokeLinecap="round" strokeLinejoin="round" d="M14.5 20.5l6-6 2 2-6 6h-2v-2z"/></svg> }
 function ImageToolIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path strokeLinecap="round" strokeLinejoin="round" d="M21 15l-5-5L5 21"/></svg> }
 function SelectIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 3l7 19 3-7 7-3L3 3z"/></svg>
