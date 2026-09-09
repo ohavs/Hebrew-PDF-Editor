@@ -197,6 +197,7 @@ export const TextBox: React.FC<Props> = ({ annotation, zoom }) => {
 
   return (
     <div
+      data-annotation="textbox"
       style={{
         position: 'absolute',
         left: annotation.rect.x,

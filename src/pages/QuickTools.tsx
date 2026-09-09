@@ -4,30 +4,45 @@ import { usePDF } from '../hooks/usePDF'
 import { usePDFStore, useUIStore, useAnnotationsStore } from '../store'
 import { PDFToolsContent } from '../components/tools/PDFToolsModal'
 import type { CategoryId } from '../components/tools/PDFToolsModal'
+import { GROUP_LABELS, type CategoryGroup } from '../components/tools/categories'
 import { ToastContainer } from '../components/ui/Toast'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { PromptDialog } from '../components/ui/PromptDialog'
 
 const EASE = 'cubic-bezier(0.23,1,0.32,1)'
 
-export const TOOL_META: Array<{ id: CategoryId; label: string; desc: string; emoji: string }> = [
-  { id: 'organize',   label: 'ארגון דפים',  desc: 'סובב, סדר, מחק ושכפל דפים', emoji: '🗂️' },
-  { id: 'merge',      label: 'מיזוג PDF',   desc: 'אחד כמה קבצים לאחד',        emoji: '🔗' },
-  { id: 'split',      label: 'פיצול PDF',   desc: 'פצל לקבצים נפרדים',          emoji: '✂️' },
-  { id: 'extract',    label: 'חילוץ דפים',  desc: 'שמור טווח דפים כקובץ חדש',  emoji: '📑' },
-  { id: 'compress',   label: 'דחיסת PDF',   desc: 'הקטן את גודל הקובץ',         emoji: '🗜️' },
-  { id: 'watermark',  label: 'סימן מים',    desc: 'הוסף טקסט על כל הדפים',      emoji: '💧' },
-  { id: 'reverse',    label: 'הפוך סדר',    desc: 'הפוך את סדר הדפים',          emoji: '🔄' },
-  { id: 'to-image',   label: 'PDF לתמונה',  desc: 'ייצא דפים כ-PNG / JPG',      emoji: '🖼️' },
-  { id: 'from-image', label: 'תמונה ל-PDF', desc: 'צור PDF מתמונות',            emoji: '📷' },
-  { id: 'to-word',    label: 'PDF לוורד',   desc: 'ייצא את הטקסט כ-DOCX',       emoji: '📝' },
-  { id: 'from-word',  label: 'וורד ל-PDF',  desc: 'המר מסמך DOCX ל-PDF',        emoji: '📄' },
-  { id: 'to-excel',   label: 'PDF לאקסל',   desc: 'ייצא טבלאות כ-XLSX',         emoji: '📊' },
-  { id: 'flipbook',   label: 'פליפבוק ל-PDF', desc: 'הרכב PDF מעמודי פליפבוק',   emoji: '📖' },
-  { id: 'compare',    label: 'השוואת גרסאות', desc: 'מצא מה השתנה מול קובץ אחר', emoji: '🔍' },
-  { id: 'unlock',     label: 'הסרת הגנה',    desc: 'הסר סיסמה והגבלות מקובץ',    emoji: '🔓' },
-  { id: 'page-numbers', label: 'מספור עמודים', desc: 'הוסף מספרי עמודים',       emoji: '🔢' },
+export const TOOL_META: Array<{ id: CategoryId; label: string; desc: string; emoji: string; group: CategoryGroup }> = [
+  { id: 'organize',   label: 'ארגון דפים',  desc: 'סובב, סדר, מחק ושכפל דפים', emoji: '🗂️', group: 'pages' },
+  { id: 'merge',      label: 'מיזוג PDF',   desc: 'אחד כמה קבצים לאחד',        emoji: '🔗', group: 'pages' },
+  { id: 'split',      label: 'פיצול PDF',   desc: 'פצל לקבצים נפרדים',          emoji: '✂️', group: 'pages' },
+  { id: 'extract',    label: 'חילוץ דפים',  desc: 'שמור טווח דפים כקובץ חדש',  emoji: '📑', group: 'pages' },
+  { id: 'reverse',    label: 'הפוך סדר',    desc: 'הפוך את סדר הדפים',          emoji: '🔄', group: 'pages' },
+  { id: 'page-numbers', label: 'מספור עמודים', desc: 'הוסף מספרי עמודים',       emoji: '🔢', group: 'pages' },
+  { id: 'to-image',   label: 'PDF לתמונה',  desc: 'ייצא דפים כ-PNG / JPG',      emoji: '🖼️', group: 'convert' },
+  { id: 'from-image', label: 'תמונה ל-PDF', desc: 'צור PDF מתמונות',            emoji: '📷', group: 'convert' },
+  { id: 'to-word',    label: 'PDF לוורד',   desc: 'ייצא את הטקסט כ-DOCX',       emoji: '📝', group: 'convert' },
+  { id: 'from-word',  label: 'וורד ל-PDF',  desc: 'המר מסמך DOCX ל-PDF',        emoji: '📄', group: 'convert' },
+  { id: 'to-excel',   label: 'PDF לאקסל',   desc: 'ייצא טבלאות כ-XLSX',         emoji: '📊', group: 'convert' },
+  { id: 'flipbook',   label: 'פליפבוק ל-PDF', desc: 'הרכב PDF מעמודי פליפבוק',   emoji: '📖', group: 'convert' },
+  { id: 'compress',   label: 'דחיסת PDF',   desc: 'הקטן את גודל הקובץ',         emoji: '🗜️', group: 'document' },
+  { id: 'watermark',  label: 'סימן מים',    desc: 'הוסף טקסט על כל הדפים',      emoji: '💧', group: 'document' },
+  { id: 'compare',    label: 'השוואת גרסאות', desc: 'מצא מה השתנה מול קובץ אחר', emoji: '🔍', group: 'document' },
+  { id: 'unlock',     label: 'הסרת הגנה',    desc: 'הסר סיסמה והגבלות מקובץ',    emoji: '🔓', group: 'document' },
 ]
+
+/**
+ * The same three headings the editor's toolbox uses, so a tool sits in the
+ * same place wherever it is met. Order comes from GROUP_LABELS, and a group
+ * with no tools simply does not appear.
+ */
+export const TOOL_GROUPS: Array<{ group: CategoryGroup; label: string; tools: typeof TOOL_META }> =
+  (Object.keys(GROUP_LABELS) as CategoryGroup[])
+    .map(group => ({
+      group,
+      label: GROUP_LABELS[group],
+      tools: TOOL_META.filter(t => t.group === group),
+    }))
+    .filter(g => g.tools.length > 0)
 
 /**
  * Standalone quick-tools hub: pick a file, pick a tool, done — without
@@ -222,49 +237,62 @@ export const QuickTools: React.FC = () => {
             <PDFToolsContent key={activeTool} onClose={() => setActiveTool(null)} initialCategory={activeTool!} />
           </div>
         ) : (
-          /* Tool grid */
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
-            {TOOL_META.map(t => {
-              const isActive = t.id === activeTool
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setActiveTool(t.id)}
-                  aria-pressed={isActive}
-                  style={{
-                    position: 'relative',
-                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6,
-                    padding: '16px 14px', borderRadius: 16,
-                    border: `2px solid ${isActive ? 'var(--color-accent)' : 'var(--color-border)'}`,
-                    background: isActive ? 'var(--color-mint)' : 'var(--color-surface)',
-                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'start',
-                    transition: `transform 140ms ${EASE}, border-color 140ms ease, background 140ms ease`,
-                    WebkitTapHighlightColor: 'transparent',
-                    minHeight: 0,
-                  }}
-                  onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-accent)' }}
-                  onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)' }}
-                  onTouchStart={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)' }}
-                  onTouchEnd={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
-                >
-                  {isActive && (
-                    <span style={{
-                      position: 'absolute', top: 10, insetInlineEnd: 10,
-                      width: 20, height: 20, borderRadius: '50%',
-                      background: 'var(--color-accent)', color: 'var(--color-on-accent)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3.2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </span>
-                  )}
-                  <span style={{ fontSize: 26 }}>{t.emoji}</span>
-                  <span style={{ fontSize: 14.5, fontWeight: 700, color: isActive ? 'var(--color-ink-black)' : 'var(--color-text)' }}>{t.label}</span>
-                  <span style={{ fontSize: 11.5, color: 'var(--color-text-muted)', lineHeight: 1.4 }}>{t.desc}</span>
-                </button>
-              )
-            })}
+          /* Tool grid, under the same headings as the editor's toolbox */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+            {TOOL_GROUPS.map(g => (
+              <section key={g.group}>
+                <h2 style={{
+                  margin: '0 0 12px',
+                  fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500,
+                  color: 'var(--color-text-muted)', letterSpacing: '0.04em',
+                }}>
+                  {g.label}
+                </h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
+                  {g.tools.map(t => {
+                    const isActive = t.id === activeTool
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setActiveTool(t.id)}
+                        aria-pressed={isActive}
+                        style={{
+                          position: 'relative',
+                          display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6,
+                          padding: '16px 14px', borderRadius: 16,
+                          border: `2px solid ${isActive ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                          background: isActive ? 'var(--color-mint)' : 'var(--color-surface)',
+                          cursor: 'pointer', fontFamily: 'inherit', textAlign: 'start',
+                          transition: `transform 140ms ${EASE}, border-color 140ms ease, background 140ms ease`,
+                          WebkitTapHighlightColor: 'transparent',
+                          minHeight: 0,
+                        }}
+                        onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-accent)' }}
+                        onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)' }}
+                        onTouchStart={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)' }}
+                        onTouchEnd={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
+                      >
+                        {isActive && (
+                          <span style={{
+                            position: 'absolute', top: 10, insetInlineEnd: 10,
+                            width: 20, height: 20, borderRadius: '50%',
+                            background: 'var(--color-accent)', color: 'var(--color-on-accent)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3.2" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </span>
+                        )}
+                        <span style={{ fontSize: 26 }}>{t.emoji}</span>
+                        <span style={{ fontSize: 14.5, fontWeight: 700, color: isActive ? 'var(--color-ink-black)' : 'var(--color-text)' }}>{t.label}</span>
+                        <span style={{ fontSize: 11.5, color: 'var(--color-text-muted)', lineHeight: 1.4 }}>{t.desc}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         )}
       </div>

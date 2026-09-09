@@ -6,7 +6,7 @@ import { listSessions, deleteSession, type SessionMeta } from '../utils/sessions
 import { ToastContainer } from '../components/ui/Toast'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { InstallButton } from '../components/ui/InstallButton'
-import { TOOL_META } from './QuickTools'
+import { TOOL_GROUPS } from './QuickTools'
 
 // ─── Design tokens — theme-aware via CSS variables ───────────────────────────
 const C = {
@@ -192,30 +192,44 @@ export const HomePage: React.FC = () => {
           }}>
             כלים מהירים
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
-            {TOOL_META.map(t => (
-              <button
-                key={t.id}
-                onClick={() => navigate(`/tools/${t.id}`)}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6,
-                  padding: '14px 14px', borderRadius: 16,
-                  border: '1px solid transparent',
-                  background: C.white,
-                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'start',
-                  transition: `transform 140ms ${ease}, border-color 140ms ease`,
-                  WebkitTapHighlightColor: 'transparent',
-                  minHeight: 0,
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = C.ink }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'transparent' }}
-                onTouchStart={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)' }}
-                onTouchEnd={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
-              >
-                <span style={{ fontSize: 24 }}>{t.emoji}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: C.ink }}>{t.label}</span>
-                <span style={{ fontSize: 11.5, color: C.steel, lineHeight: 1.35 }}>{t.desc}</span>
-              </button>
+          {/* Grouped exactly as in the toolbox, so a tool keeps its place */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {TOOL_GROUPS.map(g => (
+              <div key={g.group}>
+                <h3 style={{
+                  margin: '0 0 10px',
+                  fontSize: 12.5, fontWeight: 700, color: C.ink,
+                  letterSpacing: '-0.01em',
+                }}>
+                  {g.label}
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
+                  {g.tools.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => navigate(`/tools/${t.id}`)}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6,
+                        padding: '14px 14px', borderRadius: 16,
+                        border: '1px solid transparent',
+                        background: C.white,
+                        cursor: 'pointer', fontFamily: 'inherit', textAlign: 'start',
+                        transition: `transform 140ms ${ease}, border-color 140ms ease`,
+                        WebkitTapHighlightColor: 'transparent',
+                        minHeight: 0,
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = C.ink }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'transparent' }}
+                      onTouchStart={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)' }}
+                      onTouchEnd={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
+                    >
+                      <span style={{ fontSize: 24 }}>{t.emoji}</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: C.ink }}>{t.label}</span>
+                      <span style={{ fontSize: 11.5, color: C.steel, lineHeight: 1.35 }}>{t.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </section>

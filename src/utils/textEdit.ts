@@ -11,7 +11,8 @@ export interface EditableLine {
 /** Two runs belong to the same line when their baselines are this close. */
 const BASELINE_TOLERANCE = 3
 
-interface Run {
+/** Exported for tests: a single text run as pdf.js reports it, in display space. */
+export interface Run {
   x: number
   y: number
   width: number
@@ -20,8 +21,12 @@ interface Run {
   str: string
 }
 
-/** Every text run on a page, in display coordinates. */
-async function pageRuns(pdfDoc: any, pageIndex: number): Promise<Run[]> {
+/**
+ * Every text run on a page, in display coordinates, alongside how many runs
+ * the page actually painted. The two differ when a font ships without a
+ * Unicode mapping: there is text on the page, but nothing readable comes back.
+ */
+async function pageRuns(pdfDoc: any, pageIndex: number): Promise<{ runs: Run[]; painted: number }> {
   const page = await pdfDoc.getPage(pageIndex + 1)
   const rotation = ((page.rotate || 0) % 360 + 360) % 360
   const viewport = page.getViewport({ scale: 1, rotation })
@@ -29,8 +34,11 @@ async function pageRuns(pdfDoc: any, pageIndex: number): Promise<Run[]> {
   page.cleanup?.()
 
   const runs: Run[] = []
+  let painted = 0
   for (const item of content.items as any[]) {
-    if (!item.str) continue
+    if (typeof item.str !== 'string') continue
+    painted++
+    if (!item.str.trim()) continue
     const tx = item.transform
     const fontH = Math.hypot(tx[1], tx[3]) || Math.hypot(tx[0], tx[2]) || 10
     const [vx0, vy0, vx1, vy1] = viewport.convertToViewportRectangle([
@@ -45,50 +53,141 @@ async function pageRuns(pdfDoc: any, pageIndex: number): Promise<Run[]> {
       str: item.str,
     })
   }
-  return runs
+  return { runs, painted }
 }
 
 const isRtl = (s: string) => /[֐-׿؀-ۿ]/.test(s)
+
+export type LineHit =
+  | { kind: 'line'; line: EditableLine }
+  /** The page carries no text at all — a scan, or images only. */
+  | { kind: 'no-text-layer' }
+  /**
+   * There is text on the page, but its font ships no Unicode mapping, so no
+   * reader — this one included — can tell which letters were painted.
+   */
+  | { kind: 'unreadable-text' }
+  | { kind: 'miss' }
+
+/** How far above or below a line still counts as pointing at it. */
+const VERTICAL_SLACK = 0.6
+/** ...and how far past its ends, for the ragged edge of a paragraph. */
+const HORIZONTAL_SLACK = 24
+
+export interface Line {
+  runs: Run[]
+  rect: Rect
+}
+
+/**
+ * A gap this many times the text height means the runs belong to different
+ * blocks — two columns, or a label and its value — rather than to one line.
+ */
+const COLUMN_GAP = 2.5
+
+function measure(runs: Run[]): Rect {
+  const left = Math.min(...runs.map(r => r.x))
+  const right = Math.max(...runs.map(r => r.x + r.width))
+  const top = Math.min(...runs.map(r => r.y))
+  const bottom = Math.max(...runs.map(r => r.y + r.height))
+  return { x: left, y: top, width: right - left, height: bottom - top }
+}
+
+export function groupIntoLines(runs: Run[]): Line[] {
+  // Runs sharing a baseline sit on the same line…
+  const bands: Run[][] = []
+  for (const run of [...runs].sort((a, b) => a.baseline - b.baseline)) {
+    const last = bands[bands.length - 1]
+    if (last && Math.abs(last[0].baseline - run.baseline) <= BASELINE_TOLERANCE) last.push(run)
+    else bands.push([run])
+  }
+
+  // …unless a wide gap separates them, in which case a two-column page would
+  // otherwise come back as one line stretching across both columns
+  const lines: Line[] = []
+  for (const band of bands) {
+    const ordered = band.sort((a, b) => a.x - b.x)
+    let chunk: Run[] = [ordered[0]]
+    for (const run of ordered.slice(1)) {
+      const prev = chunk[chunk.length - 1]
+      const gap = run.x - (prev.x + prev.width)
+      if (gap > Math.max(prev.height, run.height) * COLUMN_GAP) {
+        lines.push({ runs: chunk, rect: measure(chunk) })
+        chunk = [run]
+      } else {
+        chunk.push(run)
+      }
+    }
+    lines.push({ runs: chunk, rect: measure(chunk) })
+  }
+  return lines
+}
+
+export function toEditable(line: Line): EditableLine {
+  const joined = line.runs.map(r => r.str).join('')
+  const rtl = isRtl(joined)
+  // Visual order is left to right; a right-to-left line reads the other way
+  const ordered = [...line.runs].sort((a, b) => rtl ? b.x - a.x : a.x - b.x)
+  const tallest = line.runs.reduce((a, b) => (a.height > b.height ? a : b))
+
+  // Runs often arrive without the spaces between them — the gap on the page is
+  // the space. Anything wider than a sliver counts as one, in visual order,
+  // which for a right-to-left line means looking at the run to the left.
+  let text = ''
+  ordered.forEach((r, i) => {
+    if (i > 0) {
+      const prev = ordered[i - 1]
+      const gap = rtl ? prev.x - (r.x + r.width) : r.x - (prev.x + prev.width)
+      if (gap > r.height * 0.15 && !/\s$/.test(text) && !/^\s/.test(r.str)) text += ' '
+    }
+    text += r.str
+  })
+
+  return {
+    rect: line.rect,
+    text: text.replace(/\s+/g, ' ').trim(),
+    fontSize: Math.max(6, Math.round(tallest.height * 0.78)),
+    rtl,
+  }
+}
 
 /**
  * The line of existing text under a point, ready to be replaced.
  *
  * A PDF line is often several separate runs, so they are gathered by baseline
  * and read back in the direction the text runs — otherwise a Hebrew line comes
- * back inside out. The rectangle spans the whole line, which is what the user
- * sees highlighted and what the replacement has to cover.
+ * back inside out. Pointing is forgiving: a line's own box is only about one
+ * font size tall, which at a phone's zoom is a handful of pixels, so a point
+ * near a line still picks it.
  */
 export async function findEditableLineAt(
   pdfDoc: any,
   pageIndex: number,
   point: Point,
-): Promise<EditableLine | null> {
-  const runs = await pageRuns(pdfDoc, pageIndex)
-  if (!runs.length) return null
+): Promise<LineHit> {
+  const { runs, painted } = await pageRuns(pdfDoc, pageIndex)
+  if (!runs.length) return { kind: painted ? 'unreadable-text' : 'no-text-layer' }
 
-  // The run under the pointer, with a little slack for thin lines
-  const hit = runs.find(r =>
-    point.x >= r.x - 2 && point.x <= r.x + r.width + 2 &&
-    point.y >= r.y - 2 && point.y <= r.y + r.height + 2)
-  if (!hit) return null
+  const lines = groupIntoLines(runs)
+  const inside = lines.find(l =>
+    point.x >= l.rect.x - 2 && point.x <= l.rect.x + l.rect.width + 2 &&
+    point.y >= l.rect.y - 2 && point.y <= l.rect.y + l.rect.height + 2)
+  if (inside) return { kind: 'line', line: toEditable(inside) }
 
-  const line = runs.filter(r => Math.abs(r.baseline - hit.baseline) <= BASELINE_TOLERANCE)
-  const left = Math.min(...line.map(r => r.x))
-  const right = Math.max(...line.map(r => r.x + r.width))
-  const top = Math.min(...line.map(r => r.y))
-  const bottom = Math.max(...line.map(r => r.y + r.height))
-
-  const joined = line.map(r => r.str).join('')
-  const rtl = isRtl(joined)
-  // Visual order is left to right; a right-to-left line reads the other way
-  const ordered = [...line].sort((a, b) => rtl ? b.x - a.x : a.x - b.x)
-
-  return {
-    rect: { x: left, y: top, width: right - left, height: bottom - top },
-    text: ordered.map(r => r.str).join('').replace(/\s+/g, ' ').trim(),
-    fontSize: Math.max(6, Math.round(hit.height * 0.78)),
-    rtl,
+  // Nothing directly under the pointer: take the nearest line that is close
+  // enough to have been aimed at
+  let best: Line | null = null
+  let bestDistance = Infinity
+  for (const l of lines) {
+    const slack = l.rect.height * VERTICAL_SLACK
+    const withinBand = point.y >= l.rect.y - slack && point.y <= l.rect.y + l.rect.height + slack
+    const withinSpan = point.x >= l.rect.x - HORIZONTAL_SLACK &&
+      point.x <= l.rect.x + l.rect.width + HORIZONTAL_SLACK
+    if (!withinBand || !withinSpan) continue
+    const dy = Math.abs(point.y - (l.rect.y + l.rect.height / 2))
+    if (dy < bestDistance) { bestDistance = dy; best = l }
   }
+  return best ? { kind: 'line', line: toEditable(best) } : { kind: 'miss' }
 }
 
 /**

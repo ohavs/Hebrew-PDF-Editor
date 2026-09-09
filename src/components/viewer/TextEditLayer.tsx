@@ -40,16 +40,27 @@ export const TextEditLayer: React.FC<Props> = ({ pageIndex, naturalWidth, natura
     // One lookup at a time; the page's text content is cached by pdf.js
     busy.current = true
     try {
-      const line = await locate(e.clientX, e.clientY, e.currentTarget)
-      setHover(line)
+      const hit = await locate(e.clientX, e.clientY, e.currentTarget)
+      setHover(hit.kind === 'line' ? hit.line : null)
     } finally { busy.current = false }
   }
 
   const onClick = async (e: React.MouseEvent<HTMLDivElement>) => {
     if (!active) return
     e.stopPropagation()
-    const line = await locate(e.clientX, e.clientY, e.currentTarget as HTMLElement)
-    if (!line) { addToast('לא נמצא טקסט במקום הזה', 'warning'); return }
+    const hit = await locate(e.clientX, e.clientY, e.currentTarget as HTMLElement)
+    if (hit.kind === 'no-text-layer') {
+      // Nothing to find: the page is a picture of text, not text
+      addToast('אין בדף הזה טקסט הניתן לעריכה — כנראה סריקה או תמונה. אפשר להוסיף תיבת טקסט מעל.', 'warning')
+      return
+    }
+    if (hit.kind === 'unreadable-text') {
+      // There are glyphs, but the font says nothing about which letters they are
+      addToast('יש בדף טקסט, אך הגופן שבו הוא נכתב לא מאפשר לקרוא אותו. אפשר לכסות ולכתוב מחדש בעזרת תיבת טקסט.', 'warning')
+      return
+    }
+    if (hit.kind === 'miss') { addToast('לא נמצא טקסט במקום הזה — לחץ על השורה עצמה', 'warning'); return }
+    const line = hit.line
 
     const canvas = document.querySelector(`#page-${pageIndex} canvas.pdf-canvas`) as HTMLCanvasElement | null
     const colors = canvas
@@ -60,13 +71,18 @@ export const TextEditLayer: React.FC<Props> = ({ pageIndex, naturalWidth, natura
     pushHistory()
     // A hair of margin so antialiased edges of the old glyphs are covered too
     const pad = 2
+    const x = Math.max(0, line.rect.x - pad)
+    // The replacement is set in Heebo, which is wider than most of the fonts a
+    // PDF ships with. Without a little room to spare the same words wrap to a
+    // second line the moment the box appears.
+    const wanted = line.rect.width * 1.18 + pad * 2
     const box: Omit<TextBoxAnnotation, 'id' | 'createdAt'> = {
       type: 'textbox',
       pageIndex,
       rect: {
-        x: Math.max(0, line.rect.x - pad),
+        x,
         y: Math.max(0, line.rect.y - pad),
-        width: Math.min(naturalWidth, line.rect.width + pad * 2),
+        width: Math.min(wanted, naturalWidth - x),
         height: line.rect.height + pad * 2,
       },
       content: line.text,

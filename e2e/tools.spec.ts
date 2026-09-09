@@ -567,3 +567,42 @@ test.describe('PDF tools', () => {
     }
   })
 })
+
+test.describe('the tool listings agree', () => {
+  /** The tools shown under one heading, on whatever page is open. */
+  async function underHeading(page: import('@playwright/test').Page, heading: string) {
+    return page.evaluate(h => {
+      const label = Array.from(document.querySelectorAll('h2, h3, div'))
+        .find(e => e.textContent?.trim() === h && e.children.length === 0)
+      const group = label?.parentElement
+      return Array.from(group?.querySelectorAll('button') || [])
+        .map(b => b.querySelector('span:nth-of-type(2)')?.textContent?.trim() || b.textContent?.trim())
+    }, heading)
+  }
+
+  const CONVERTERS = ['PDF לתמונה', 'תמונה ל-PDF', 'PDF לוורד', 'וורד ל-PDF', 'PDF לאקסל', 'פליפבוק ל-PDF']
+
+  test('the home page groups its tools the same way the toolbox does', async ({ page }) => {
+    await page.goto('/#/', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(600)
+
+    for (const heading of ['עמודים', 'המרות', 'המסמך']) {
+      await expect(page.getByText(heading, { exact: true }).first()).toBeVisible()
+    }
+
+    const inConvert = await underHeading(page, 'המרות')
+    for (const tool of CONVERTERS) expect(inConvert).toContain(tool)
+    // …and nothing that is not a conversion has wandered in
+    expect(inConvert).not.toContain('ארגון דפים')
+    expect(inConvert).not.toContain('הסרת הגנה')
+  })
+
+  test('the quick-tools hub groups its tools too', async ({ page }) => {
+    await page.goto('/#/tools', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(600)
+
+    const inConvert = await underHeading(page, 'המרות')
+    for (const tool of CONVERTERS) expect(inConvert).toContain(tool)
+    expect(inConvert).not.toContain('ארגון דפים')
+  })
+})
