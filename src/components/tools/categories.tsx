@@ -38,7 +38,7 @@ export const CATEGORIES: Category[] = [
   { id: 'to-word', label: 'PDF לוורד', desc: 'ייצא את הטקסט כ-DOCX', color: '#2563eb', icon: <WordIcon /> , group: 'convert' },
   { id: 'from-word', label: 'וורד ל-PDF', desc: 'המר מסמך DOCX ל-PDF', color: '#1d4ed8', icon: <FromWordIcon /> , group: 'convert' },
   { id: 'to-excel', label: 'PDF לאקסל', desc: 'ייצא טבלאות כ-XLSX', color: '#16a34a', icon: <ExcelIcon />, group: 'convert' },
-  { id: 'flipbook', label: 'פליפבוק ל-PDF', desc: 'הרכב PDF מעמודי פליפבוק', color: '#a855f7', icon: <FlipbookIcon />, group: 'convert' },
+  { id: 'flipbook', label: 'פליפבוק ל-PDF', desc: 'מכתובת FlipHTML5 או מתמונות', color: '#a855f7', icon: <FlipbookIcon />, group: 'convert' },
   { id: 'page-numbers', label: 'מספור עמודים', desc: 'הוסף מספרי עמודים', color: '#0891b2', icon: <NumbersIcon /> , group: 'pages' },
   { id: 'compare', label: 'השוואת גרסאות', desc: 'מצא מה השתנה מול קובץ אחר', color: '#d97706', icon: <CompareIcon /> , group: 'document' },
   { id: 'unlock', label: 'הסרת הגנה', desc: 'הסר סיסמה והגבלות מקובץ', color: '#059669', icon: <UnlockIcon /> , group: 'document' },

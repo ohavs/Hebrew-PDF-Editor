@@ -13,8 +13,6 @@ const GROUPS: ToolDef[][] = [
     { id: 'text', label: 'טקסט', icon: <TextIcon /> },
     { id: 'edit-text', label: 'ערוך טקסט', icon: <EditTextIcon /> },
     { id: 'highlight', label: 'הדגשה', icon: <HighlightIcon /> },
-    { id: 'underline', label: 'קו תחתון', icon: <UnderlineIcon /> },
-    { id: 'strikethrough', label: 'קו חוצה', icon: <StrikethroughIcon /> },
   ],
   [
     { id: 'draw', label: 'ציור', icon: <DrawIcon /> },
@@ -60,8 +58,8 @@ export const HorizontalToolbar: React.FC = () => {
         borderBottom: '1px solid var(--color-border)',
         display: 'flex',
         alignItems: 'center',
-        padding: '0 8px',
-        height: 48,
+        padding: '0 10px',
+        height: 64,
         gap: 2,
         flexShrink: 0,
         overflowX: 'auto',
@@ -92,7 +90,7 @@ export const HorizontalToolbar: React.FC = () => {
       {GROUPS.map((group, gi) => (
         <React.Fragment key={gi}>
           {gi > 0 && (
-            <div style={{ width: 1, height: 28, background: 'var(--color-border)', margin: '0 4px', flexShrink: 0 }} />
+            <div style={{ width: 1, height: 34, background: 'var(--color-border)', margin: '0 6px', flexShrink: 0 }} />
           )}
           {group.map(tool => {
             const active = tool.id === 'toolbox' ? toolboxOpen : activeTool === tool.id
@@ -108,15 +106,15 @@ export const HorizontalToolbar: React.FC = () => {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 3,
-                  padding: '4px 10px',
+                  gap: 5,
+                  padding: '6px 12px',
                   border: 'none',
-                  borderRadius: 8,
+                  borderRadius: 12,
                   cursor: disabled ? 'not-allowed' : 'pointer',
                   background: active ? 'var(--color-mint)' : 'transparent',
                   color: active ? 'var(--color-ink-black)' : disabled ? 'var(--color-border)' : 'var(--color-graphite)',
-                  minWidth: 54,
-                  height: 40,
+                  minWidth: 72,
+                  height: 54,
                   flexShrink: 0,
                   outline: 'none',
                   fontFamily: 'inherit',
@@ -136,11 +134,11 @@ export const HorizontalToolbar: React.FC = () => {
                 {active && (
                   <span style={{
                     position: 'absolute',
-                    bottom: 2,
+                    bottom: 4,
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    width: 4,
-                    height: 4,
+                    width: 5,
+                    height: 5,
                     borderRadius: '50%',
                     background: 'var(--color-ink-black)',
                   }} />
@@ -149,10 +147,11 @@ export const HorizontalToolbar: React.FC = () => {
                   {tool.icon}
                 </span>
                 <span style={{
-                  fontSize: 10,
-                  fontWeight: active ? 600 : 500,
+                  fontSize: 11.5,
+                  fontWeight: active ? 700 : 500,
                   lineHeight: 1,
                   letterSpacing: '0.01em',
+                  whiteSpace: 'nowrap',
                 }}>
                   {tool.label}
                 </span>
@@ -168,44 +167,38 @@ export const HorizontalToolbar: React.FC = () => {
 // Mobile bottom toolbar — replaced by MobileBottomNav
 
 // Icons
-function EditTextIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 7V5h12v2M10 5v12M8 17h4"/><path strokeLinecap="round" strokeLinejoin="round" d="M14.5 20.5l6-6 2 2-6 6h-2v-2z"/></svg> }
-function ImageToolIcon() { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path strokeLinecap="round" strokeLinejoin="round" d="M21 15l-5-5L5 21"/></svg> }
+function EditTextIcon() { return <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 7V5h12v2M10 5v12M8 17h4"/><path strokeLinecap="round" strokeLinejoin="round" d="M14.5 20.5l6-6 2 2-6 6h-2v-2z"/></svg> }
+function ImageToolIcon() { return <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path strokeLinecap="round" strokeLinejoin="round" d="M21 15l-5-5L5 21"/></svg> }
 function SelectIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 3l7 19 3-7 7-3L3 3z"/></svg>
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 3l7 19 3-7 7-3L3 3z"/></svg>
 }
 function TextIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
 }
 function HighlightIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536-8.5 8.5H7v-3.268l8.232-8.232zM3 21h18"/><rect x="3" y="15" width="18" height="3" rx="1" fill="currentColor" opacity="0.2"/></svg>
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536-8.5 8.5H7v-3.268l8.232-8.232zM3 21h18"/><rect x="3" y="15" width="18" height="3" rx="1" fill="currentColor" opacity="0.2"/></svg>
 }
 function DrawIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
 }
 function ShapesIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><circle cx="17" cy="7" r="4"/><path strokeLinecap="round" strokeLinejoin="round" d="M7 17l5 5 5-5"/></svg>
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><circle cx="17" cy="7" r="4"/><path strokeLinecap="round" strokeLinejoin="round" d="M7 17l5 5 5-5"/></svg>
 }
 function StampIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
 }
 function SigIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/><path strokeLinecap="round" d="M3 21h18" strokeWidth="1.5"/></svg>
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/><path strokeLinecap="round" d="M3 21h18" strokeWidth="1.5"/></svg>
 }
 function ToolboxIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M20 7h-3V5a2 2 0 00-2-2H9a2 2 0 00-2 2v2H4a1 1 0 00-1 1v11a2 2 0 002 2h14a2 2 0 002-2V8a1 1 0 00-1-1zM9 7V5h6v2M3 12h18M10 12v2h4v-2"/></svg>
-}
-function UnderlineIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M6 4v6a6 6 0 0012 0V4M4 20h16" /></svg>
-}
-function StrikethroughIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M6 12h12M12 4c-2.5 0-5 1-5 3.5S9 11 12 12m0 0c3 .8 5 2 5 4.5S14.5 20 12 20c-2.5 0-5-1-5-3.5" /></svg>
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M20 7h-3V5a2 2 0 00-2-2H9a2 2 0 00-2 2v2H4a1 1 0 00-1 1v11a2 2 0 002 2h14a2 2 0 002-2V8a1 1 0 00-1-1zM9 7V5h6v2M3 12h18M10 12v2h4v-2"/></svg>
 }
 function EraserIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M20 20H7L3 16l9-9 6 6-3.5 3.5M6.5 17.5l4-4" /></svg>
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M20 20H7L3 16l9-9 6 6-3.5 3.5M6.5 17.5l4-4" /></svg>
 }
 function RedactIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="8" width="18" height="8" rx="1" fill="currentColor" opacity="0.3" /><rect x="3" y="8" width="18" height="8" rx="1" strokeLinecap="round" /></svg>
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="8" width="18" height="8" rx="1" fill="currentColor" opacity="0.3" /><rect x="3" y="8" width="18" height="8" rx="1" strokeLinecap="round" /></svg>
 }
 function CommentIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
 }

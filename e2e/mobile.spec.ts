@@ -92,10 +92,17 @@ test.describe('mobile interaction', () => {
     await page.keyboard.type('שלום')
     await page.waitForTimeout(300)
 
-    // Leave the box, then come back to it
+    // Leave the box, then come back to it. The empty spot has to be inside
+    // the window as well as inside the page — anchoring it to the page's
+    // bottom edge put it below the fold as soon as the toolbar grew, and a
+    // click that lands nowhere leaves the box selected and the test lying.
     await page.getByRole('button', { name: 'בחר' }).first().click()
     await page.waitForTimeout(400)
-    await page.mouse.click(pageBox.x + 40, pageBox.y + pageBox.height - 40)
+    const empty = {
+      x: pageBox.x + 40,
+      y: Math.min(pageBox.y + pageBox.height - 40, page.viewportSize()!.height - 60),
+    }
+    await page.mouse.click(empty.x, empty.y)
     await page.waitForTimeout(400)
     await expect(page.locator('[contenteditable="true"]')).toHaveCount(0)
 

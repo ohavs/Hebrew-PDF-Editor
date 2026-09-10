@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { stampConfig, stampText, stampApplies } from '../../utils/pageStamp'
 import { usePDFStore, useUIStore } from '../../store'
 import { startPointerDrag } from '../../utils/pointerDrag'
 
@@ -49,12 +50,15 @@ export const DecorationsLayer: React.FC<Props> = ({ pageIndex, naturalWidth, nat
 
   const side = Math.min(naturalWidth, naturalHeight) * 0.8
 
-  const numberLabel = pageNumbers ? String(pageNumbers.startAt + Math.max(0, displayPos)) : ''
-  const pnFontSize = 11
-  const pnBaseX = pageNumbers
-    ? pageNumbers.position === 'center' ? naturalWidth / 2
-      : pageNumbers.position === 'right' ? naturalWidth - 40 : 40
-    : 0
+  // The stamp reads whatever its template says on THIS page, and sits where
+  // the anchor puts it — both worked out by the same code the export uses
+  const stamp = pageNumbers ? stampConfig(pageNumbers) : null
+  const total = pageOrder.length || 1
+  const showStamp = Boolean(pageNumbers && displayPos >= 0 &&
+    stampApplies(pageNumbers, displayPos, total))
+  const stampLabel = pageNumbers && showStamp
+    ? stampText(pageNumbers, displayPos, total)
+    : ''
 
   return (
     <div
@@ -102,23 +106,31 @@ export const DecorationsLayer: React.FC<Props> = ({ pageIndex, naturalWidth, nat
         </div>
       )}
 
-      {/* Page number */}
-      {pageNumbers && displayPos >= 0 && (
+      {/* The running header or footer */}
+      {stamp && showStamp && (
         <div
+          data-page-stamp
           onPointerDown={dragPageNumber}
           onMouseEnter={() => interactive && setHovered('pn')}
           onMouseLeave={() => setHovered(null)}
-          title={interactive ? 'גרור להזזת המספור (בכל הדפים)' : undefined}
+          title={interactive ? 'גרור להזזה (בכל הדפים)' : undefined}
           style={{
             position: 'absolute',
-            left: pnBaseX + pageNumbers.dx,
-            top: naturalHeight - 34 + pageNumbers.dy,
-            transform: pageNumbers.position === 'center' ? 'translateX(-50%)'
-              : pageNumbers.position === 'right' ? 'translateX(-100%)' : 'none',
-            padding: '2px 8px',
-            fontSize: pnFontSize,
-            fontFamily: 'Arial, sans-serif',
-            color: 'rgba(60,60,60,0.9)',
+            // The anchor is an edge, so the box is placed by its own edge too
+            left: stamp.horizontal === 'left' ? stamp.margin + stamp.dx : undefined,
+            right: stamp.horizontal === 'right' ? stamp.margin - stamp.dx : undefined,
+            ...(stamp.horizontal === 'center'
+              ? { left: naturalWidth / 2 + stamp.dx, transform: 'translateX(-50%)' }
+              : null),
+            top: stamp.vertical === 'top'
+              ? stamp.margin - stamp.fontSize + stamp.dy
+              : naturalHeight - stamp.margin + stamp.dy,
+            padding: '2px 6px',
+            fontSize: stamp.fontSize,
+            fontWeight: stamp.bold ? 700 : 400,
+            fontFamily: `'${stamp.fontFamily}', Arial, sans-serif`,
+            color: stamp.color,
+            whiteSpace: 'nowrap',
             pointerEvents: interactive ? 'all' : 'none',
             cursor: interactive ? 'move' : 'default',
             touchAction: 'none',
@@ -127,7 +139,7 @@ export const DecorationsLayer: React.FC<Props> = ({ pageIndex, naturalWidth, nat
             userSelect: 'none',
           }}
         >
-          {numberLabel}
+          {stampLabel}
         </div>
       )}
     </div>

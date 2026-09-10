@@ -4,6 +4,7 @@ import { usePDF } from '../../../hooks/usePDF'
 import { downloadBlob } from '../../../utils/pdfExport'
 import { askFileName } from '../../ui/PromptDialog'
 import { marksOf, removeMarks, markLabel, type DocumentMark } from '../../../utils/documentMarks'
+import { describePage, explainPage } from '../../../utils/pageInspect'
 import { InfoBar, PrimaryButton, GhostButton, Spinner } from '../toolsShared'
 
 /**
@@ -79,7 +80,10 @@ export const MarksPanel: React.FC = () => {
 
   if (!marks.length) {
     return (
-      <InfoBar text="לא נמצאו חותמות, סימני מים או הערות שהגיעו עם הקובץ. אם יש כיתוב שאי אפשר לערוך, הוא כנראה חלק מתוכן העמוד עצמו ולא סימן נפרד — במקרה כזה אפשר לכסות אותו בעזרת תיבת טקסט או מלבן." />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <InfoBar text="לא נמצאו חותמות, סימני מים או הערות שהגיעו עם הקובץ — כלומר הכיתוב שאתה רואה הוא חלק מתוכן העמוד עצמו." />
+        <PageDiagnosis />
+      </div>
     )
   }
 
@@ -155,3 +159,45 @@ export const MarksPanel: React.FC = () => {
 }
 
 const key = (m: DocumentMark) => `${m.pageIndex}:${m.ref}`
+
+/**
+ * What the current page is made of, when no marks explain the trouble.
+ *
+ * "I can see it but cannot edit it" has several unrelated causes that look
+ * identical on screen. Rather than leave a dead end, the page is examined and
+ * the finding stated — text painted white, a font with no letters behind it, a
+ * page that is really a picture.
+ */
+const PageDiagnosis: React.FC = () => {
+  const { pdfDoc, currentPage } = usePDFStore()
+  const [lines, setLines] = useState<string[] | null>(null)
+
+  useEffect(() => {
+    let live = true
+    if (!pdfDoc) return
+    describePage(pdfDoc, currentPage)
+      .then(r => { if (live) setLines(explainPage(r)) })
+      .catch(() => { if (live) setLines([]) })
+    return () => { live = false }
+  }, [pdfDoc, currentPage])
+
+  if (lines === null) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
+        <Spinner /> בודק את הדף…
+      </div>
+    )
+  }
+  if (!lines.length) return null
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ fontSize: 12, fontWeight: 700 }}>מה יש בעמוד {currentPage + 1}</div>
+      <ul style={{ margin: 0, paddingInlineStart: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {lines.map((l, i) => (
+          <li key={i} style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--color-text-muted)' }}>{l}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}

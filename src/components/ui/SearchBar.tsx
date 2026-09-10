@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { usePDFStore, useUIStore } from '../../store'
 import { searchDocument } from '../../utils/search'
+import { documentTextStatus, explainEmptySearch, type TextStatus } from '../../utils/pageInspect'
 
 const EASE = 'cubic-bezier(0.23,1,0.32,1)'
 
@@ -13,6 +14,7 @@ export const SearchBar: React.FC = () => {
   const { searchOpen, setSearchOpen, searchMatches, setSearchMatches, searchActiveIdx, setSearchActiveIdx } = useUIStore()
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState(false)
+  const [textStatus, setTextStatus] = useState<TextStatus | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const runRef = useRef<{ cancelled: boolean } | null>(null)
 
@@ -20,6 +22,15 @@ export const SearchBar: React.FC = () => {
     if (searchOpen) setTimeout(() => inputRef.current?.focus(), 50)
     else setQuery('')
   }, [searchOpen])
+
+  // "Found nothing" and "there is nothing to find" look identical in a result
+  // count, and only one of them is the user's fault
+  useEffect(() => {
+    let live = true
+    if (!searchOpen || !pdfDoc) return
+    documentTextStatus(pdfDoc).then(s => { if (live) setTextStatus(s) })
+    return () => { live = false }
+  }, [searchOpen, pdfDoc])
 
   // Debounced search
   useEffect(() => {
@@ -47,6 +58,11 @@ export const SearchBar: React.FC = () => {
     setCurrentPage(searchMatches[next].pageIndex)
   }
 
+  // Only worth saying once a search has actually come back with nothing
+  const emptyReason = !busy && query.trim() && !searchMatches.length && textStatus
+    ? explainEmptySearch(textStatus)
+    : null
+
   if (!searchOpen) return null
 
   return (
@@ -67,6 +83,7 @@ export const SearchBar: React.FC = () => {
         maxWidth: 'calc(100vw - 24px)',
         animation: `searchIn 0.2s ${EASE} both`,
         direction: 'rtl',
+        flexWrap: 'wrap',
       }}
     >
       <style>{`@keyframes searchIn { from { opacity: 0; transform: translateX(50%) translateY(-8px); } to { opacity: 1; transform: translateX(50%) translateY(0); } }`}</style>
@@ -100,6 +117,19 @@ export const SearchBar: React.FC = () => {
       <NavBtn label="סגור" onClick={() => setSearchOpen(false)}>
         <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
       </NavBtn>
+
+      {emptyReason && (
+        <div
+          data-search-explains
+          style={{
+            flexBasis: '100%', maxWidth: 300,
+            fontSize: 11.5, lineHeight: 1.5, padding: '2px 4px 4px',
+            color: 'var(--color-text-muted)',
+          }}
+        >
+          {emptyReason}
+        </div>
+      )}
     </div>
   )
 }

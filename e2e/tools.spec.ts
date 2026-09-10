@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { PDFDocument, PDFName } from 'pdf-lib'
 import { readFileSync } from 'fs'
 import { deflateSync } from 'zlib'
-import { makePdf, makeColoredPdf, makeDocx, upload, openToolWithPdf, confirmDownload, trackErrors, selectToolInPanel } from './fixtures'
+import { makePdf, makeColoredPdf, makeDocx, upload, openToolWithPdf, confirmDownload, trackErrors, selectToolInPanel, openToolGroup } from './fixtures'
 
 /** A 1x1 solid PNG of the given colour, built by hand. */
 function colorPng(r: number, g: number, b: number): Buffer {
@@ -399,23 +399,19 @@ test.describe('PDF tools', () => {
 
   test('the tool list is grouped, with conversions together', async ({ page }) => {
     await openToolWithPdf(page, 'organize', 2)
-    await page.getByRole('button', { name: 'הצג את כל הכלים' }).click()
-    await page.waitForTimeout(400)
 
+    // All three headings are on offer without opening anything
     for (const heading of ['עמודים', 'המרות', 'המסמך']) {
-      await expect(page.getByText(heading, { exact: true }).first()).toBeVisible()
+      await expect(page.getByRole('button', { name: new RegExp(`^${heading}`) }).first()).toBeVisible()
     }
 
+    await openToolGroup(page, 'המרות')
     // Every converter sits under "המרות", including the flipbook
-    const inConvert = await page.evaluate(() => {
-      const headings = Array.from(document.querySelectorAll('div'))
-        .filter(d => d.textContent?.trim() === 'המרות' && d.children.length === 0)
-      const group = headings[0]?.parentElement
-      return Array.from(group?.querySelectorAll('button') || []).map(b => b.textContent?.trim())
-    })
     for (const tool of ['PDF לתמונה', 'תמונה ל-PDF', 'PDF לוורד', 'וורד ל-PDF', 'PDF לאקסל', 'פליפבוק ל-PDF']) {
-      expect(inConvert).toContain(tool)
+      await expect(page.getByRole('button', { name: new RegExp(`^${tool}$`) }).first()).toBeVisible()
     }
+    // …and a tool from another category is still put away
+    await expect(page.getByRole('button', { name: /^ארגון דפים$/ })).toBeHidden()
   })
 
   test('flipbook pages become a PDF in natural page order', async ({ page }) => {
@@ -477,23 +473,24 @@ test.describe('PDF tools', () => {
     expect(rgb[3] ?? 1).toBeGreaterThan(0.5)
   })
 
-  test('the tool list starts collapsed and expands on demand', async ({ page }) => {
+  test('every category starts closed and opens on demand', async ({ page }) => {
     await openToolWithPdf(page, 'organize', 2)
 
-    const toggle = page.getByRole('button', { name: 'הצג את כל הכלים' })
-    await expect(toggle).toBeVisible()
-    // Collapsed: the other tools are not reachable
-    await expect(page.getByRole('button', { name: /^סימן מים/ })).toBeHidden()
+    const heading = page.getByRole('button', { name: /^המסמך/ }).first()
+    await expect(heading).toBeVisible()
+    await expect(heading).toHaveAttribute('aria-expanded', 'false')
+    // Closed: the tools inside are not reachable
+    await expect(page.getByRole('button', { name: /^סימן מים$/ })).toBeHidden()
 
-    await toggle.click()
+    await heading.click()
     await page.waitForTimeout(400)
-    await expect(page.getByRole('button', { name: /^סימן מים/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^סימן מים$/ })).toBeVisible()
 
-    // Picking a tool switches to it and collapses the list again
-    await page.getByRole('button', { name: /^סימן מים/ }).first().click()
+    // Picking a tool switches to it and puts the category away again
+    await page.getByRole('button', { name: /^סימן מים$/ }).first().click()
     await page.waitForTimeout(400)
     await expect(page.getByRole('button', { name: 'הוסף סימן מים' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /^סימן מים/ })).toBeHidden()
+    await expect(page.getByRole('button', { name: /^סימן מים$/ })).toBeHidden()
   })
 
   test('the selected tool stays visible before a file is chosen', async ({ page }) => {

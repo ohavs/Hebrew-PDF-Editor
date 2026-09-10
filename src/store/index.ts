@@ -315,6 +315,23 @@ export interface PageNumberSettings {
   /** Drag offset from the default anchor, natural display px */
   dx: number
   dy: number
+  /**
+   * Everything below is optional so a session saved before these existed still
+   * loads; pageStamp.ts holds what each one means when absent.
+   */
+  /** Text with {n}, {total} and {date} standing in for the page's own values. */
+  template?: string
+  vertical?: 'top' | 'bottom'
+  fontFamily?: string
+  fontSize?: number
+  color?: string
+  bold?: boolean
+  /** 1-based inclusive range of pages that carry it; toPage null means to the end. */
+  fromPage?: number
+  toPage?: number | null
+  dateFormat?: 'dd/mm/yyyy' | 'yyyy-mm-dd' | 'long'
+  /** Distance from the page edge, display px. */
+  margin?: number
 }
 
 interface PDFState {

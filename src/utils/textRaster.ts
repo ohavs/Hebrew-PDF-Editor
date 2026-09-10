@@ -232,3 +232,35 @@ export function rasterizePlainText(text: string, fontSize: number, color: string
   ctx.fillText(text, ctx.textAlign === 'right' ? canvas.width : 0, canvas.height / 2)
   return { dataUrl: canvas.toDataURL('image/png'), width: w, height: h }
 }
+
+/**
+ * A running header or footer, drawn as artwork.
+ *
+ * Hebrew cannot go through a built-in PDF font, so the text is painted on a
+ * canvas and embedded as a picture — the same route every other Hebrew string
+ * in this app takes on the way out.
+ */
+export function rasterizeStampText(
+  text: string,
+  fontSize: number,
+  color: string,
+  bold: boolean,
+  fontFamily: string,
+): RasterResult {
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')!
+  const font = `${bold ? 700 : 400} ${fontSize * SCALE}px '${fontFamily}', 'Heebo', sans-serif`
+  ctx.font = font
+  const w = ctx.measureText(text).width / SCALE + 2
+  const h = fontSize * 1.4
+  canvas.width = Math.max(1, Math.ceil(w * SCALE))
+  canvas.height = Math.max(1, Math.ceil(h * SCALE))
+  // Sizing the canvas resets the context, so the font is set again
+  ctx.font = font
+  ctx.fillStyle = color
+  ctx.direction = /[֐-׿]/.test(text) ? 'rtl' : 'ltr'
+  ctx.textAlign = ctx.direction === 'rtl' ? 'right' : 'left'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, ctx.textAlign === 'right' ? canvas.width : 0, canvas.height / 2)
+  return { dataUrl: canvas.toDataURL('image/png'), width: w, height: h }
+}

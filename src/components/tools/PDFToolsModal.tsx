@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { usePDFStore } from '../../store'
 import { useDownloadDocument } from '../../hooks/usePageOps'
 import { EASE, Spinner } from './toolsShared'
-import { CATEGORIES, GROUP_LABELS } from './categories'
+import { CATEGORIES, GROUP_LABELS, type CategoryGroup } from './categories'
 import type { CategoryId } from './categories'
 import { OrganizePanel } from './panels/OrganizePanel'
 import { MergePanel } from './panels/MergePanel'
@@ -26,9 +26,8 @@ export type { CategoryId } from './categories'
 
 export const PDFToolsContent: React.FC<{ onClose: () => void; initialCategory?: CategoryId }> = ({ onClose, initialCategory }) => {
   const [active, setActive] = useState<CategoryId>(initialCategory || 'organize')
-  // The full tool list is a lot of vertical space to keep on screen, so it
-  // collapses to a single row naming the current tool.
-  const [listOpen, setListOpen] = useState(false)
+  // Every category starts closed; the one you want is one tap away
+  const [openGroup, setOpenGroup] = useState<CategoryGroup | null>(null)
   const activeCat = CATEGORIES.find(c => c.id === active)
 
   return (
@@ -50,104 +49,126 @@ export const PDFToolsContent: React.FC<{ onClose: () => void; initialCategory?: 
         </button>
       </div>
 
-      {/* Current tool — tap to reveal the full list */}
-      <button
-        onClick={() => setListOpen(o => !o)}
-        aria-expanded={listOpen}
-        aria-label={listOpen ? 'סגור את רשימת הכלים' : 'הצג את כל הכלים'}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-          padding: '10px 12px', border: 'none', cursor: 'pointer',
-          background: 'var(--color-surface)', color: 'var(--color-text)',
-          fontFamily: 'inherit', textAlign: 'start', flexShrink: 0,
-          borderBottom: '1px solid var(--color-border)',
-          WebkitTapHighlightColor: 'transparent', minHeight: 0,
-        }}
-      >
-        <span style={{
-          width: 28, height: 28, borderRadius: 9, flexShrink: 0,
-          background: 'var(--color-accent)', color: 'var(--color-on-accent)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          {activeCat?.icon}
-        </span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: 'block', fontSize: 13, fontWeight: 700 }}>{activeCat?.label}</span>
-          <span style={{
-            display: 'block', fontSize: 10.5, color: 'var(--color-text-muted)',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {listOpen ? 'בחר כלי מהרשימה' : activeCat?.desc}
-          </span>
-        </span>
-        <svg
-          width="16" height="16" fill="none" stroke="var(--color-text-muted)" strokeWidth="2.4" viewBox="0 0 24 24"
-          style={{
-            flexShrink: 0,
-            transform: listOpen ? 'rotate(180deg)' : 'none',
-            transition: `transform 240ms ${EASE}`,
-          }}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {/* Full tool list — collapsed by default. The 0fr→1fr grid trick
-          animates to the content's natural height without measuring it. */}
-      <div style={{
-        display: 'grid',
-        gridTemplateRows: listOpen ? '1fr' : '0fr',
-        transition: `grid-template-rows 260ms ${EASE}`,
-        flexShrink: 0,
-        borderBottom: listOpen ? '1px solid var(--color-border)' : 'none',
-      }}>
-        {/* A zero-height grid row still leaves its children with a real box,
-            so screen readers and pointer hits could reach the hidden pills.
-            visibility takes them out entirely, delayed so the close animation
-            still plays. */}
+      {/* The tool that is open right now */}
+      {activeCat && (
         <div style={{
-          overflow: 'hidden',
-          visibility: listOpen ? 'visible' : 'hidden',
-          transition: `visibility 0s linear ${listOpen ? '0s' : '260ms'}`,
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '12px 14px', flexShrink: 0,
+          borderBottom: '1px solid var(--color-border)',
         }}>
-          <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {(['pages', 'convert', 'document'] as const).map(group => (
-              <div key={group}>
-                <div style={{
-                  fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-                  color: 'var(--color-text-muted)', marginBottom: 5,
-                }}>
-                  {GROUP_LABELS[group]}
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {CATEGORIES.filter(c => c.group === group).map(cat => {
-              const isActive = active === cat.id
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => { setActive(cat.id); setListOpen(false) }}
-                  aria-pressed={isActive}
-                  tabIndex={listOpen ? 0 : -1}
+          <span style={{
+            width: 38, height: 38, borderRadius: 12, flexShrink: 0,
+            background: 'var(--color-accent)', color: 'var(--color-on-accent)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {activeCat.icon}
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 14.5, fontWeight: 700 }}>{activeCat.label}</span>
+            <span style={{
+              display: 'block', fontSize: 11.5, color: 'var(--color-text-muted)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {activeCat.desc}
+            </span>
+          </span>
+        </div>
+      )}
+
+      {/* One section per category, each closed until asked for. Sixteen tools
+          at once is a wall; three headings is a choice. */}
+      <div style={{ flexShrink: 0, borderBottom: '1px solid var(--color-border)' }}>
+        {(Object.keys(GROUP_LABELS) as CategoryGroup[]).map(group => {
+          const open = openGroup === group
+          const tools = CATEGORIES.filter(c => c.group === group)
+          if (!tools.length) return null
+          return (
+            <div key={group}>
+              <button
+                onClick={() => setOpenGroup(open ? null : group)}
+                aria-expanded={open}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                  padding: '13px 14px', border: 'none', cursor: 'pointer',
+                  background: 'transparent', color: 'var(--color-text)',
+                  fontFamily: 'inherit', textAlign: 'start',
+                  fontSize: 13.5, fontWeight: 700,
+                  WebkitTapHighlightColor: 'transparent', minHeight: 0,
+                }}
+              >
+                <span style={{ flex: 1, minWidth: 0 }}>{GROUP_LABELS[group]}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--color-text-muted)' }}>
+                  {tools.length}
+                </span>
+                <svg
+                  width="18" height="18" fill="none" stroke="var(--color-text-muted)"
+                  strokeWidth="2.4" viewBox="0 0 24 24"
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    padding: '5px 10px', borderRadius: 20, border: 'none', cursor: 'pointer',
-                    background: isActive ? 'var(--color-accent)' : 'var(--color-surface-2)',
-                    color: isActive ? 'var(--color-on-accent)' : 'var(--color-text-muted)',
-                    fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
-                    flexShrink: 0, transition: 'background 150ms ease-out, color 150ms ease-out',
-                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    transform: open ? 'rotate(180deg)' : 'none',
+                    transition: `transform 240ms ${EASE}`,
                   }}
                 >
-                  <span style={{ opacity: isActive ? 1 : 0.6 }}>{cat.icon}</span>
-                  {cat.label}
-                </button>
-              )
-                  })}
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* 0fr → 1fr animates to the content's own height without measuring it */}
+              <div style={{
+                display: 'grid',
+                gridTemplateRows: open ? '1fr' : '0fr',
+                transition: `grid-template-rows 260ms ${EASE}`,
+              }}>
+                <div style={{
+                  overflow: 'hidden',
+                  // A zero-height row still leaves real boxes behind, which a
+                  // screen reader and a stray tab would both walk into
+                  visibility: open ? 'visible' : 'hidden',
+                  transition: `visibility 0s linear ${open ? '0s' : '260ms'}`,
+                }}>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                    gap: 8, padding: '2px 12px 14px',
+                  }}>
+                    {tools.map(cat => {
+                      const isActive = active === cat.id
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => { setActive(cat.id); setOpenGroup(null) }}
+                          aria-pressed={isActive}
+                          tabIndex={open ? 0 : -1}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 9,
+                            padding: '10px 11px', borderRadius: 14, cursor: 'pointer',
+                            border: `1.5px solid ${isActive ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                            background: isActive ? 'var(--color-mint)' : 'var(--color-surface)',
+                            color: 'var(--color-text)',
+                            fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit',
+                            textAlign: 'start',
+                            transition: `background 150ms ${EASE}, border-color 150ms ${EASE}`,
+                            minHeight: 0,
+                          }}
+                        >
+                          <span style={{
+                            width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: isActive ? 'var(--color-accent)' : 'var(--color-surface-2)',
+                            color: isActive ? 'var(--color-on-accent)' : cat.color,
+                          }}>
+                            {cat.icon}
+                          </span>
+                          <span style={{ minWidth: 0 }}>{cat.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          )
+        })}
       </div>
 
       {/* Content area */}

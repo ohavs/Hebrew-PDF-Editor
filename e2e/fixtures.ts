@@ -169,17 +169,27 @@ export async function openToolWithPdf(page: Page, tool: string, pages = 3) {
 }
 
 /**
- * Pick a tool from inside the tools panel. The list is collapsed by default,
- * so it has to be expanded first.
+ * Pick a tool from inside the tools panel. Every category is closed to begin
+ * with, so the one holding the tool has to be opened first.
  */
 export async function selectToolInPanel(page: Page, label: string | RegExp) {
-  const toggle = page.getByRole('button', { name: /הצג את כל הכלים|סגור את רשימת הכלים/ })
-  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
-    await toggle.click()
-    await page.waitForTimeout(350)
+  const tool = page.getByRole('button', { name: label }).first()
+  for (const group of ['עמודים', 'המרות', 'המסמך']) {
+    if (await tool.isVisible().catch(() => false)) break
+    await page.getByRole('button', { name: new RegExp(`^${group}`) }).first().click()
+    await page.waitForTimeout(320)
   }
-  await page.getByRole('button', { name: label }).first().click()
+  await tool.click()
   await page.waitForTimeout(400)
+}
+
+/** Open one category section of the tools panel. */
+export async function openToolGroup(page: Page, group: string) {
+  const header = page.getByRole('button', { name: new RegExp(`^${group}`) }).first()
+  if ((await header.getAttribute('aria-expanded')) !== 'true') {
+    await header.click()
+    await page.waitForTimeout(320)
+  }
 }
 
 /** Confirm the file-name dialog and return the triggered download. */

@@ -1,6 +1,8 @@
 import { PDFDocument, StandardFonts, rgb, degrees, PDFName, PDFDict } from 'pdf-lib'
 import type { Annotation, FormField, ImageAnnotation, PageInfo, Rect, Point } from '../store/types'
-import { rasterizeTextBox, rasterizeStamp, rasterizeStickyCard, rasterizePlainText } from './textRaster'
+import type { PageNumberSettings } from '../store'
+import { stampConfig, stampText, stampApplies, stampPosition, needsHebrewFont } from './pageStamp'
+import { rasterizeTextBox, rasterizeStamp, rasterizeStickyCard, rasterizePlainText, rasterizeStampText } from './textRaster'
 
 export interface ExportDecorations {
   watermark?: {
@@ -10,12 +12,7 @@ export interface ExportDecorations {
     dx: number
     dy: number
   } | null
-  pageNumbers?: {
-    position: 'center' | 'right' | 'left'
-    startAt: number
-    dx: number
-    dy: number
-  } | null
+  pageNumbers?: PageNumberSettings | null
 }
 
 /** Rasterize the watermark text (Hebrew-safe) as a square diagonal tile. */
@@ -413,29 +410,52 @@ export async function embedAnnotationsIntoPdf(
   if (decorations?.pageNumbers) {
     const pn = decorations.pageNumbers
     try {
+      const cfg = stampConfig(pn)
       const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-      const fontSize = 11
-      pages.forEach((page, idx) => {
+      const total = pageOrder.length || pages.length
+      const now = new Date()
+
+      for (const [idx, page] of pages.entries()) {
         const { width: W, height: H } = page.getSize()
         const R = totalRotation(idx)
         const [dw, dh] = R % 180 === 90 ? [H, W] : [W, H]
         // Number by DISPLAY position so it matches what the user sees
         const displayPos = pageOrder.length ? pageOrder.indexOf(idx) : idx
-        if (displayPos < 0) return
-        const label = String(pn.startAt + displayPos)
-        const textW = font.widthOfTextAtSize(label, fontSize)
-        const baseX = pn.position === 'center' ? (dw - textW) / 2
-          : pn.position === 'right' ? dw - 40 - textW : 40
+        if (displayPos < 0) continue
+        if (!stampApplies(pn, displayPos, total)) continue
+
+        const label = stampText(pn, displayPos, total, now)
+        if (!label.trim()) continue
         const map = pageMapper(R, W, H)
+
+        if (needsHebrewFont(label)) {
+          // A built-in font cannot encode Hebrew, so the text is drawn the
+          // same way every other Hebrew string in this app is: as artwork
+          const tile = rasterizeStampText(label, cfg.fontSize, cfg.color, cfg.bold, cfg.fontFamily)
+          const at = stampPosition(pn, dw, dh, tile.width)
+          const place = map.imagePlacement({
+            x: at.x, y: at.y - cfg.fontSize, width: tile.width, height: tile.height,
+          })
+          const img = await pdfDoc.embedPng(tile.dataUrl)
+          page.drawImage(img, {
+            x: place.x, y: place.y, width: place.width, height: place.height,
+            rotate: degrees(place.rotate),
+          })
+          continue
+        }
+
+        const textW = font.widthOfTextAtSize(label, cfg.fontSize)
+        const at = stampPosition(pn, dw, dh, textW)
         const place = map.imagePlacement({
-          x: baseX + pn.dx, y: dh - 34 + pn.dy, width: textW, height: fontSize,
+          x: at.x, y: at.y - cfg.fontSize, width: textW, height: cfg.fontSize,
         })
+        const [r, g, b] = hexToRgb(cfg.color)
         page.drawText(label, {
           x: place.x, y: place.y + 2,
-          size: fontSize, font, color: rgb(0.35, 0.35, 0.35),
+          size: cfg.fontSize, font, color: rgb(r, g, b),
           rotate: degrees(place.rotate),
         })
-      })
+      }
     } catch (e) { console.error('page numbers export failed', e) }
   }
 

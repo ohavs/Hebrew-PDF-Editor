@@ -23,7 +23,7 @@ export const TOOL_META: Array<{ id: CategoryId; label: string; desc: string; emo
   { id: 'to-word',    label: 'PDF לוורד',   desc: 'ייצא את הטקסט כ-DOCX',       emoji: '📝', group: 'convert' },
   { id: 'from-word',  label: 'וורד ל-PDF',  desc: 'המר מסמך DOCX ל-PDF',        emoji: '📄', group: 'convert' },
   { id: 'to-excel',   label: 'PDF לאקסל',   desc: 'ייצא טבלאות כ-XLSX',         emoji: '📊', group: 'convert' },
-  { id: 'flipbook',   label: 'פליפבוק ל-PDF', desc: 'הרכב PDF מעמודי פליפבוק',   emoji: '📖', group: 'convert' },
+  { id: 'flipbook',   label: 'פליפבוק ל-PDF', desc: 'מכתובת FlipHTML5 או מתמונות',   emoji: '📖', group: 'convert' },
   { id: 'compress',   label: 'דחיסת PDF',   desc: 'הקטן את גודל הקובץ',         emoji: '🗜️', group: 'document' },
   { id: 'watermark',  label: 'סימן מים',    desc: 'הוסף טקסט על כל הדפים',      emoji: '💧', group: 'document' },
   { id: 'compare',    label: 'השוואת גרסאות', desc: 'מצא מה השתנה מול קובץ אחר', emoji: '🔍', group: 'document' },
