@@ -28,6 +28,7 @@ export const TOOL_META: Array<{ id: CategoryId; label: string; desc: string; emo
   { id: 'watermark',  label: 'סימן מים',    desc: 'הוסף טקסט על כל הדפים',      emoji: '💧', group: 'document' },
   { id: 'compare',    label: 'השוואת גרסאות', desc: 'מצא מה השתנה מול קובץ אחר', emoji: '🔍', group: 'document' },
   { id: 'unlock',     label: 'הסרת הגנה',    desc: 'הסר סיסמה והגבלות מקובץ',    emoji: '🔓', group: 'document' },
+  { id: 'marks',      label: 'סימנים בקובץ', desc: 'הסר חותמות והערות שהגיעו עם הקובץ', emoji: '🏷️', group: 'document' },
 ]
 
 /**

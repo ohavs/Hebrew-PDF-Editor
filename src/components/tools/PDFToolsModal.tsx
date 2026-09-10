@@ -19,6 +19,7 @@ import { ToExcelPanel } from './panels/ToExcelPanel'
 import { PageNumbersPanel } from './panels/PageNumbersPanel'
 import { ComparePanel } from './panels/ComparePanel'
 import { FlipbookPanel } from './panels/FlipbookPanel'
+import { MarksPanel } from './panels/MarksPanel'
 import { UnlockPanel } from './panels/UnlockPanel'
 
 export type { CategoryId } from './categories'
@@ -262,5 +263,6 @@ const ToolPanel: React.FC<{ category: CategoryId }> = ({ category }) => {
     case 'compare': return <ComparePanel />
     case 'flipbook': return <FlipbookPanel />
     case 'unlock': return <UnlockPanel />
+    case 'marks': return <MarksPanel />
   }
 }

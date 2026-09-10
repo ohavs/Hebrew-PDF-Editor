@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react'
 import { usePDFStore, useUIStore, useAnnotationsStore } from '../../store'
 import { findEditableLineAt, sampleLineColors, type EditableLine } from '../../utils/textEdit'
+import { marksOf, markLabel } from '../../utils/documentMarks'
 import type { TextBoxAnnotation } from '../../store/types'
 
 interface Props {
@@ -49,6 +50,17 @@ export const TextEditLayer: React.FC<Props> = ({ pageIndex, naturalWidth, natura
     if (!active) return
     e.stopPropagation()
     const hit = await locate(e.clientX, e.clientY, e.currentTarget as HTMLElement)
+    // A stamp or watermark that came with the file is not page text at all, so
+    // no amount of aiming will find it. Say which tool does own it.
+    const mark = (await marksOf(pdfDoc, usePDFStore.getState().pdfBytes)).find(m =>
+      m.pageIndex === pageIndex &&
+      lastPoint.current.x >= m.rect.x && lastPoint.current.x <= m.rect.x + m.rect.width &&
+      lastPoint.current.y >= m.rect.y && lastPoint.current.y <= m.rect.y + m.rect.height)
+    if (mark && hit.kind !== 'line') {
+      addToast(`זהו ${markLabel(mark)} שהגיע עם הקובץ, לא טקסט של העמוד. אפשר להסיר אותו בכלי "סימנים בקובץ".`, 'warning')
+      return
+    }
+
     if (hit.kind === 'no-text-layer') {
       // Nothing to find: the page is a picture of text, not text
       addToast('אין בדף הזה טקסט הניתן לעריכה — כנראה סריקה או תמונה. אפשר להוסיף תיבת טקסט מעל.', 'warning')

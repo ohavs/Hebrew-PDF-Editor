@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { PDFDocument, PDFName, PDFString, StandardFonts, rgb } from 'pdf-lib'
 import { zipSync, strToU8 } from 'fflate'
 import type { Page } from '@playwright/test'
 
@@ -9,6 +9,46 @@ export async function makePdf(pages = 3): Promise<Buffer> {
   for (let p = 1; p <= pages; p++) {
     const page = doc.addPage([595, 842])
     page.drawText(`PAGE ${p}`, { x: 180, y: 420, size: 56, font })
+  }
+  return Buffer.from(await doc.save())
+}
+
+/**
+ * A PDF carrying a big "DEMO VERSION" stamp as an annotation with no
+ * appearance stream — the shape of a trial-software watermark. Nothing paints
+ * it, and its words are not page text, so it is invisible to both the canvas
+ * and getTextContent.
+ */
+export async function makeStampedPdf(
+  pages = 2,
+  text = 'DEMO VERSION',
+  opts: { leadingLink?: boolean } = {},
+): Promise<Buffer> {
+  const doc = await PDFDocument.create()
+  const font = await doc.embedFont(StandardFonts.Helvetica)
+  for (let p = 1; p <= pages; p++) {
+    const page = doc.addPage([595, 842])
+    page.drawText(`REAL TEXT ${p}`, { x: 60, y: 120, size: 18, font })
+    const stamp = doc.context.register(doc.context.obj({
+      Type: 'Annot', Subtype: 'FreeText',
+      Rect: [100, 500, 500, 570],
+      Contents: PDFString.of(text),
+      DA: PDFString.of('/Helv 44 Tf 0 g'),
+      F: 4,
+    }))
+    const note = doc.context.register(doc.context.obj({
+      Type: 'Annot', Subtype: 'Text',
+      Rect: [40, 700, 60, 720],
+      Contents: PDFString.of('keep me'),
+      F: 4,
+    }))
+    // A link ahead of the stamp makes the tool's list and the file's own array
+    // disagree about position — the case that positional removal gets wrong
+    const link = doc.context.register(doc.context.obj({
+      Type: 'Annot', Subtype: 'Link', Rect: [40, 60, 200, 80], F: 4,
+    }))
+    page.node.set(PDFName.of('Annots'), doc.context.obj(
+      opts.leadingLink ? [link, stamp, note] : [stamp, note]))
   }
   return Buffer.from(await doc.save())
 }

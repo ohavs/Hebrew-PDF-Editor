@@ -6,6 +6,7 @@ import { DecorationsLayer } from './DecorationsLayer'
 import { FormFieldsLayer } from './FormFieldsLayer'
 import { GuidesLayer } from './GuidesLayer'
 import { TextEditLayer } from './TextEditLayer'
+import { UnpaintedMarksLayer } from './UnpaintedMarksLayer'
 
 interface Props {
   pageIndex: number
@@ -76,6 +77,14 @@ export const PDFPage: React.FC<Props> = ({ pageIndex, isVisible }) => {
         />
       )}
       <canvas ref={canvasRef} className="pdf-canvas" style={{ width: cssW, height: cssH }} />
+      {renderedOnce && (
+        <UnpaintedMarksLayer
+          pageIndex={pageIndex}
+          naturalWidth={naturalW}
+          naturalHeight={naturalH}
+          zoom={zoom}
+        />
+      )}
       {renderedOnce && <SearchHighlights pageIndex={pageIndex} zoom={zoom} />}
       {renderedOnce && <FormFieldsLayer pageIndex={pageIndex} zoom={zoom} />}
       {renderedOnce && (

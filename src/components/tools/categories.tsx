@@ -5,7 +5,7 @@ export type CategoryId =
   | 'compress' | 'to-image' | 'from-image'
   | 'watermark' | 'reverse'
   | 'to-word' | 'from-word' | 'to-excel' | 'flipbook'
-  | 'page-numbers' | 'compare' | 'unlock'
+  | 'page-numbers' | 'compare' | 'unlock' | 'marks'
 
 /** Tools are grouped so a list of sixteen reads as three short ones. */
 export type CategoryGroup = 'pages' | 'convert' | 'document'
@@ -42,6 +42,7 @@ export const CATEGORIES: Category[] = [
   { id: 'page-numbers', label: 'מספור עמודים', desc: 'הוסף מספרי עמודים', color: '#0891b2', icon: <NumbersIcon /> , group: 'pages' },
   { id: 'compare', label: 'השוואת גרסאות', desc: 'מצא מה השתנה מול קובץ אחר', color: '#d97706', icon: <CompareIcon /> , group: 'document' },
   { id: 'unlock', label: 'הסרת הגנה', desc: 'הסר סיסמה והגבלות מקובץ', color: '#059669', icon: <UnlockIcon /> , group: 'document' },
+  { id: 'marks', label: 'סימנים בקובץ', desc: 'הסר חותמות, סימני מים והערות שהגיעו עם הקובץ', color: '#be123c', icon: <MarksIcon /> , group: 'document' },
 ]
 
 function OrganizeIcon()   { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg> }
@@ -50,6 +51,7 @@ function ReverseIcon()    { return <svg width="18" height="18" fill="none" strok
 function WordIcon()       { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 3v5h5M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z"/><path strokeLinecap="round" strokeLinejoin="round" d="M8.5 12l1.5 5 2-4 2 4 1.5-5"/></svg> }
 function FromWordIcon()   { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 3v5h5M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 11v6m0 0l-2.5-2.5M12 17l2.5-2.5"/></svg> }
 function NumbersIcon()    { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path strokeLinecap="round" d="M12 17h.01M9 7h6M9 11h6"/></svg> }
+function MarksIcon()      { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 4h14v13l-7 4-7-4V4z"/><path strokeLinecap="round" d="M9 9h6M9 13h4"/></svg> }
 function UnlockIcon()     { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path strokeLinecap="round" d="M8 10V7a4 4 0 017.5-2"/><path strokeLinecap="round" d="M12 14v3"/></svg> }
 function CompareIcon()    { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="2.5" y="4" width="8" height="16" rx="1.5"/><rect x="13.5" y="4" width="8" height="16" rx="1.5"/><path strokeLinecap="round" d="M5 9h3M5 12h3M16 9h3M16 12h3M16 15h3"/></svg> }
 function FlipbookIcon()   { return <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v14M12 6C10.5 4.8 8.6 4 6 4H3v14h3c2.6 0 4.5.8 6 2M12 6c1.5-1.2 3.4-2 6-2h3v14h-3c-2.6 0-4.5.8-6 2"/></svg> }
