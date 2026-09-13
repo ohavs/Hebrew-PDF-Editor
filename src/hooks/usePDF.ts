@@ -4,6 +4,7 @@ import { usePDFStore } from '../store'
 import { useAnnotationsStore } from '../store'
 import { useUIStore } from '../store'
 import { detectFormFields } from '../utils/formFields'
+import { askPassword } from '../components/ui/PromptDialog'
 
 // Set worker.
 //
@@ -62,6 +63,9 @@ export function usePDF() {
     opts?: { name?: string; preserveAnnotations?: boolean }
   ) => {
     setIsLoading(true, 0)
+    // Declared outside the try so the catch can tell a cancelled password
+    // dialog from a document that genuinely would not open
+    let passwordCancelled = false
     try {
       let data: ArrayBuffer
       let name = opts?.name || 'document.pdf'
@@ -104,12 +108,22 @@ export function usePDF() {
       loadingTask.onProgress = (p: { loaded: number; total: number }) => {
         if (p.total > 0) setIsLoading(true, 30 + Math.round((p.loaded / p.total) * 60))
       }
-      // Password-protected PDFs (bank statements, payslips...) — prompt
-      // instead of failing with a generic load error. reason 2 = wrong password.
+      // Password-protected PDFs (bank statements, payslips...) — ask instead
+      // of failing with a generic load error. reason 2 = the last one was wrong.
+      //
+      // pdf.js calls this without waiting, so the answer is handed back when
+      // the dialog closes rather than returned from here. Cancelling has to
+      // reject the load explicitly, or the task would wait for a password that
+      // is never coming.
       loadingTask.onPassword = (updatePassword: (pw: string) => void, reason: number) => {
-        const pw = window.prompt(reason === 2 ? 'סיסמה שגויה. נסה שוב:' : 'הקובץ מוגן בסיסמה. הזן סיסמה:')
-        if (pw !== null && pw !== '') updatePassword(pw)
-        else throw new Error('PasswordCancelled')
+        askPassword(reason === 2).then(pw => {
+          if (pw) { updatePassword(pw); return }
+          // Nothing here can reject the load, so the task is destroyed and the
+          // pending promise rejects on its own; the flag says the rejection
+          // was asked for and needs no error shouted about it
+          passwordCancelled = true
+          loadingTask.destroy()
+        })
       }
 
       const pdfDoc = await loadingTask.promise
@@ -136,9 +150,11 @@ export function usePDF() {
       }
       return pdfDoc
     } catch (err: any) {
-      console.error('loadPDF failed', err)
       setIsLoading(false)
-      const msg = err?.message?.includes('PasswordCancelled') || err?.name === 'PasswordException'
+      // Backing out of the password dialog is a decision, not a failure
+      if (passwordCancelled) return null
+      console.error('loadPDF failed', err)
+      const msg = err?.name === 'PasswordException'
         ? 'הקובץ מוגן בסיסמה'
         : err?.message?.includes('Invalid PDF') ? 'הקובץ אינו PDF תקין' : 'שגיאה בטעינת הקובץ'
       addToast(msg, 'error')

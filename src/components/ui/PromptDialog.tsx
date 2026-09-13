@@ -9,7 +9,7 @@ const EASE = 'cubic-bezier(0.23,1,0.32,1)'
  */
 export const PromptDialog: React.FC = () => {
   const { promptDialog, resolvePrompt } = useUIStore()
-  const { open, title, value, suffix } = promptDialog
+  const { open, title, value, suffix, password, confirmLabel, hint } = promptDialog
   const [text, setText] = useState(value)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -68,10 +68,12 @@ export const PromptDialog: React.FC = () => {
           <input
             ref={inputRef}
             className="input"
+            type={password ? 'password' : 'text'}
+            autoComplete={password ? 'current-password' : 'off'}
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') submit() }}
-            dir="auto"
+            dir={password ? 'ltr' : 'auto'}
             style={{ flex: 1, fontSize: 15, textAlign: 'center' }}
           />
           {suffix && (
@@ -80,6 +82,14 @@ export const PromptDialog: React.FC = () => {
             </span>
           )}
         </div>
+
+        {hint && (
+          <div role="alert" style={{
+            fontSize: 12, color: '#dc2626', marginTop: 8, textAlign: 'center', direction: 'rtl',
+          }}>
+            {hint}
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
           <button
@@ -105,7 +115,7 @@ export const PromptDialog: React.FC = () => {
             onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)' }}
             onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = '' }}
           >
-            הורד
+            {confirmLabel}
           </button>
         </div>
       </div>
@@ -123,7 +133,25 @@ export async function askFileName(defaultFullName: string, ext: string): Promise
     title: 'שם הקובץ להורדה',
     value: base,
     suffix: ext,
+    confirmLabel: 'הורד',
   })
   if (name === null) return null
   return name.replace(new RegExp(`\\${ext}$`, 'i'), '') + ext
+}
+
+/**
+ * Ask for a document's password, in the app's own dialog.
+ *
+ * A protected file can be opened from anywhere — dropped on the editor, picked
+ * from the home page — so the asking cannot live inside one tool's panel. What
+ * it must not be is the browser's own grey box, which is what it was.
+ */
+export async function askPassword(wrongSoFar = false): Promise<string | null> {
+  return useUIStore.getState().promptText({
+    title: 'הקובץ מוגן בסיסמה',
+    value: '',
+    password: true,
+    confirmLabel: 'פתח',
+    hint: wrongSoFar ? 'הסיסמה שגויה — נסה שוב' : '',
+  })
 }

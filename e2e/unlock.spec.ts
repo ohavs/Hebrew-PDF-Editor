@@ -60,3 +60,63 @@ test.describe('unlock PDF', () => {
     await expectUnencrypted(readFileSync((await download.path())!), 3)
   })
 })
+
+/**
+ * Opening a protected file straight in the editor.
+ *
+ * This is a different path from the unlock tool: the file can be dropped on
+ * the editor or picked from the home page, so the asking cannot live inside
+ * one tool's panel. It used to be the browser's own grey prompt.
+ */
+test.describe('the password dialog', () => {
+  const open = async (page: import('@playwright/test').Page) => {
+    await page.goto('/#/editor', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(700)
+    await page.locator('input[type="file"][accept*="pdf"]').last()
+      .setInputFiles({
+        name: 'locked-user.pdf',
+        mimeType: 'application/pdf',
+        buffer: asset('locked-user.pdf'),
+      })
+  }
+
+  test('asks in the app rather than in a browser box', async ({ page }) => {
+    // A native prompt would block the page and never resolve here, so if the
+    // dialog under test were window.prompt this would hang rather than pass
+    let nativePrompts = 0
+    page.on('dialog', async d => { nativePrompts++; await d.dismiss() })
+
+    await open(page)
+    const field = page.locator('input[type="password"]')
+    await expect(field).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByText('הקובץ מוגן בסיסמה')).toBeVisible()
+    expect(nativePrompts).toBe(0)
+  })
+
+  test('the right password opens the document', async ({ page }) => {
+    await open(page)
+    await page.locator('input[type="password"]').fill('sod1234')
+    await page.getByRole('button', { name: 'פתח', exact: true }).click()
+    await page.waitForTimeout(4000)
+    await expect(page.locator('canvas.pdf-canvas').first()).toBeVisible()
+  })
+
+  test('a wrong password says so and asks again', async ({ page }) => {
+    await open(page)
+    await page.locator('input[type="password"]').fill('nope')
+    await page.getByRole('button', { name: 'פתח', exact: true }).click()
+    await page.waitForTimeout(2500)
+    await expect(page.getByText('הסיסמה שגויה — נסה שוב')).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('input[type="password"]')).toBeVisible()
+  })
+
+  test('backing out is quiet — a choice, not an error', async ({ page }) => {
+    await open(page)
+    await expect(page.locator('input[type="password"]')).toBeVisible({ timeout: 20_000 })
+    await page.getByRole('button', { name: 'ביטול' }).click()
+    await page.waitForTimeout(2500)
+    await expect(page.locator('input[type="password"]')).toHaveCount(0)
+    // No error shouted about a decision the user made on purpose
+    await expect(page.getByText(/שגיאה בטעינת הקובץ|הקובץ מוגן בסיסמה/)).toHaveCount(0)
+  })
+})

@@ -80,9 +80,11 @@ export const UnlockPanel: React.FC = () => {
       console.error(e)
       // pdf.js reports a missing password and a wrong one separately
       if (e?.name === 'PasswordException') {
+        // The message belongs next to the field it is about, not floating over
+        // the page — the input already says what is wrong and where to fix it
         const wrong = e?.code === 2 || /incorrect/i.test(String(e?.message))
         setStatus({ kind: wrong ? 'wrong-password' : 'needs-password' })
-        addToast(wrong ? 'הסיסמה שגויה' : 'הקובץ מוגן — הזן את הסיסמה', 'warning')
+        document.getElementById('unlock-password')?.focus()
       } else {
         addToast('שגיאה בהסרת ההגנה', 'error')
       }

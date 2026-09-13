@@ -47,6 +47,12 @@ interface UIState {
     title: string
     value: string
     suffix: string
+    /** Mask the field, for a password rather than a name. */
+    password: boolean
+    /** Wording of the confirming button — "download" does not fit every ask. */
+    confirmLabel: string
+    /** A line under the field, for explaining what went wrong. */
+    hint: string
     resolve: ((v: string | null) => void) | null
   }
 
@@ -116,7 +122,14 @@ interface UIState {
   confirm: (opts: { title: string; message?: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean }) => Promise<boolean>
   resolveConfirm: (v: boolean) => void
   /** Ask the user for a text value (e.g. a file name). Resolves null on cancel. */
-  promptText: (opts: { title: string; value: string; suffix?: string }) => Promise<string | null>
+  promptText: (opts: {
+    title: string
+    value: string
+    suffix?: string
+    password?: boolean
+    confirmLabel?: string
+    hint?: string
+  }) => Promise<string | null>
   resolvePrompt: (v: string | null) => void
   setDrawColor: (c: string) => void
   setDrawWidth: (w: number) => void
@@ -167,7 +180,10 @@ export const useUIStore = create<UIState>()((set) => ({
     open: false, title: '', message: '', confirmLabel: 'אישור', cancelLabel: 'ביטול',
     danger: false, resolve: null,
   },
-  promptDialog: { open: false, title: '', value: '', suffix: '', resolve: null },
+  promptDialog: {
+    open: false, title: '', value: '', suffix: '',
+    password: false, confirmLabel: 'אישור', hint: '', resolve: null,
+  },
 
   drawColor: '#ef4444',
   drawWidth: 3,
@@ -256,7 +272,18 @@ export const useUIStore = create<UIState>()((set) => ({
     return { confirmDialog: { ...s.confirmDialog, open: false, resolve: null } }
   }),
   promptText: (opts) => new Promise<string | null>((resolve) => {
-    set({ promptDialog: { open: true, title: opts.title, value: opts.value, suffix: opts.suffix || '', resolve } })
+    set({
+      promptDialog: {
+        open: true,
+        title: opts.title,
+        value: opts.value,
+        suffix: opts.suffix || '',
+        password: opts.password ?? false,
+        confirmLabel: opts.confirmLabel || 'אישור',
+        hint: opts.hint || '',
+        resolve,
+      },
+    })
   }),
   resolvePrompt: (v) => set((s) => {
     s.promptDialog.resolve?.(v)
